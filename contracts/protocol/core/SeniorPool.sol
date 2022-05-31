@@ -19,11 +19,18 @@ import "./ConfigHelper.sol";
  * @author Goldfinch
  */
 contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
+
+  struct PoolToken {
+    address tokenAddress;
+    uint256 decimal;
+  }
+
   GoldfinchConfig public config;
   using ConfigHelper for GoldfinchConfig;
   using SafeMath for uint256;
 
   mapping(ITranchedPool => uint256) public writedowns;
+  PoolToken[] public poolTokens;
 
   event DepositMade(address indexed capitalProvider, uint256 amount, uint256 shares);
   event WithdrawalMade(address indexed capitalProvider, uint256 userAmount, uint256 reserveAmount);
@@ -36,6 +43,8 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   event InvestmentMadeInJunior(address indexed tranchedPool, uint256 amount);
 
   event GoldfinchConfigUpdated(address indexed who, address configAddress);
+
+  event PoolTokenUpdated(address indexed token);
 
   function initialize(address owner, GoldfinchConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
@@ -55,6 +64,20 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
 
     bool success = usdc.approve(address(this), uint256(-1));
     require(success, "Failed to approve USDC");
+  }
+
+  /**
+   * @notice Add pool token
+   * @param token address of the pool
+   */
+  function addPoolToken(IERC20withDec token) external onlyAdmin {
+    PoolToken memory poolToken = PoolToken(address(token), token.decimals());
+    poolTokens.push(poolToken);
+
+    emit PoolTokenUpdated(poolToken.tokenAddress);
+
+    bool success = token.approve(address(this), uint256(-1));
+    require(success, "Failed to approve token");
   }
 
   /**
