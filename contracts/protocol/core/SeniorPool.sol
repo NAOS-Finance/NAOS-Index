@@ -24,6 +24,8 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   using SafeMath for uint256;
 
   mapping(ITranchedPool => uint256) public writedowns;
+  mapping(uint256 => uint256) public feeTiers;
+  mapping(address => uint256) public userTiers;
 
   event DepositMade(address indexed capitalProvider, uint256 amount, uint256 shares);
   event WithdrawalMade(address indexed capitalProvider, uint256 userAmount, uint256 reserveAmount);
@@ -36,6 +38,9 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   event InvestmentMadeInJunior(address indexed tranchedPool, uint256 amount);
 
   event GoldfinchConfigUpdated(address indexed who, address configAddress);
+
+  event FeeTierUpdated(uint256 indexed tier, uint256 fee);
+  event UserFeeTierUpdated(address indexed who, uint256 tier);
 
   function initialize(address owner, GoldfinchConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
@@ -236,6 +241,29 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     return usdcToFidu(amount).mul(fiduMantissa()).div(sharePrice);
   }
 
+  /**
+   * @notice Set fee tier
+   * @param tier id
+   * @param fee percent
+   */
+  function setFeeTier(uint256 tier, uint256 fee) external onlyAdmin {
+    require(fee <= 10000, "Failed to set fee tier (too large)");
+    emit FeeTierUpdated(tier, fee);
+    feeTiers[tier] = fee;
+  }
+
+  /**
+   * @notice Set fee tier for user
+   * @param user address
+   * @param tier id
+   */
+  function setUserTier(address user, uint256 tier) external onlyAdmin {
+    require(user != address(0), "Failed to set user tier (zero address)");
+    require(feeTiers[tier] > 0, "Failed to set user tier (fee tier wasn't set)");
+    emit UserFeeTierUpdated(user, tier);
+    userTiers[user] = tier;
+  }
+
   /* Internal Functions */
 
   function _calculateWritedown(ITranchedPool pool, uint256 principal)
@@ -311,10 +339,14 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // Ensure the address has enough value in the pool
     require(withdrawShares <= currentShares, "Amount requested is greater than what this address owns");
 
-    uint256 reserveAmount = usdcAmount.div(config.getWithdrawFeeDenominator());
+    uint256 feePercent = getFeeByUser(msg.sender);
+    require(feePercent > 0, "Failed to withdraw (user fee wasn't set)");
+
+    uint256 reserveAmount = userAmount.mul(feePercent).div(config.getWithdrawFeeDenominator());
     userAmount = usdcAmount.sub(reserveAmount);
 
     emit WithdrawalMade(msg.sender, userAmount, reserveAmount);
+
     // Send the amounts
     bool success = doUSDCTransfer(address(this), msg.sender, userAmount);
     require(success, "Failed to transfer for withdraw");
@@ -364,5 +396,10 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     IERC20withDec usdc = config.getUSDC();
     bool success = usdc.approve(address(pool), allowance);
     require(success, "Failed to approve USDC");
+  }
+
+  function getFeeByUser(address user) internal returns (uint256) {
+    uint256 feeTier = userTiers[user];
+    return feeTiers[feeTier];
   }
 }
