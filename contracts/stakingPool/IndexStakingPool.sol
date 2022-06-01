@@ -35,11 +35,6 @@ contract IndexStakingPool is ReentrancyGuard {
         bool isWithdraw;
     }
 
-    struct Cooldown {
-        uint256 claimStart;
-        uint256 claimEnd;
-    }
-
     event PendingGovernanceUpdated(address pendingGovernance);
 
     event GovernanceUpdated(address governance);
@@ -48,8 +43,6 @@ contract IndexStakingPool is ReentrancyGuard {
 
     event LockTimeWeightedSet(uint256 lockTime, uint256 weighted);
 
-    event CooldownPeriodUpdated(uint256 period);
-
     event PenaltyPercentUpdated(uint256 percent);
 
     event TokensDeposited(address indexed user, uint256 amount, uint256 weightedAmount);
@@ -57,8 +50,6 @@ contract IndexStakingPool is ReentrancyGuard {
     event TokensWithdrawn(address indexed user, uint256 amount, uint256 weightedAmount);
 
     event TokensClaimed(address indexed user, uint256 amount);
-
-    event CooldownStart(address indexed user, uint256 claimStart, uint256 claimEnd);
 
     /// @dev The token which will be minted as a reward for staking.
     IERC20 public reward;
@@ -69,17 +60,8 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev The address which is the candidate of governance
     address public pendingGovernance;
 
-    /// @dev The claim period after cooldown period is expired
-    uint256 public constant CLAIM_PERIOD = 86400;
-
     /// @dev The resolution of fixed point. The resolution allows for a granularity of 1% increments.
     uint256 public constant PERCENT_RESOLUTION = 100;
-
-    /// @dev The cooldown period
-    uint256 public cooldownPeriod;
-
-    /// @dev The percent of reward will be distributed to the pool if user claims reward immediately.
-    uint256 public penaltyPercent;
 
     /// @dev The weight in the pool of different lock time
     LockTimeWeighted[] lockTimeWeightedList;
@@ -89,9 +71,6 @@ contract IndexStakingPool is ReentrancyGuard {
 
     /// @dev The record of user's deposited orders.
     mapping(address => mapping(uint256 => UserDepositedOrder)) public userDepositedOrder;
-
-    /// @dev The cooldown period for each user.
-    mapping(address => Cooldown) public userCooldown;
 
     /// @dev The context shared between the pools.
     Pool.Context private _ctx;
@@ -115,8 +94,6 @@ contract IndexStakingPool is ReentrancyGuard {
 
         reward = _reward;
         governance = _governance;
-        cooldownPeriod = 86400 * 7;
-        penaltyPercent = 50;
     }
 
     /// @dev A modifier which reverts when the caller is not the governance.
@@ -167,25 +144,6 @@ contract IndexStakingPool is ReentrancyGuard {
         emit LockTimeWeightedSet(_lockTime, _weighted);
     }
 
-    /// @dev set cool down period
-    ///
-    /// @param _cooldownPeriod the cooldown period when user claims reward
-    function setCooldown(uint256 _cooldownPeriod) external onlyGovernance {
-        cooldownPeriod = _cooldownPeriod;
-
-        emit CooldownPeriodUpdated(_cooldownPeriod);
-    }
-
-    /// @dev set penalty percent
-    ///
-    /// @param _penaltyPercent the percent of reward will be distributed to other users
-    function setPenaltyPercent(uint256 _penaltyPercent) external onlyGovernance {
-        require(_penaltyPercent <= 100, "BoostPool: penalty percent should be less or equal to 100");
-        penaltyPercent = _penaltyPercent;
-
-        emit PenaltyPercentUpdated(_penaltyPercent);
-    }
-
     /// @dev Stakes tokens into a pool.
     ///
     /// @param _depositAmount the amount of tokens to deposit.
@@ -230,35 +188,7 @@ contract IndexStakingPool is ReentrancyGuard {
     }
 
     /// @dev Claims all rewarded tokens from a pool.
-    function claimImmediately() external nonReentrant {
-        Cooldown memory cooldown = userCooldown[msg.sender];
-        require(cooldown.claimEnd < block.timestamp, "wait for the last cooldown period expired");
-
-        Pool.Data storage _pool = pool.get();
-        _pool.update(_ctx);
-
-        Stake.Data storage _stake = _stakes[msg.sender];
-        _stake.update(_pool, _ctx);
-
-        uint256 penalty = _stake.totalUnclaimed.mul(penaltyPercent).div(PERCENT_RESOLUTION);
-        _pool.distribute(penalty);
-        _stake.totalUnclaimed = _stake.totalUnclaimed.sub(penalty);
-
-        if (address(reward) == address(_pool.token)) {
-            require(_pool.totalDeposited.add(_stake.totalUnclaimed) <= reward.balanceOf(address(this)), "pool has no enough rewards");
-        }
-
-        _claim();
-    }
-
-    /// @dev Claims all rewarded tokens from a pool.
     function claim() external nonReentrant {
-        Cooldown storage cooldown = userCooldown[msg.sender];
-        require(cooldown.claimStart <= block.timestamp && cooldown.claimEnd >= block.timestamp, "not in the claim period!");
-
-        cooldown.claimStart = 0;
-        cooldown.claimEnd = 0;
-
         Pool.Data storage _pool = pool.get();
         _pool.update(_ctx);
 
@@ -270,16 +200,6 @@ contract IndexStakingPool is ReentrancyGuard {
         }
 
         _claim();
-    }
-
-    /// @dev lead user into cooldown period.
-    function startCoolDown() external nonReentrant {
-        Cooldown storage cooldown = userCooldown[msg.sender];
-        require(cooldown.claimEnd < block.timestamp, "wait for the last cooldown period expired");
-        cooldown.claimStart = block.timestamp + cooldownPeriod;
-        cooldown.claimEnd = block.timestamp + cooldownPeriod + CLAIM_PERIOD;
-
-        emit CooldownStart(msg.sender, cooldown.claimStart, cooldown.claimEnd);
     }
 
     /// @dev donate reward to the pool
@@ -344,20 +264,6 @@ contract IndexStakingPool is ReentrancyGuard {
         return _stake.totalDepositedWeight;
     }
 
-    /// @dev Gets the number of unclaimed reward tokens a user can claim from a pool immediately.
-    ///
-    /// @param _account The account to get the unclaimed balance of.
-    ///
-    /// @return the amount of unclaimed reward tokens a user has in a pool.
-    function getStakeTotalUnclaimedImmediately(address _account) external view returns (uint256) {
-        Stake.Data storage _stake = _stakes[_account];
-
-        uint256 updatedTotalUnclaimed = _stake.getUpdatedTotalUnclaimed(pool.get(), _ctx);
-        uint256 penalty = updatedTotalUnclaimed.mul(penaltyPercent).div(PERCENT_RESOLUTION);
-
-        return updatedTotalUnclaimed.sub(penalty);
-    }
-
     /// @dev Gets the number of unclaimed reward tokens a user can claim from a pool.
     ///
     /// @param _account The account to get the unclaimed balance of.
@@ -417,17 +323,6 @@ contract IndexStakingPool is ReentrancyGuard {
         require(_index < lockTimeWeightedList.length, "invalid index");
         LockTimeWeighted memory lockTimeWeight = lockTimeWeightedList[_index];
         return (lockTimeWeight.lockTime, lockTimeWeight.weighted);
-    }
-
-    /// @dev Gets user's claim reward period.
-    ///
-    /// @param _account The user account.
-    ///
-    /// @return claimStart the start time that user can claim reward.
-    /// @return claimEnd the end time that user can claim reward.
-    function getUserClaimPeriod(address _account) external view returns (uint256 claimStart, uint256 claimEnd) {
-        Cooldown memory cooldown = userCooldown[_account];
-        return (cooldown.claimStart, cooldown.claimEnd);
     }
 
     /// @dev Stakes tokens into a pool.
