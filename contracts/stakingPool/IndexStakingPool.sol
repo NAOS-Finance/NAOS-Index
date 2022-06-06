@@ -23,15 +23,8 @@ contract IndexStakingPool is ReentrancyGuard {
     using SafeMath for uint256;
     using Stake for Stake.Data;
 
-    struct LockTimeWeighted {
-        uint256 lockTime;
-        uint256 weighted;
-    }
-
     struct UserDepositedOrder {
         uint256 amount;
-        uint256 expiredTime;
-        uint256 weighted;
         bool isWithdraw;
     }
 
@@ -41,13 +34,11 @@ contract IndexStakingPool is ReentrancyGuard {
 
     event RewardRateUpdated(uint256 rewardRate);
 
-    event LockTimeWeightedSet(uint256 lockTime, uint256 weighted);
-
     event PenaltyPercentUpdated(uint256 percent);
 
-    event TokensDeposited(address indexed user, uint256 amount, uint256 weightedAmount);
+    event TokensDeposited(address indexed user, uint256 amount);
 
-    event TokensWithdrawn(address indexed user, uint256 amount, uint256 weightedAmount);
+    event TokensWithdrawn(address indexed user, uint256 amount);
 
     event TokensClaimed(address indexed user, uint256 amount);
 
@@ -62,9 +53,6 @@ contract IndexStakingPool is ReentrancyGuard {
 
     /// @dev The resolution of fixed point. The resolution allows for a granularity of 1% increments.
     uint256 public constant PERCENT_RESOLUTION = 100;
-
-    /// @dev The weight in the pool of different lock time
-    LockTimeWeighted[] lockTimeWeightedList;
 
     /// @dev The count of user's deposited orders.
     mapping(address => uint256) public userOrderCount;
@@ -134,30 +122,17 @@ contract IndexStakingPool is ReentrancyGuard {
         emit RewardRateUpdated(_rewardRate);
     }
 
-    /// @dev set lock time and its weight
-    ///
-    /// @param _lockTime the lock time of the deposited order
-    /// @param _weighted the weighted of the deposited order
-    function setLockTimeWeighted(uint256 _lockTime, uint256 _weighted) external onlyGovernance {
-        lockTimeWeightedList.push(LockTimeWeighted({lockTime: _lockTime, weighted: _weighted}));
-
-        emit LockTimeWeightedSet(_lockTime, _weighted);
-    }
-
     /// @dev Stakes tokens into a pool.
     ///
     /// @param _depositAmount the amount of tokens to deposit.
-    /// @param _index the index of the lock time weighted list
-    function deposit(uint256 _depositAmount, uint256 _index) external nonReentrant {
-        require(_index < lockTimeWeightedList.length, "invalid index");
-
+    function deposit(uint256 _depositAmount) external nonReentrant {
         Pool.Data storage _pool = pool.get();
         _pool.update(_ctx);
 
         Stake.Data storage _stake = _stakes[msg.sender];
         _stake.update(_pool, _ctx);
 
-        _deposit(_depositAmount, _index);
+        _deposit(_depositAmount);
     }
 
     /// @dev Withdraws staked tokens from a pool.
@@ -178,13 +153,11 @@ contract IndexStakingPool is ReentrancyGuard {
             UserDepositedOrder storage depositedOrder = userDepositedOrder[msg.sender][_index[i]];
             require(_index[i] < userOrderCount[msg.sender], "invalid index");
             require(!depositedOrder.isWithdraw, "The order has been withdrew");
-            require(depositedOrder.expiredTime < block.timestamp, "The lock time is not expired!");
             depositedOrder.isWithdraw = true;
             withdrawAmount = withdrawAmount.add(depositedOrder.amount);
-            weightedWithdrawAmount = weightedWithdrawAmount.add(depositedOrder.amount.mul(depositedOrder.weighted));
         }
 
-        _withdraw(withdrawAmount, weightedWithdrawAmount);
+        _withdraw(withdrawAmount);
     }
 
     /// @dev Claims all rewarded tokens from a pool.
@@ -289,40 +262,17 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @param _index The deposited order index.
     ///
     /// @return amount the amount of the deposited order.
-    /// @return expiredTime the expired time of the deposited order.
-    /// @return weighted the weighted of the deposited order
     /// @return isWithdraw the deposited order is withdraw or not.
     function getUserDepositOrderByIndex(address _account, uint256 _index)
         external
         view
         returns (
             uint256 amount,
-            uint256 expiredTime,
-            uint256 weighted,
             bool isWithdraw
         )
     {
         UserDepositedOrder memory depositedOrder = userDepositedOrder[_account][_index];
-        return (depositedOrder.amount, depositedOrder.expiredTime, depositedOrder.weighted, depositedOrder.isWithdraw);
-    }
-
-    /// @dev Gets lock time weighted list length.
-    ///
-    /// @return the lock time weighted list length.
-    function getLockTimeWeightedListLength() external view returns (uint256) {
-        return lockTimeWeightedList.length;
-    }
-
-    /// @dev Gets the lock time and weighted of lock time weighted list by index.
-    ///
-    /// @param _index index.
-    ///
-    /// @return lockTime the lock time.
-    /// @return weighted the weighted when user locks the time.
-    function getLockTimeWeightedByIndex(uint256 _index) external view returns (uint256 lockTime, uint256 weighted) {
-        require(_index < lockTimeWeightedList.length, "invalid index");
-        LockTimeWeighted memory lockTimeWeight = lockTimeWeightedList[_index];
-        return (lockTimeWeight.lockTime, lockTimeWeight.weighted);
+        return (depositedOrder.amount, depositedOrder.isWithdraw);
     }
 
     /// @dev Stakes tokens into a pool.
@@ -330,24 +280,20 @@ contract IndexStakingPool is ReentrancyGuard {
     /// The pool and stake MUST be updated before calling this function.
     ///
     /// @param _depositAmount the amount of tokens to deposit.
-    /// @param _index the index of the lock time weighted list
-    function _deposit(uint256 _depositAmount, uint256 _index) internal {
+    function _deposit(uint256 _depositAmount) internal {
         Pool.Data storage _pool = pool.get();
         Stake.Data storage _stake = _stakes[msg.sender];
-        LockTimeWeighted memory lockTimeWeight = lockTimeWeightedList[_index];
 
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
         _stake.totalDeposited = _stake.totalDeposited.add(_depositAmount);
-        _pool.totalDepositedWeight = _pool.totalDepositedWeight.add(_depositAmount.mul(lockTimeWeight.weighted));
-        _stake.totalDepositedWeight = _stake.totalDepositedWeight.add(_depositAmount.mul(lockTimeWeight.weighted));
 
-        userDepositedOrder[msg.sender][userOrderCount[msg.sender]] = UserDepositedOrder({amount: _depositAmount, expiredTime: block.timestamp.add(lockTimeWeight.lockTime), weighted: lockTimeWeight.weighted, isWithdraw: false});
+        userDepositedOrder[msg.sender][userOrderCount[msg.sender]] = UserDepositedOrder({amount: _depositAmount, isWithdraw: false});
 
         userOrderCount[msg.sender] = userOrderCount[msg.sender] + 1;
 
         _pool.token.transferFrom(msg.sender, address(this), _depositAmount);
 
-        emit TokensDeposited(msg.sender, _depositAmount, _depositAmount.mul(lockTimeWeight.weighted));
+        emit TokensDeposited(msg.sender, _depositAmount);
     }
 
     /// @dev Withdraws staked tokens from a pool.
@@ -355,19 +301,16 @@ contract IndexStakingPool is ReentrancyGuard {
     /// The pool and stake MUST be updated before calling this function.
     ///
     /// @param _withdrawAmount  The number of tokens to withdraw.
-    /// @param _weightedWithdrawAmount The weighted withdraw amount
-    function _withdraw(uint256 _withdrawAmount, uint256 _weightedWithdrawAmount) internal {
+    function _withdraw(uint256 _withdrawAmount) internal {
         Pool.Data storage _pool = pool.get();
         Stake.Data storage _stake = _stakes[msg.sender];
 
         _pool.totalDeposited = _pool.totalDeposited.sub(_withdrawAmount);
         _stake.totalDeposited = _stake.totalDeposited.sub(_withdrawAmount);
-        _pool.totalDepositedWeight = _pool.totalDepositedWeight.sub(_weightedWithdrawAmount);
-        _stake.totalDepositedWeight = _stake.totalDepositedWeight.sub(_weightedWithdrawAmount);
 
         _pool.token.transfer(msg.sender, _withdrawAmount);
 
-        emit TokensWithdrawn(msg.sender, _withdrawAmount, _weightedWithdrawAmount);
+        emit TokensWithdrawn(msg.sender, _withdrawAmount);
     }
 
     /// @dev Claims all rewarded tokens from a pool.
