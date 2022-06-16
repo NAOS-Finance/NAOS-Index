@@ -10,6 +10,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {FixedPointMath} from "../library/FixedPointMath.sol";
 import {Pool} from "../library/indexStakingPool/Pool.sol";
 import {Stake} from "../library/indexStakingPool/Stake.sol";
+import {IBoostPool} from "../interfaces/IBoostPool.sol";
 
 /// @title IndexStakingPool
 /// @dev A contract which allows users to stake to farm tokens.
@@ -19,14 +20,10 @@ import {Stake} from "../library/indexStakingPool/Stake.sol";
 contract IndexStakingPool is ReentrancyGuard {
     using FixedPointMath for FixedPointMath.uq192x64;
     using Pool for Pool.Data;
+    using Pool for Pool.List;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using Stake for Stake.Data;
-
-    struct UserDepositedOrder {
-        uint256 amount;
-        bool isWithdraw;
-    }
 
     event PendingGovernanceUpdated(address pendingGovernance);
 
@@ -34,16 +31,23 @@ contract IndexStakingPool is ReentrancyGuard {
 
     event RewardRateUpdated(uint256 rewardRate);
 
+    event PoolRewardWeightUpdated(uint256 indexed poolId, uint256 rewardWeight);
+
+    event PoolCreated(uint256 indexed poolId, IERC20 indexed token);
+
     event PenaltyPercentUpdated(uint256 percent);
 
-    event TokensDeposited(address indexed user, uint256 amount);
+    event TokensDeposited(address indexed user, uint256 indexed poolId, uint256 amount);
 
-    event TokensWithdrawn(address indexed user, uint256 amount);
+    event TokensWithdrawn(address indexed user, uint256 indexed poolId, uint256 amount);
 
-    event TokensClaimed(address indexed user, uint256 amount);
+    event TokensClaimed(address indexed user, uint256 indexed poolId, uint256 amount, uint256 penalty);
 
     /// @dev The token which will be minted as a reward for staking.
     IERC20 public reward;
+
+    /// @dev Boost pool
+    IBoostPool public boostPool;
 
     /// @dev The address of the account which currently has administrative capabilities over this contract.
     address public governance;
@@ -54,39 +58,44 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev The resolution of fixed point. The resolution allows for a granularity of 1% increments.
     uint256 public constant PERCENT_RESOLUTION = 100;
 
-    /// @dev The count of user's deposited orders.
-    mapping(address => uint256) public userOrderCount;
+    /// @notice The duration in seconds over which rewards vest
+    uint256 public constant VESTING_DURATION = 365 days;
 
-    /// @dev The record of user's deposited orders.
-    mapping(address => mapping(uint256 => UserDepositedOrder)) public userDepositedOrder;
+    /// @dev Tokens are mapped to their pool identifier plus one. Tokens that do not have an associated pool
+    /// will return an identifier of zero.
+    mapping(IERC20 => uint256) public tokenPoolIds;
 
     /// @dev The context shared between the pools.
     Pool.Context private _ctx;
 
-    /// @dev The pool information.
-    Pool.Data private pool;
+    /// @dev A list of all of the pools.
+    Pool.List private _pools;
 
     /// @dev A mapping of all of the user stakes mapped by address.
-    mapping(address => Stake.Data) private _stakes;
+    mapping(uint256 => Stake.Data[]) private _stakes;
+
+    /// @dev The record of user's deposited orders.
+    mapping(address => mapping(uint256 => uint256[])) public userStakedList;
 
     constructor(
         IERC20 _token,
         IERC20 _reward,
+        IBoostPool _boostPool,
         address _governance
     ) public {
-        require(address(_token) != address(0), "BoostPool: token address cannot be 0x0");
-        require(address(_reward) != address(0), "BoostPool: reward address cannot be 0x0");
-        require(_governance != address(0), "BoostPool: governance address cannot be 0x0");
-
-        pool.set(_token);
+        require(address(_token) != address(0), "token address cannot be 0x0");
+        require(address(_reward) != address(0), "reward address cannot be 0x0");
+        require(_governance != address(0), "governance address cannot be 0x0");
+        require(address(_boostPool) != address(0), "boost pool address cannot be 0x0");
 
         reward = _reward;
         governance = _governance;
+        boostPool = _boostPool;
     }
 
     /// @dev A modifier which reverts when the caller is not the governance.
     modifier onlyGovernance() {
-        require(msg.sender == governance, "BoostPool: only governance");
+        require(msg.sender == governance, "only governance");
         _;
     }
 
@@ -96,14 +105,14 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _pendingGovernance the new pending governance.
     function setPendingGovernance(address _pendingGovernance) external onlyGovernance {
-        require(_pendingGovernance != address(0), "BoostPool: pending governance address cannot be 0x0");
+        require(_pendingGovernance != address(0), "pending governance address cannot be 0x0");
         pendingGovernance = _pendingGovernance;
 
         emit PendingGovernanceUpdated(_pendingGovernance);
     }
 
     function acceptGovernance() external {
-        require(msg.sender == pendingGovernance, "BoostPool: only pending governance");
+        require(msg.sender == pendingGovernance, "only pending governance");
 
         governance = pendingGovernance;
 
@@ -114,76 +123,137 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _rewardRate The number of tokens to distribute per block.
     function setRewardRate(uint256 _rewardRate) external onlyGovernance {
-        Pool.Data storage _pool = pool.get();
-        _pool.update(_ctx);
+        _updatePools();
 
         _ctx.rewardRate = _rewardRate;
 
         emit RewardRateUpdated(_rewardRate);
     }
 
-    /// @dev Stakes tokens into a pool.
+    /// @dev Creates a new pool.
     ///
-    /// @param _depositAmount the amount of tokens to deposit.
-    function deposit(uint256 _depositAmount) external nonReentrant {
-        Pool.Data storage _pool = pool.get();
-        _pool.update(_ctx);
+    /// The created pool will need to have its reward weight initialized before it begins generating rewards.
+    ///
+    /// @param _token The token the pool will accept for staking.
+    ///
+    /// @return _poolId the identifier for the newly created pool.
+    function createPool(IERC20 _token) external onlyGovernance returns (uint256) {
+        require(address(_token) != address(0), "token address cannot be 0x0");
+        require(tokenPoolIds[_token] == 0, "token already has a pool");
 
-        Stake.Data storage _stake = _stakes[msg.sender];
-        _stake.update(_pool, _ctx);
+        uint256 _poolId = _pools.length();
 
-        _deposit(_depositAmount);
+        _pools.push(Pool.Data({token: _token, totalDeposited: 0, totalDepositedWeight:0, rewardWeight: 0, accumulatedRewardWeight: FixedPointMath.uq192x64(0), lastUpdatedBlock: block.number}));
+
+        tokenPoolIds[_token] = _poolId + 1;
+
+        emit PoolCreated(_poolId, _token);
+
+        return _poolId;
     }
 
-    /// @dev Withdraws staked tokens from a pool.
+    /// @dev Sets the reward weights of all of the pools.
     ///
-    /// @param _index           The index of deposited order.
-    function withdraw(uint256[] calldata _index) external nonReentrant {
-        Pool.Data storage _pool = pool.get();
-        _pool.update(_ctx);
+    /// @param _rewardWeights The reward weights of all of the pools.
+    function setRewardWeights(uint256[] calldata _rewardWeights) external onlyGovernance {
+        require(_rewardWeights.length == _pools.length(), "StakingPools: weights length mismatch");
 
-        Stake.Data storage _stake = _stakes[msg.sender];
-        _stake.update(_pool, _ctx);
+        _updatePools();
 
-        require(_index.length <= userOrderCount[msg.sender], "invalid index");
+        uint256 _totalRewardWeight = _ctx.totalRewardWeight;
+        for (uint256 _poolId = 0; _poolId < _pools.length(); _poolId++) {
+            Pool.Data storage _pool = _pools.get(_poolId);
 
-        uint256 withdrawAmount;
-        uint256 weightedWithdrawAmount;
-        for (uint256 i = 0; i < _index.length; i++) {
-            UserDepositedOrder storage depositedOrder = userDepositedOrder[msg.sender][_index[i]];
-            require(_index[i] < userOrderCount[msg.sender], "invalid index");
-            require(!depositedOrder.isWithdraw, "The order has been withdrew");
-            depositedOrder.isWithdraw = true;
-            withdrawAmount = withdrawAmount.add(depositedOrder.amount);
+            uint256 _currentRewardWeight = _pool.rewardWeight;
+            if (_currentRewardWeight == _rewardWeights[_poolId]) {
+                continue;
+            }
+
+            _totalRewardWeight = _totalRewardWeight.sub(_currentRewardWeight).add(_rewardWeights[_poolId]);
+            _pool.rewardWeight = _rewardWeights[_poolId];
+
+            emit PoolRewardWeightUpdated(_poolId, _rewardWeights[_poolId]);
         }
 
-        _withdraw(withdrawAmount);
+        _ctx.totalRewardWeight = _totalRewardWeight;
+    }
+
+
+    /// @dev Stakes tokens into a pool.
+    ///
+    /// @param _poolId The pool id.
+    /// @param _depositAmount The amount of tokens to deposit.
+    function deposit(uint256 _poolId, uint256 _depositAmount) external nonReentrant {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        _pool.update(_ctx);
+
+        _deposit(_poolId, _depositAmount);
+    }
+
+    /// @dev Withdraws deposited tokens from a pool.
+    ///
+    /// @param _poolId The pool id.
+    /// @param _index The index of deposited order.
+    function withdraw(uint256 _poolId, uint256[] calldata _index) external nonReentrant {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        _pool.update(_ctx);
+
+        require(_index.length <= userStakedList[msg.sender][_poolId].length, "invalid index");   
+
+        for (uint256 i = 0; i < _index.length; i++) {
+            require(_index[i] < userStakedList[msg.sender][_poolId].length, "invalid index");
+            uint256 userStakedIndex = userStakedList[msg.sender][_poolId][_index[i]];
+            Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
+            _stake.update(_pool, _ctx);
+
+            require(!_stake.isWithdraw, "The order has been withdrew");
+            _stake.isWithdraw = true;
+
+            _withdraw(_poolId, _pool, _stake);
+            _claim(_poolId, _stake);
+        }
     }
 
     /// @dev Claims all rewarded tokens from a pool.
-    function claim() external nonReentrant {
-        Pool.Data storage _pool = pool.get();
+    ///
+    /// @param _poolId The pool id.
+    /// @param _index The index of deposited order.
+    function claim(uint256 _poolId, uint256[] calldata _index) external nonReentrant {
+        Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        Stake.Data storage _stake = _stakes[msg.sender];
-        _stake.update(_pool, _ctx);
+        require(_index.length <= userStakedList[msg.sender][_poolId].length, "invalid index");   
 
-        if (address(reward) == address(_pool.token)) {
-            require(_pool.totalDeposited.add(_stake.totalUnclaimed) <= reward.balanceOf(address(this)), "pool has no enough rewards");
+        for (uint256 i = 0; i < _index.length; i++) {
+            require(_index[i] < userStakedList[msg.sender][_poolId].length, "invalid index");
+            uint256 userStakedIndex = userStakedList[msg.sender][_poolId][_index[i]];
+            Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
+            _stake.update(_pool, _ctx);
+
+            require(_stake.totalUnclaimed > 0, "No claimable token");
+
+            _claim(_poolId, _stake);
         }
-
-        _claim();
     }
 
-    /// @dev donate reward to the pool
+    /// @dev Update the boost of the deposited order.
     ///
-    /// @param _donateAmount The donate amount
-    function donateReward(uint256 _donateAmount) external nonReentrant {
-        Pool.Data storage _pool = pool.get();
+    /// @param _poolId The pool to update boost for.
+    /// @param _account The address to update boost for.
+    /// @param _index The index of deposited order.
+    function activateBoost(uint256 _poolId, address _account, uint256[] calldata _index) external nonReentrant {
+        Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        _pool.distribute(_donateAmount);
-        reward.transferFrom(msg.sender, address(this), _donateAmount);
+        require(_index.length <= userStakedList[_account][_poolId].length, "invalid index");   
+
+        for (uint256 i = 0; i < _index.length; i++) {
+            require(_index[i] < userStakedList[_account][_poolId].length, "invalid index");
+            uint256 userStakedIndex = userStakedList[_account][_poolId][_index[i]];
+            Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
+            _stake.update(_pool, _ctx);
+            _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(_account));
+        }
     }
 
     /// @dev Gets the rate at which tokens are minted to stakers for all pools.
@@ -196,136 +266,223 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev Gets the token a pool accepts.
     ///
     /// @return the token.
-    function getPoolToken() external view returns (IERC20) {
-        Pool.Data storage _pool = pool.get();
+    function getPoolToken(uint256 _poolId) external view returns (IERC20) {
+        Pool.Data storage _pool = _pools.get(_poolId);
         return _pool.token;
     }
 
-    /// @dev Gets the total amount of funds staked in a pool.
+    /// @dev Gets the total amount of funds deposited in a pool.
     ///
-    /// @return the total amount of staked or deposited tokens.
-    function getPoolTotalDeposited() external view returns (uint256) {
-        Pool.Data storage _pool = pool.get();
+    /// @return the total amount of deposited tokens.
+    function getPoolTotalDeposited(uint256 _poolId) external view returns (uint256) {
+        Pool.Data storage _pool = _pools.get(_poolId);
         return _pool.totalDeposited;
     }
 
     /// @dev Gets the pool total deposited weight.
     ///
     /// @return the pool total deposited weight.
-    function getPoolTotalDepositedWeight() external view returns (uint256) {
-        Pool.Data storage _pool = pool.get();
+    function getPoolTotalDepositedWeight(uint256 _poolId) external view returns (uint256) {
+        Pool.Data storage _pool = _pools.get(_poolId);
         return _pool.totalDepositedWeight;
     }
 
-    /// @dev Gets the number of tokens a user has staked into a pool.
+    /// @dev Gets the number of tokens a user has deposited into a pool.
     ///
+    /// @param _poolId The pool id.
     /// @param _account The account to query.
+    /// @param _index The user deposited index.
     ///
     /// @return the amount of deposited tokens.
-    function getStakeTotalDeposited(address _account) external view returns (uint256) {
-        Stake.Data storage _stake = _stakes[_account];
+    function getStakeTotalDeposited(uint256 _poolId, address _account, uint256 _index) external view returns (uint256) {
+        uint256 userStakedIndex = userStakedList[_account][_poolId][_index];
+        Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
         return _stake.totalDeposited;
     }
 
-    /// @dev Gets the user's deposited weight.
+    /// @dev Gets the specified deposited weight.
     ///
+    /// @param _poolId The pool id.
     /// @param _account The account to query.
+    /// @param _index The user deposited index.
     ///
-    /// @return the account's total boost weight.
-    function getStakeTotalDepositedWeight(address _account) external view returns (uint256) {
-        Stake.Data storage _stake = _stakes[_account];
+    /// @return the boost weight of the specified deposited order.
+    function getStakeTotalDepositedWeight(uint256 _poolId, address _account, uint256 _index) external view returns (uint256) {
+        uint256 userStakedIndex = userStakedList[_account][_poolId][_index];
+        Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
         return _stake.totalDepositedWeight;
     }
 
     /// @dev Gets the number of unclaimed reward tokens a user can claim from a pool.
     ///
-    /// @param _account The account to get the unclaimed balance of.
+    /// @param _poolId The pool id.
+    /// @param _account The account to query.
+    /// @param _index The user deposited index.
     ///
     /// @return the amount of unclaimed reward tokens a user has in a pool.
-    function getStakeTotalUnclaimed(address _account) external view returns (uint256) {
-        Stake.Data storage _stake = _stakes[_account];
-        return _stake.getUpdatedTotalUnclaimed(pool.get(), _ctx);
+    function getStakeUnclaimed(uint256 _poolId, address _account, uint256 _index) external view returns (uint256, uint256) {
+        uint256 userStakedIndex = userStakedList[_account][_poolId][_index];
+        Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
+
+        uint256 _claimAmount = _stake.getUpdatedTotalUnclaimed(_pools.get(_poolId), _ctx);
+        uint256 _elapsedTime = block.timestamp.sub(_stake.depositTime);
+
+        uint256 _claimAmountAfterVesting = _claimAmount;
+        if (_elapsedTime < 365 days) {
+            _claimAmountAfterVesting = _claimAmount.mul(_elapsedTime).div(365 days);
+        }
+
+        return (_claimAmount, _claimAmountAfterVesting);
     }
 
     /// @dev Gets the number of user's deposited order count.
     ///
+    /// @param _poolId The pool id.
     /// @param _account The user account.
     ///
     /// @return count the count of user's deposited order.
-    function getUserOrderCount(address _account) external view returns (uint256 count) {
-        return userOrderCount[_account];
+    function getUserOrderCount(uint256 _poolId, address _account) external view returns (uint256 count) {
+        return userStakedList[_account][_poolId].length;
     }
 
     /// @dev Gets user's deposited order by index.
     ///
+    /// @param _poolId The pool id.
     /// @param _account The user account.
     /// @param _index The deposited order index.
     ///
-    /// @return amount the amount of the deposited order.
+    /// @return totalDeposited the amount of the deposited order.
+    /// @return totalDepositedWeight the weighted amount of the deposited order.
+    /// @return depositTime the deposited time of the deposited order.
     /// @return isWithdraw the deposited order is withdraw or not.
-    function getUserDepositOrderByIndex(address _account, uint256 _index)
+    function getUserStakeOrderByIndex(uint256 _poolId, address _account, uint256 _index)
         external
         view
         returns (
-            uint256 amount,
+            uint256 totalDeposited,
+            uint256 totalDepositedWeight,
+            uint256 depositTime,
             bool isWithdraw
         )
     {
-        UserDepositedOrder memory depositedOrder = userDepositedOrder[_account][_index];
-        return (depositedOrder.amount, depositedOrder.isWithdraw);
+        uint256 userStakedIndex = userStakedList[_account][_poolId][_index];
+        Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
+        return (_stake.totalDeposited, _stake.totalDepositedWeight, _stake.depositTime, _stake.isWithdraw);
+    }
+
+    /// @dev Get the user weight in the pool.
+    ///
+    /// @param poolDeposited The total deposited in the pool.
+    /// @param userDeposited The user deposited in the pool.
+    /// @param boostPoolDepositedWeight The total deposited Weight in the boost pool.
+    /// @param boostUserDepositedWeight The user deposited Weight in the boost pool.
+    ///
+    /// @return the user boost weight in the pool.
+    function calcUserWeight(
+        uint256 poolDeposited,
+        uint256 userDeposited,
+        uint256 boostPoolDepositedWeight,
+        uint256 boostUserDepositedWeight
+    ) public pure returns (uint256) {
+        uint256 weighted = userDeposited.mul(40).div(100);
+        if (boostPoolDepositedWeight > 0) {
+            weighted = weighted.add(poolDeposited.mul(boostUserDepositedWeight).mul(60).div(boostPoolDepositedWeight).div(100));
+            if (weighted >= userDeposited) {
+                weighted = userDeposited;
+            }
+        }
+
+        return weighted;
+    }
+
+    /// @dev Updates all of the pools.
+    ///
+    /// Warning:
+    /// Make the staking plan before add a new pool. If the amount of pool becomes too many would
+    /// result the transaction failed due to high gas usage in for-loop.
+    function _updatePools() internal {
+        for (uint256 _poolId = 0; _poolId < _pools.length(); _poolId++) {
+            Pool.Data storage _pool = _pools.get(_poolId);
+            _pool.update(_ctx);
+        }
     }
 
     /// @dev Stakes tokens into a pool.
     ///
     /// The pool and stake MUST be updated before calling this function.
     ///
+    /// @param _poolId the pool id
     /// @param _depositAmount the amount of tokens to deposit.
-    function _deposit(uint256 _depositAmount) internal {
-        Pool.Data storage _pool = pool.get();
-        Stake.Data storage _stake = _stakes[msg.sender];
-
+    function _deposit(uint256 _poolId, uint256 _depositAmount) internal {
+        Pool.Data storage _pool = _pools.get(_poolId);
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
-        _stake.totalDeposited = _stake.totalDeposited.add(_depositAmount);
 
-        userDepositedOrder[msg.sender][userOrderCount[msg.sender]] = UserDepositedOrder({amount: _depositAmount, isWithdraw: false});
+        userStakedList[msg.sender][_poolId].push(_stakes[_poolId].length);
+        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.number, lastAccumulatedWeight: FixedPointMath.uq192x64(0), isWithdraw: false}));
+        Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
-        userOrderCount[msg.sender] = userOrderCount[msg.sender] + 1;
+        _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
 
-        _pool.token.transferFrom(msg.sender, address(this), _depositAmount);
+        require(_pool.token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
 
-        emit TokensDeposited(msg.sender, _depositAmount);
+        emit TokensDeposited(msg.sender, _poolId, _depositAmount);
     }
 
-    /// @dev Withdraws staked tokens from a pool.
+    /// @dev Withdraws deposited tokens from a pool.
     ///
-    /// The pool and stake MUST be updated before calling this function.
-    ///
-    /// @param _withdrawAmount  The number of tokens to withdraw.
-    function _withdraw(uint256 _withdrawAmount) internal {
-        Pool.Data storage _pool = pool.get();
-        Stake.Data storage _stake = _stakes[msg.sender];
+    /// @param _poolId The pool id.
+    /// @param _pool The pool data.
+    /// @param _stake The deposited data which will be withdrew.
+    function _withdraw(uint256 _poolId, Pool.Data storage _pool, Stake.Data storage _stake) internal {
+        uint256 _withdrawAmount = _stake.totalDeposited;
+        _pool.totalDeposited = _pool.totalDeposited.sub(_stake.totalDeposited);
+        _pool.totalDepositedWeight = _pool.totalDepositedWeight.sub(_stake.totalDepositedWeight);
+        _stake.totalDeposited = 0;
+        _stake.totalDepositedWeight = 0;
 
-        _pool.totalDeposited = _pool.totalDeposited.sub(_withdrawAmount);
-        _stake.totalDeposited = _stake.totalDeposited.sub(_withdrawAmount);
+        require(_pool.token.transfer(msg.sender, _withdrawAmount), "token transfer failed");
 
-        _pool.token.transfer(msg.sender, _withdrawAmount);
-
-        emit TokensWithdrawn(msg.sender, _withdrawAmount);
+        emit TokensWithdrawn(msg.sender, _poolId, _withdrawAmount);
     }
 
     /// @dev Claims all rewarded tokens from a pool.
     ///
     /// The pool and stake MUST be updated before calling this function.
     ///
-    /// @notice use this function to claim the tokens from a corresponding pool by ID.
-    function _claim() internal {
-        Stake.Data storage _stake = _stakes[msg.sender];
-
+    /// @param _poolId The pool id.
+    /// @param _stake The deposited data which will be claim.
+    function _claim(uint256 _poolId, Stake.Data storage _stake) internal {
         uint256 _claimAmount = _stake.totalUnclaimed;
+        uint256 _elapsedTime = block.timestamp.sub(_stake.depositTime);
         _stake.totalUnclaimed = 0;
+        uint256 _penalty = 0;
+        uint256 _claimable = _claimAmount;
 
-        reward.transfer(msg.sender, _claimAmount);
+        if (_elapsedTime < VESTING_DURATION) {
+            _claimable = _claimAmount.mul(_elapsedTime).div(VESTING_DURATION);
+            _penalty = _claimAmount.sub(_claimable);
+        }
 
-        emit TokensClaimed(msg.sender, _claimAmount);
+        require(reward.transfer(msg.sender, _claimable), "token transfer failed");
+
+        emit TokensClaimed(msg.sender, _poolId, _claimable, _penalty);
+    }
+
+    /// @dev update user's deposit boost weight
+    ///
+    /// @param _pool The pool information
+    /// @param _stake The user information
+    /// @param boostPoolDepositedWeight The total deposited token weight in boost pool
+    /// @param boostUserDepositedWeight The user deposited token weight in boost pool
+    function _updateWeighted(
+        Pool.Data storage _pool,
+        Stake.Data storage _stake,
+        uint256 boostPoolDepositedWeight,
+        uint256 boostUserDepositedWeight
+    ) internal {
+        uint256 weight = calcUserWeight(_pool.totalDeposited, _stake.totalDeposited, boostPoolDepositedWeight, boostUserDepositedWeight);
+
+        _pool.totalDepositedWeight = _pool.totalDepositedWeight.sub(_stake.totalDepositedWeight).add(weight);
+        _stake.totalDepositedWeight = weight;
     }
 }

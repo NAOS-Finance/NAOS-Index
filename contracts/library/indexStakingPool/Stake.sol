@@ -21,7 +21,9 @@ library Stake {
         uint256 totalDeposited;
         uint256 totalDepositedWeight;
         uint256 totalUnclaimed;
+        uint256 depositTime;
         FixedPointMath.uq192x64 lastAccumulatedWeight;
+        bool isWithdraw;
     }
 
     function update(
