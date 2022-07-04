@@ -6,11 +6,11 @@ import {Logger} from "./types"
 // import {assertNonNullable} from "@goldfinch-eng/utils"
 import {getDeployEffects} from "./migrations/deployEffects"
 import {getOrDeployUSDC} from "./baseDeploy/getOrDeployUSDC"
+import {getOrDeployNAOS} from "./baseDeploy/getOrDeployNAOS"
 import {deployBorrower} from "./baseDeploy/deployBorrower"
 import {deployClImplementation} from "./baseDeploy/deployClImplementation"
 // import {deployCommunityRewards} from "./baseDeploy/deployCommunityRewards"
 import {deployFidu} from "./baseDeploy/deployFidu"
-import {deployGFI} from "./baseDeploy/deployGFI"
 import {deployGoldfinchFactory} from "./baseDeploy/deployGoldfinchFactory"
 import {deployLPStakingRewards} from "./baseDeploy/deployLPStakingRewards"
 // import {deployMerkleDirectDistributor} from "./baseDeploy/deployMerkleDirectDistributor"
@@ -57,52 +57,28 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   logger("Chain id is:", chainId)
   const config = await deployConfig(deployer)
   await getOrDeployUSDC(deployer, config)
-  // await getOrDeployFiduUSDCCurveLP(deployer, config)
+  await getOrDeployNAOS(deployer, config)
   const fidu = await deployFidu(deployer, config)
   await deployPoolTokens(deployer, {config})
   await deployTransferRestrictedVault(deployer, {config})
-  const pool = await deployPool(deployer, {config})
   await deployTranchedPool(deployer, {config, deployEffects})
-  logger("Granting minter role to Pool")
-  await grantMinterRoleToPool(fidu, pool)
-  const creditDesk = await deployCreditDesk(deployer, {config})
+
   await deploySeniorPool(deployer, {config, fidu})
   await deployBorrower(deployer, {config})
   await deploySeniorPoolStrategies(deployer, {config})
   logger("Deploying GoldfinchFactory")
+
   await deployGoldfinchFactory(deployer, {config})
   await deployClImplementation(deployer, {config})
 
-  // const gfi = await deployGFI(deployer, {config})
-  // await deployLPStakingRewards(deployer, {config, deployEffects})
-  // const communityRewards = await deployCommunityRewards(deployer, {config, deployEffects})
-  // await deployMerkleDistributor(deployer, {communityRewards, deployEffects})
-  // await deployMerkleDirectDistributor(deployer, {gfi, deployEffects})
-  // await deployMerkleDistributor(deployer, {
-  //   communityRewards,
-  //   deployEffects,
-  //   contractName: "BackerMerkleDistributor",
-  //   merkleDistributorInfoPath: process.env.BACKER_MERKLE_DISTRIBUTOR_INFO_PATH,
-  // })
-  // await deployMerkleDirectDistributor(deployer, {
-  //   gfi,
-  //   deployEffects,
-  //   contractName: "BackerMerkleDirectDistributor",
-  //   merkleDirectDistributorInfoPath: process.env.BACKER_MERKLE_DIRECT_DISTRIBUTOR_INFO_PATH,
-  // })
-
   const {protocol_owner: trustedSigner} = await deployer.getNamedAccounts()
-  // assertNonNullable(trustedSigner)
-  // @ts-ignore
   const uniqueIdentity = await deployUniqueIdentity({deployer, trustedSigner, deployEffects})
 
   await deployGo(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
   await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
 
-  // await deployZapper(deployer, {config, deployEffects})
-
-  logger("Granting ownership of Pool to CreditDesk")
-  await grantOwnershipOfPoolToCreditDesk(pool, creditDesk.address)
+  // logger("Granting ownership of Pool to CreditDesk")
+  // await grantOwnershipOfPoolToCreditDesk(pool, creditDesk.address)
 
   await deployEffects.executeDeferred()
 }

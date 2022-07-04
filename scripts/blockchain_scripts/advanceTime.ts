@@ -1,6 +1,8 @@
 import hre from "hardhat"
 import BN from "bn.js"
-import {SECONDS_PER_DAY} from "../test/testHelpers"
+
+const SECONDS_PER_DAY = new BN(86400)
+const SECONDS_PER_YEAR = SECONDS_PER_DAY.mul(new BN(365))
 
 async function main() {
   await advanceTime()

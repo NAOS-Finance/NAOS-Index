@@ -1,9 +1,16 @@
+import hre from 'hardhat'
 import {HardhatRuntimeEnvironment} from "hardhat/types"
-import {MAINNET_CHAIN_ID} from "../blockchain_scripts/deployHelpers"
-import {setUpForTesting} from "../blockchain_scripts/setUpForTesting"
+import {MAINNET_CHAIN_ID} from "./blockchain_scripts/deployHelpers"
+import {setUpForTesting} from "./blockchain_scripts/setUpForTesting"
 
-async function main(hre) {
+async function main() {
   await setUpForTesting(hre)
+}
+
+if (require.main === module) {
+  main()
+    .then(console.log)
+    .catch(console.error)
 }
 
 module.exports = main

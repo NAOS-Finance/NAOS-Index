@@ -12,9 +12,9 @@ import {ethers, getChainId, getNamedAccounts} from "hardhat"
 type Ethers = typeof ethers
 import hre, {web3, artifacts} from "hardhat"
 import BN from "bn.js"
-const USDCDecimals = new BN(String(1e6))
+const USDC_DECIMALS = new BN(String(1e6))
 const FIDU_DECIMALS = new BN(String(1e18))
-const GFI_DECIMALS = new BN(String(1e18))
+const NAOS_DECIMALS = new BN(String(1e18))
 const STAKING_REWARDS_MULTIPLIER_DECIMALS = new BN(String(1e18))
 const ETHDecimals = new BN(String(1e18))
 const LEVERAGE_RATIO_DECIMALS = new BN(String(1e18))
@@ -53,23 +53,27 @@ const LOCAL = "localhost"
 const ROPSTEN = "ropsten"
 const RINKEBY = "rinkeby"
 const MAINNET = "mainnet"
+const GORLI = "gorli"
+const BSC = "bsc"
 
-export type ChainName = typeof LOCAL | typeof ROPSTEN | typeof RINKEBY | typeof MAINNET
+export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GORLI | typeof BSC
 
 const MAX_UINT = new BN("115792089237316195423570985008687907853269984665640564039457584007913129639935")
 
 const LOCAL_CHAIN_ID = "31337"
 type LocalChainId = typeof LOCAL_CHAIN_ID
-const ROPSTEN_CHAIN_ID = "3"
-type RopstenChainId = typeof ROPSTEN_CHAIN_ID
 const MAINNET_CHAIN_ID = "1"
 type MainnetChainId = typeof MAINNET_CHAIN_ID
 const RINKEBY_CHAIN_ID = "4"
 type RinkebyChainId = typeof RINKEBY_CHAIN_ID
+const GORLI_CHAIN_ID = "5"
+type GorliChainId = typeof GORLI_CHAIN_ID
+const BSC_CHAIN_ID = "56"
+type BscChainId = typeof BSC_CHAIN_ID
 
-export type ChainId = LocalChainId | RopstenChainId | MainnetChainId | RinkebyChainId
+export type ChainId = LocalChainId | MainnetChainId | RinkebyChainId | BscChainId
 
-const CHAIN_IDS = [LOCAL_CHAIN_ID, ROPSTEN_CHAIN_ID, MAINNET_CHAIN_ID, RINKEBY_CHAIN_ID]
+const CHAIN_IDS = [LOCAL_CHAIN_ID, MAINNET_CHAIN_ID, RINKEBY_CHAIN_ID, BSC_CHAIN_ID]
 export const assertIsChainId: (val: unknown) => asserts val is ChainId = (val: unknown): asserts val is ChainId => {
   if (!(CHAIN_IDS as unknown[]).includes(val)) {
     // throw new AssertionError(`${val} is not in \`CHAIN_IDS\`.`)
@@ -78,9 +82,9 @@ export const assertIsChainId: (val: unknown) => asserts val is ChainId = (val: u
 
 const CHAIN_NAME_BY_ID: Record<ChainId, ChainName> = {
   [LOCAL_CHAIN_ID]: LOCAL,
-  [ROPSTEN_CHAIN_ID]: ROPSTEN,
   [MAINNET_CHAIN_ID]: MAINNET,
   [RINKEBY_CHAIN_ID]: RINKEBY,
+  [BSC_CHAIN_ID]: BSC,
 }
 
 export type AddressString = string
@@ -93,6 +97,9 @@ const BUSD = "BUSD"
 type BUSDTicker = typeof BUSD
 const ETH = "ETH"
 type ETHTicker = typeof ETH
+const NAOS = "NAOS"
+type NAOSTicker = typeof NAOS
+
 function assertIsTicker(val: string): asserts val is Ticker {
   if (!TICKERS.includes(val)) {
     // throw new AssertionError(`${val} is not in the allowed Ticker list: ${TICKERS}`)
@@ -109,10 +116,15 @@ const USDT_ADDRESSES: Record<typeof MAINNET, AddressString> = {
 const BUSD_ADDRESSES: Record<typeof MAINNET, AddressString> = {
   [MAINNET]: "0x4Fabb145d64652a948d72533023f6E7A623C7C53",
 }
+const NAOS_ADDRESSES: Record<typeof MAINNET | typeof BSC, AddressString> = {
+  [MAINNET]: "0x4a615bB7166210CCe20E6642a6f8Fb5d4D044496",
+  [BSC]: "0x758d08864fB6cCE3062667225ca10b8F00496cc2",
+}
 const ERC20_ADDRESSES: any = {
   [USDC]: USDC_ADDRESSES,
   [USDT]: USDT_ADDRESSES,
   [BUSD]: BUSD_ADDRESSES,
+  [NAOS]: NAOS_ADDRESSES,
 }
 
 type SafeConfigChainId = MainnetChainId | RinkebyChainId
@@ -180,7 +192,11 @@ function getUSDCAddress(chainId: ChainId): AddressString | undefined {
   return getERC20Address("USDC", chainId)
 }
 
-export type Ticker = USDCTicker | USDTTicker | BUSDTicker | ETHTicker
+function getNAOSAddress(chainId: ChainId): AddressString | undefined {
+  return getERC20Address("NAOS", chainId)
+}
+
+export type Ticker = USDCTicker | USDTTicker | BUSDTicker | ETHTicker | NAOSTicker
 const TICKERS = [USDC, USDT, BUSD, ETH]
 function getERC20Address(ticker: Ticker, chainId: ChainId): AddressString | undefined {
   const mapping = ERC20_ADDRESSES[ticker]
@@ -278,9 +294,9 @@ async function setInitialConfigVals(config: GoldfinchConfig, logger = function (
   const {protocol_owner} = await hre.getNamedAccounts()
   // assertIsString(protocol_owner)
 
-  const transactionLimit = new BN(PROTOCOL_CONFIG.transactionLimit).mul(USDCDecimals)
-  const totalFundsLimit = new BN(PROTOCOL_CONFIG.totalFundsLimit).mul(USDCDecimals)
-  const maxUnderwriterLimit = new BN(PROTOCOL_CONFIG.maxUnderwriterLimit).mul(USDCDecimals)
+  const transactionLimit = new BN(PROTOCOL_CONFIG.transactionLimit).mul(USDC_DECIMALS)
+  const totalFundsLimit = new BN(PROTOCOL_CONFIG.totalFundsLimit).mul(USDC_DECIMALS)
+  const maxUnderwriterLimit = new BN(PROTOCOL_CONFIG.maxUnderwriterLimit).mul(USDC_DECIMALS)
   const reserveDenominator = new BN(PROTOCOL_CONFIG.reserveDenominator)
   const withdrawFeeDenominator = new BN(PROTOCOL_CONFIG.withdrawFeeDenominator)
   const latenessGracePeriodIndays = new BN(PROTOCOL_CONFIG.latenessGracePeriodInDays)
@@ -344,11 +360,11 @@ async function updateConfig(config: GoldfinchConfig, type: any, key: any, newVal
   }
 }
 
-function fromAtomic(amount: BN, decimals = USDCDecimals): string {
+function fromAtomic(amount: BN, decimals = USDC_DECIMALS): string {
   return new BN(String(amount)).div(decimals).toString(10)
 }
 
-function toAtomic(amount: BN, decimals = USDCDecimals): string {
+function toAtomic(amount: BN, decimals = USDC_DECIMALS): string {
   return new BN(String(amount)).mul(decimals).toString(10)
 }
 
@@ -495,15 +511,16 @@ export {
   MAINNET_FIDU_USDC_CURVE_LP_ADDRESS,
   LOCAL,
   MAINNET,
-  USDCDecimals,
+  USDC_DECIMALS,
   MAX_UINT,
   ETHDecimals,
   LEVERAGE_RATIO_DECIMALS,
   INTEREST_DECIMALS,
   FIDU_DECIMALS,
-  GFI_DECIMALS,
+  NAOS_DECIMALS,
   STAKING_REWARDS_MULTIPLIER_DECIMALS,
   getUSDCAddress,
+  getNAOSAddress,
   getERC20Address,
   getDeployedContract,
   fromAtomic,

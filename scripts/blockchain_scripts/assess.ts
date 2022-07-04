@@ -1,15 +1,14 @@
 import {getContract, TRUFFLE_CONTRACT_PROVIDER} from "./deployHelpers"
-import {assertNonNullable} from "@goldfinch-eng/utils"
-import {CreditLineInstance, TranchedPoolInstance} from "../typechain/truffle"
+// import {assertNonNullable} from "@goldfinch-eng/utils"
 import {CreditLine, TranchedPool} from "../typechain/ethers"
 
 async function main() {
-  assertNonNullable(process.env.POOL)
+  // assertNonNullable(process.env.POOL)
   const poolAddress = process.env.POOL
-  const pool = await getContract<TranchedPool, TranchedPoolInstance>("TranchedPool", TRUFFLE_CONTRACT_PROVIDER, {
+  const pool = await getContract<TranchedPool, null>("TranchedPool", TRUFFLE_CONTRACT_PROVIDER, {
     at: poolAddress,
   })
-  const creditLine = await getContract<CreditLine, CreditLineInstance>("CreditLine", TRUFFLE_CONTRACT_PROVIDER, {
+  const creditLine = await getContract<CreditLine, null>("CreditLine", TRUFFLE_CONTRACT_PROVIDER, {
     at: await pool.creditLine(),
   })
   await pool.assess()

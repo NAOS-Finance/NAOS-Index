@@ -1,0 +1,49 @@
+{
+    "compilerOptions": {
+      "allowJs": true,
+      "allowSyntheticDefaultImports": true,
+      // "forceConsistentCasingInFileNames": true,
+      // "isolatedModules": true,
+      // "moduleResolution": "node",
+      // "noEmit": true,
+      "noImplicitAny": false,
+      "noImplicitOverride": false,
+      // "noImplicitReturns": true,
+      // "noFallthroughCasesInSwitch": true,
+      "noPropertyAccessFromIndexSignature": false,
+      // "noUncheckedIndexedAccess": true,
+      "noUnusedLocals": false,
+      "noUnusedParameters": false,
+      "skipLibCheck": false,
+      
+      "target": "es2018",
+      "module": "commonjs",
+      "strict": true,
+      "esModuleInterop": true,
+      "outDir": "dist",
+      "resolveJsonModule": true,
+      "paths": {
+        "@goldfinch-eng/utils": ["packages/utils/src"],
+        "@goldfinch-eng/utils/*": ["packages/utils/*"]
+        // "@goldfinch-eng/protocol": ["packages/protocol"],
+        // "@goldfinch-eng/protocol/*": ["packages/protocol/*"],
+        // "@goldfinch-eng/client": ["packages/client"],
+        // "@goldfinch-eng/client/*": ["packages/client/*"],
+        // "@goldfinch-eng/server": ["packages/server"],
+        // "@goldfinch-eng/autotasks": [
+        //   "packages/autotasks"
+        // ],
+        // "@goldfinch-eng/autotasks/*": [
+        //   "packages/autotasks/*"
+        // ],
+        // "@goldfinch-eng/subgraph": ["packages/subgraph"],
+        // "@goldfinch-eng/functions": ["packages/functions/src"],
+        // "@goldfinch-eng/functions/*": ["packages/functions/src/*"],
+        // "@goldfinch-eng/docs": ["packages/docs"],
+        // "@goldfinch-eng/docs/*": ["packages/docs/*"]
+      }
+    },
+    "include": ["./scripts", "./test"],
+    "files": ["./hardhat.config.ts"]
+  }
+  

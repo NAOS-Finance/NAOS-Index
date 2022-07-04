@@ -4,7 +4,7 @@ import axios from "axios"
 const {deployments} = hre
 const {ethers} = hre
 import {Block} from "@ethersproject/abstract-provider"
-import {getDeployedContract, TRANCHES, USDCDecimals} from "./deployHelpers"
+import {getDeployedContract, TRANCHES, USDC_DECIMALS} from "./deployHelpers"
 import {TranchedPool} from "../typechain/ethers"
 import {getAgreements, getUsers} from "@goldfinch-eng/functions/db"
 
@@ -25,7 +25,7 @@ const PERSONA_HEADERS = {
 }
 
 function usdcFromAtomic(amount: BigNumberish) {
-  return new BigNumber(String(amount)).div(USDCDecimals.toString()).toString(10)
+  return new BigNumber(String(amount)).div(USDC_DECIMALS.toString()).toString(10)
 }
 
 /**

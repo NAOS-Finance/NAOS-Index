@@ -3,6 +3,7 @@ const {deployments, ethers} = hre
 import {getSignerForAddress} from "../blockchain_scripts/deployHelpers"
 import {CONFIG_KEYS, CONFIG_KEYS_BY_TYPE} from "./configKeys"
 
+// TODO: use multicall
 async function main() {
   const configAddress = process.env.CONFIG_ADDRESS || (await deployments.get("GoldfinchConfig")).address
   const {gf_deployer} = await hre.getNamedAccounts()

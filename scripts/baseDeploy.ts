@@ -5,8 +5,11 @@ async function main() {
   await baseDeploy(hre)
 }
 
-// module.exports = main
-// module.exports.tags = ["base_deploy"]
-main()
-  .then(console.log)
-  .catch(console.error)
+if (require.main === module) {
+  main()
+    .then(console.log)
+    .catch(console.error)
+}
+
+module.exports = main
+module.exports.tags = ["base_deploy"]

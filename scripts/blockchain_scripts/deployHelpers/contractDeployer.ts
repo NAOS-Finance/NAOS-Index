@@ -1,3 +1,4 @@
+import {every, isPlainObject} from "lodash"
 import {HardhatRuntimeEnvironment} from "hardhat/types"
 import {ethers} from "hardhat"
 import {DeployOptions, DeployResult} from "hardhat-deploy/types"
@@ -6,7 +7,7 @@ import {Contract, BaseContract} from "ethers"
 
 import {Logger} from "../types"
 import {fixProvider, getProtocolOwner, isTestEnv} from "./"
-// import {assertIsString, isPlainObject} from "../../../utils"
+// import {assertIsString} from "../../../utils"
 import {openzeppelin_saveDeploymentManifest} from "./openzeppelin-upgrade-validation"
 // import {assertNonNullable} from "@goldfinch-eng/utils"
 
@@ -31,13 +32,13 @@ export class ContractDeployer {
   async deploy<T extends BaseContract | Contract = Contract>(contractName: string, options: DeployOptions): Promise<T> {
     options = await this.withDefaults(options)
 
-    // const proxyPreviouslyExists = await this.hre.deployments.getOrNull(`${contractName}`)
+    const proxyPreviouslyExists = await this.hre.deployments.getOrNull(`${contractName}`)
     const deployResult = await this.deployHandlingUnknownSigner(contractName, options)
 
     // if a new proxy deployment, generate the manifest for hardhat-upgrades
-    // if (isPlainObject(options) && isPlainObject(options?.proxy) && !proxyPreviouslyExists && !isTestEnv()) {
-    //   await this.writeDeploymentManifest(contractName)
-    // }
+    if (isPlainObject(options) && isPlainObject(options?.proxy) && !proxyPreviouslyExists && !isTestEnv()) {
+      await this.writeDeploymentManifest(contractName)
+    }
 
     return (await ethers.getContractAt(deployResult.abi, deployResult.address)) as T
   }
@@ -46,10 +47,9 @@ export class ContractDeployer {
     let result: DeployResult
     const unsignedTx = await this.hre.deployments.catchUnknownSigner(
       async () => {
-        console.log(options)
         await this.hre.deployments.deploy(contractName, options)
       },
-      {log: false}
+      {log: true}
     )
 
     if (!unsignedTx) {
@@ -93,7 +93,7 @@ export class ContractDeployer {
   }
 
   private async withProxyDefaults(options: DeployOptions): Promise<DeployOptions> {
-    // if (isPlainObject(options) && isPlainObject(options?.proxy) && !options?.proxy?.owner) {
+    if (isPlainObject(options) && isPlainObject(options?.proxy)) {
       const protocol_owner = await getProtocolOwner()
       options = {
         ...options,
@@ -103,7 +103,7 @@ export class ContractDeployer {
           owner: protocol_owner,
         },
       }
-    // }
+    }
 
     return options
   }

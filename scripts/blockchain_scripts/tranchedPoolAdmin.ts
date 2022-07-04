@@ -1,5 +1,5 @@
 // /* globals ethers */
-import {INTEREST_DECIMALS, TRANCHES, USDCDecimals} from "./deployHelpers"
+import {INTEREST_DECIMALS, TRANCHES, USDC_DECIMALS} from "./deployHelpers"
 import {ethers} from "hardhat"
 import {CONFIG_KEYS} from "./configKeys"
 import {MAINNET_MULTISIG} from "./mainnetForkingHelpers"
@@ -78,7 +78,7 @@ async function migrateCreditLine(tranchedPool: TranchedPool): Promise<void> {
   assertNonNullable(process.env.LATE_FEE_APR)
 
   const borrowerAddress = process.env.BORROWER_ADDRESS
-  const limit = new BigNumber(process.env.LIMIT).multipliedBy(USDCDecimals.toString())
+  const limit = new BigNumber(process.env.LIMIT).multipliedBy(USDC_DECIMALS.toString())
   const interestApr = new BigNumber(process.env.INTEREST_APR).multipliedBy(INTEREST_DECIMALS.toString())
   const paymentPeriodInDays = new BigNumber(process.env.PAYMENT_PERIOD_IN_DAYS)
   const termInDays = new BigNumber(process.env.TERM_IN_DAYS)

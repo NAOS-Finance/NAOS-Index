@@ -48,7 +48,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // sharePrice = config.getPool().sharePrice();
     // totalLoansOutstanding = config.getCreditDesk().totalLoansOutstanding();
     // totalWritedowns = config.getCreditDesk().totalWritedowns();
-    sharePrice = 0;
+    sharePrice = 1;
     totalLoansOutstanding = 0;
     totalWritedowns = 0;
 

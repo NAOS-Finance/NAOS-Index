@@ -19,6 +19,7 @@ export async function fundWithWhales(
     USDT: "0x28c6c06298d514db089934071355e5743bf21d60",
     BUSD: "0x28c6c06298d514db089934071355e5743bf21d60",
     ETH: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    NAOS: "0x0d0707963952f2fba59dd06f2b425ace40b492fe",
   }
   const chainId = await currentChainId()
   assertIsChainId(chainId)

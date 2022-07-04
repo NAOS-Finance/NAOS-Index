@@ -114,12 +114,6 @@ module.exports = {
   },
   defaultNetwork: "localhost",
   networks: {
-    // hardhat: {
-    //   forking: {
-    //     url: "https://eth-rinkeby.alchemyapi.io/v2/Cj0RXa1hNE1h9oVmKaDikQzgnL98cyn2",
-    //     blockNumber: 14390000
-    //   }
-    // }
   },
   mocha: {
     timeout: 0
