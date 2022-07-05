@@ -108,7 +108,8 @@ async function advanceTime({days, seconds, toSecond}: {days?: Numberish; seconds
   // Cannot go backward
   // expect(newTimestamp).to.bignumber.gt(currentTimestamp)
 
-  await ethers.provider.send("evm_setNextBlockTimestamp", [newTimestamp.toNumber()])
+  // await ethers.provider.send("evm_setNextBlockTimestamp", [newTimestamp.toNumber()])
+  await ethers.provider.send("evm_increaseTime", [secondsPassed.toNumber()])
   return newTimestamp
 }
 

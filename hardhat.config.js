@@ -2,9 +2,10 @@ require("@nomiclabs/hardhat-ethers");
 // require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-web3");
 require("@nomiclabs/hardhat-truffle5");
-// require("@nomiclabs/hardhat-ganache");
 // require('@openzeppelin/hardhat-upgrades');
 require("@typechain/hardhat");
+require("hardhat-gas-reporter");
+require("hardhat-contract-sizer");
 require("hardhat-deploy");
 
 // You need to export an object to set up your config
@@ -31,29 +32,12 @@ module.exports = {
       4: "0x80B9823A6D12Cc00d70E184b2b310d360220E792",
       31337: "0x60d2be34bce277f5f5889adfd4991baefa17461c",
     },
-    // test_merkle_distributor_recipient_a: {
-    //   hardhat: TEST_MERKLE_DISTRIBUTOR_RECIPIENT_A,
-    // },
-    // test_merkle_distributor_recipient_b: {
-    //   hardhat: TEST_MERKLE_DISTRIBUTOR_RECIPIENT_B,
-    // },
-    // test_merkle_direct_distributor_recipient_a: {
-    //   hardhat: TEST_MERKLE_DIRECT_DISTRIBUTOR_RECIPIENT_A,
-    // },
-    // test_merkle_direct_distributor_recipient_b: {
-    //   hardhat: TEST_MERKLE_DIRECT_DISTRIBUTOR_RECIPIENT_B,
-    // },
   },
   // gasReporter: {
   //   enabled: process.env.REPORT_GAS ? true : false,
   //   coinmarketcap: process.env.COINMARKETCAP_API_KEY,
   //   currency: "USD",
   //   src: "contracts/protocol",
-  // },
-  // tenderly: {
-  //   project: "goldfinch-protocol",
-  //   username: "goldfinch",
-  //   forkNetwork: "1", //Network id of the network we want to fork
   // },
   // contractSizer: {
   //   runOnCompile: true,

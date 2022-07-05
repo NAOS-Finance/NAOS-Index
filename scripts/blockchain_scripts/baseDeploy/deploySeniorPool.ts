@@ -34,7 +34,7 @@ export async function deploySeniorPool(deployer: ContractDeployer, {config, fidu
   await (await config.addToGoList(seniorPool.address)).wait()
   if (fidu) {
     logger(`Granting minter role to ${contractName}`)
-    // await grantMinterRoleToPool(fidu, seniorPool)
+    await grantMinterRoleToPool(fidu, seniorPool)
   }
   return seniorPool
 }
