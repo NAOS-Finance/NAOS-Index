@@ -42,6 +42,7 @@ library ConfigOptions {
     SeniorPool,
     SeniorPoolStrategy,
     BorrowerImplementation,
+    NAOS,
     Go,
     BackerRewards,
     StakingRewards
