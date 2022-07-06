@@ -46,6 +46,7 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
   uint256 public maxInterestDollarsEligible; // interest $ eligible for gfi rewards, times 1e18
   uint256 public totalInterestReceived; // counter of total interest repayments, times 1e6
   uint256 public totalRewardPercentOfTotalGFI; // totalRewards/totalGFISupply, times 1e18
+  uint256 public usdDecimals;
 
   mapping(uint256 => BackerRewardsTokenInfo) public tokens; // poolTokenId -> BackerRewardsTokenInfo
 
@@ -56,6 +57,9 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
     __BaseUpgradeablePausable__init(owner);
     config = _config;
+
+    IERC20withDec usdc = config.getUSDC();
+    usdDecimals = uint256(usdc.decimals());
   }
 
   /**
@@ -300,15 +304,15 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
     return uint256(10)**uint256(18);
   }
 
-  function usdcMantissa() internal pure returns (uint256) {
-    return uint256(10)**uint256(6);
+  function usdcMantissa() internal view returns (uint256) {
+    return uint256(10)**usdDecimals;
   }
 
-  function usdcToAtomic(uint256 amount) internal pure returns (uint256) {
+  function usdcToAtomic(uint256 amount) internal view returns (uint256) {
     return amount.mul(mantissa()).div(usdcMantissa());
   }
 
-  function atomicToUSDC(uint256 amount) internal pure returns (uint256) {
+  function atomicToUSDC(uint256 amount) internal view returns (uint256) {
     return amount.div(mantissa().div(usdcMantissa()));
   }
 
