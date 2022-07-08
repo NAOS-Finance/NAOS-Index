@@ -8,7 +8,6 @@ import "../../interfaces/IPool.sol";
 import "../../interfaces/IFidu.sol";
 import "../../interfaces/ISeniorPool.sol";
 import "../../interfaces/ISeniorPoolStrategy.sol";
-import "../../interfaces/ICreditDesk.sol";
 import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/IPoolTokens.sol";
 import "../../interfaces/IBackerRewards.sol";
@@ -37,10 +36,6 @@ library ConfigHelper {
 
   function getUSDC(GoldfinchConfig config) internal view returns (IERC20withDec) {
     return IERC20withDec(usdcAddress(config));
-  }
-
-  function getCreditDesk(GoldfinchConfig config) internal view returns (ICreditDesk) {
-    return ICreditDesk(creditDeskAddress(config));
   }
 
   function getFidu(GoldfinchConfig config) internal view returns (IFidu) {
@@ -97,10 +92,6 @@ library ConfigHelper {
 
   function seniorPoolStrategyAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.SeniorPoolStrategy));
-  }
-
-  function creditDeskAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.CreditDesk));
   }
 
   function goldfinchFactoryAddress(GoldfinchConfig config) internal view returns (address) {

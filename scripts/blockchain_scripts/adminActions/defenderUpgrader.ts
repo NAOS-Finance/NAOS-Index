@@ -4,9 +4,6 @@ import {SAFE_CONFIG, getDefenderClient, CHAIN_NAME_BY_ID, ChainId, AddressString
 import {CONFIG_KEYS} from "../configKeys"
 import {AdminClient} from "defender-admin-client"
 import {Network} from "defender-base-client"
-import {artifacts} from "hardhat"
-
-const CreditDesk = artifacts.require("CreditDesk")
 
 class DefenderUpgrader {
   hre: HardhatRuntimeEnvironment
@@ -78,23 +75,23 @@ class DefenderUpgrader {
     this.logger("Defender URL: ", this.defenderUrl(oldConfigAddress))
   }
 
-  async createCreditLine(
-    creditDesk,
-    {borrower, limit, interestApr, paymentPeriodInDays, termInDays, lateFeeApr, description}
-  ) {
-    const functionInterface = CreditDesk.abi.filter((funcAbi) => funcAbi.name === "createCreditLine")[0]
-    await this.client.createProposal({
-      contract: {address: creditDesk.address, network: this.network as Network}, // Target contract
-      title: "Create credit line",
-      description: `${description || "Creating a new credit line for " + borrower}`,
-      type: "custom",
-      functionInterface: functionInterface,
-      functionInputs: [borrower, limit, interestApr, paymentPeriodInDays, termInDays, lateFeeApr],
-      via: this.goldfinchUnderwriter,
-      viaType: "Gnosis Safe", // Either Gnosis Safe or Gnosis Multisig
-    })
-    this.logger("Defender URL: ", this.defenderUrl(creditDesk.address))
-  }
+  // async createCreditLine(
+  //   creditDesk,
+  //   {borrower, limit, interestApr, paymentPeriodInDays, termInDays, lateFeeApr, description}
+  // ) {
+  //   const functionInterface = CreditDesk.abi.filter((funcAbi) => funcAbi.name === "createCreditLine")[0]
+  //   await this.client.createProposal({
+  //     contract: {address: creditDesk.address, network: this.network as Network}, // Target contract
+  //     title: "Create credit line",
+  //     description: `${description || "Creating a new credit line for " + borrower}`,
+  //     type: "custom",
+  //     functionInterface: functionInterface,
+  //     functionInputs: [borrower, limit, interestApr, paymentPeriodInDays, termInDays, lateFeeApr],
+  //     via: this.goldfinchUnderwriter,
+  //     viaType: "Gnosis Safe", // Either Gnosis Safe or Gnosis Multisig
+  //   })
+  //   this.logger("Defender URL: ", this.defenderUrl(creditDesk.address))
+  // }
 
   async updateGoldfinchConfig(contractName, contract) {
     this.logger(`Proposing new config on ${contractName} (${contract.address})`)

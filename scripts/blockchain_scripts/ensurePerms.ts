@@ -27,7 +27,7 @@ async function ensurePerms(hre) {
     throw new Error(`Unsupported chain id: ${chainId}`)
   }
 
-  const contractsToUpgradeStr = process.env.CONTRACTS || "GoldfinchConfig, GoldfinchFactory, CreditDesk, Pool, Fidu"
+  const contractsToUpgradeStr = process.env.CONTRACTS || "GoldfinchConfig, GoldfinchFactory, Fidu"
   const contractsToUpgrade = contractsToUpgradeStr.split(/[ ,]+/)
   await ensurePermsOnContracts(contractsToUpgrade, gf_deployer, protocol_owner, hre)
   logger("Done.")
