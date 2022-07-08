@@ -94,7 +94,7 @@ async function upgradeContracts({
     // assertNonNullable(contract)
 
     let contractToDeploy = contractName
-    if (isTestEnv() && ["Pool", "CreditDesk", "GoldfinchConfig"].includes(contractName)) {
+    if (isTestEnv() && ["GoldfinchConfig"].includes(contractName)) {
       contractToDeploy = `Test${contractName}`
     }
 
@@ -216,13 +216,13 @@ async function performPostUpgradeMigration(upgradedContracts: any, deployments: 
   const forwarder = await ethers.getContractAt(deployed.abi, "0xa530F85085C6FE2f866E7FdB716849714a89f4CD")
   await forwarder.registerDomainSeparator("Defender", "1")
   await migrateToNewConfig(upgradedContracts, [
-    "CreditDesk",
+    // "CreditDesk",
     "CreditLine",
     "Fidu",
     "FixedLeverageRatioStrategy",
     "Go",
     "MigratedTranchedPool",
-    "Pool",
+    // "Pool",
     "PoolTokens",
     "SeniorPool",
   ])

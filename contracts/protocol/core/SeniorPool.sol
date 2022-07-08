@@ -46,8 +46,6 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // Initialize sharePrice to be identical to the legacy pool. This is in the initializer
     // because it must only ever happen once.
     // sharePrice = config.getPool().sharePrice();
-    // totalLoansOutstanding = config.getCreditDesk().totalLoansOutstanding();
-    // totalWritedowns = config.getCreditDesk().totalWritedowns();
     sharePrice = 1;
     totalLoansOutstanding = 0;
     totalWritedowns = 0;

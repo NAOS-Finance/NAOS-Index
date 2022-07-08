@@ -22,7 +22,6 @@ import {deploySeniorPoolStrategies} from "./baseDeploy/deploySeniorPoolStrategie
 import {deployTranchedPool} from "./baseDeploy/deployTranchedPool"
 import {deployTransferRestrictedVault} from "./baseDeploy/deployTransferRestrictedVault"
 import {deployBackerRewards} from "./baseDeploy/deployBackerRewards"
-import {deployCreditDesk} from "./baseDeploy/deployCreditDesk"
 import {deployConfig} from "./baseDeploy/deployConfig"
 import {deployGo} from "./baseDeploy/deployGo"
 import {deployUniqueIdentity} from "./baseDeploy/deployUniqueIdentity"
@@ -77,26 +76,7 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   await deployGo(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
   await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
 
-  // logger("Granting ownership of Pool to CreditDesk")
-  // await grantOwnershipOfPoolToCreditDesk(pool, creditDesk.address)
-
   await deployEffects.executeDeferred()
-}
-
-export async function grantOwnershipOfPoolToCreditDesk(pool: any, creditDeskAddress: any) {
-  const alreadyOwnedByCreditDesk = await pool.hasRole(OWNER_ROLE, creditDeskAddress)
-  if (alreadyOwnedByCreditDesk) {
-    // We already did this step, so early return
-    logger("Looks like Credit Desk already is the owner")
-    return
-  }
-  logger("Adding the Credit Desk as an owner")
-  const txn = await pool.grantRole(OWNER_ROLE, creditDeskAddress)
-  await txn.wait()
-  const nowOwnedByCreditDesk = await pool.hasRole(OWNER_ROLE, creditDeskAddress)
-  if (!nowOwnedByCreditDesk) {
-    throw new Error(`Expected ${creditDeskAddress} to be an owner, but that is not the case`)
-  }
 }
 
 export async function grantMinterRoleToPool(fidu: Fidu, pool: any) {

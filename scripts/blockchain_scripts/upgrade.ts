@@ -59,7 +59,7 @@ async function deployUpgrades({contractNames, gf_deployer, hre, upgrader}) {
     args: [],
   })
   const dependencies = {
-    CreditDesk: {["Accountant"]: accountant.address},
+    // CreditDesk: {["Accountant"]: accountant.address},
   }
   const result = {}
 
