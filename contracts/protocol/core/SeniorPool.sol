@@ -12,6 +12,10 @@ import "./Accountant.sol";
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
 
+import {FixedPointMath} from "../../library/FixedPointMath.sol";
+import {IVaultAdapter} from "../../interfaces/IVaultAdapter.sol";
+import {Vault} from "../../library/Vault.sol";
+
 /**
  * @title Goldfinch's SeniorPool contract
  * @notice Main entry point for senior LPs (a.k.a. capital providers)
@@ -22,6 +26,8 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   GoldfinchConfig public config;
   using ConfigHelper for GoldfinchConfig;
   using SafeMath for uint256;
+  using Vault for Vault.Data;
+  using Vault for Vault.List;
 
   struct FeeTier {
     uint256 veNAOSAmount;
@@ -32,6 +38,30 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
 
   mapping(ITranchedPool => uint256) public writedowns;
   FeeTier[] public feeTiers;
+
+  /// @dev A mapping of adapter addresses to keep track of vault adapters that have already been added
+  mapping(IVaultAdapter => bool) public adapters;
+
+  /// @dev A list of all of the vaults. The last element of the list is the vault that is currently being used for
+  /// deposits and withdraws. Vaults before the last element are considered inactive and are expected to be cleared.
+  Vault.List private _vaults;
+
+  /// @dev A flag indicating if the contract has been initialized yet.
+  bool public initialized;
+
+  /// @dev Resolution for all fixed point numeric parameters which represent percents. The resolution allows for a
+  /// granularity of 0.01% increments.
+  uint256 public constant PERCENT_RESOLUTION = 10000;
+
+  uint256 public harvestFee;
+
+  /// @dev Checks that the contract is in an initialized state.
+  ///
+  /// This is used over a modifier to reduce the size of the contract
+  modifier expectInitialized() {
+    require(initialized, "Vault not initialized.");
+    _;
+  }
 
   event DepositMade(address indexed capitalProvider, uint256 amount, uint256 shares);
   event WithdrawalMade(address indexed capitalProvider, uint256 userAmount, uint256 reserveAmount);
@@ -46,6 +76,12 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   event GoldfinchConfigUpdated(address indexed who, address configAddress);
 
   event FeeTierUpdated(uint256 indexed tier, uint256 veNAOSAmount, uint256 fee);
+
+  event HarvestFeeUpdated(uint256 fee);
+  event ActiveVaultUpdated(IVaultAdapter indexed adapter);
+  event FundsFlushed(uint256 amount);
+  event FundsHarvested(uint256 withdrawnAmount, uint256 decreasedValue);
+  event FundsRecalled(uint256 indexed vaultId, uint256 withdrawnAmount, uint256 decreasedValue);
 
   function initialize(address owner, GoldfinchConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
@@ -295,6 +331,117 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     emit FeeTierUpdated(tier, veNAOSAmount, fee);
   }
 
+  /**
+   * @dev Update Active Vault.
+   * @param _adapter the vault adapter of the active vault.
+   */
+  function updateActiveVault(IVaultAdapter _adapter) external onlyAdmin {
+    require(address(_adapter) != address(0), "Vault adapter cannot be zero address");
+    if (vaultCount() == 0) {
+      initialized = true;
+    }
+    _updateActiveVault(_adapter);
+  }
+
+  /// @dev Sets the harvest fee.
+  ///
+  /// This function reverts if the caller is not the current admin.
+  ///
+  /// @param _harvestFee the new harvest fee.
+  function setHarvestFee(uint256 _harvestFee) external onlyAdmin {
+    // Check that the harvest fee is within the acceptable range. Setting the harvest fee greater than 100% could
+    // potentially break internal logic when calculating the harvest fee.
+    require(_harvestFee <= PERCENT_RESOLUTION, "Harvest fee above maximum.");
+
+    harvestFee = _harvestFee;
+
+    emit HarvestFeeUpdated(_harvestFee);
+  }
+
+  /// @dev Flushes buffered tokens to the active vault.
+  ///
+  /// This function reverts if an emergency exit is active. This is in place to prevent the potential loss of
+  /// additional funds.
+  ///
+  /// @return the amount of tokens flushed to the active vault.
+  function flush() external expectInitialized returns (uint256) {
+    return flushActiveVault();
+  }
+
+  /// @dev Internal function to flush buffered tokens to the active vault.
+  ///
+  /// This function reverts if an emergency exit is active. This is in place to prevent the potential loss of
+  /// additional funds.
+  ///
+  /// @return the amount of tokens flushed to the active vault.
+  function flushActiveVault() internal returns (uint256) {
+    Vault.Data storage _activeVault = _vaults.last();
+    uint256 _depositedAmount = _activeVault.depositAll();
+
+    emit FundsFlushed(_depositedAmount);
+
+    return _depositedAmount;
+  }
+
+  /// @dev Harvests yield from a vault.
+  ///
+  /// @param _vaultId the identifier of the vault to harvest from.
+  ///
+  /// @return the amount of funds that were harvested from the vault.
+  function harvest(uint256 _vaultId) external expectInitialized returns (uint256, uint256) {
+    Vault.Data storage _vault = _vaults.get(_vaultId);
+
+    (uint256 _harvestedAmount, uint256 _decreasedValue) = _vault.harvest(address(this));
+
+    if (_harvestedAmount > 0) {
+      uint256 _feeAmount = _harvestedAmount.mul(harvestFee).div(PERCENT_RESOLUTION);
+
+      if (_feeAmount > 0) {
+        sendToReserve(_feeAmount, address(this));
+      }
+    }
+
+    emit FundsHarvested(_harvestedAmount, _decreasedValue);
+    return (_harvestedAmount, _decreasedValue);
+  }
+
+  /// @dev Recalls an amount of deposited funds from a vault to this contract.
+  ///
+  /// @param _vaultId the identifier of the recall funds from.
+  /// @param _amount the amount of tokens which will be recalled from the vault 
+  ///
+  /// @return the amount of funds that were recalled from the vault to this contract and the decreased vault value.
+  function recall(uint256 _vaultId, uint256 _amount) external nonReentrant expectInitialized onlyAdmin returns (uint256, uint256) {
+    return _recallFunds(_vaultId, _amount);
+  }
+
+  /// @dev Gets the number of vaults in the vault list.
+  ///
+  /// @return the vault count.
+  function vaultCount() public view returns (uint256) {
+    return _vaults.length();
+  }
+
+  /// @dev Get the adapter of a vault.
+  ///
+  /// @param _vaultId the identifier of the vault.
+  ///
+  /// @return the vault adapter.
+  function getVaultAdapter(uint256 _vaultId) external view returns (IVaultAdapter) {
+    Vault.Data storage _vault = _vaults.get(_vaultId);
+    return _vault.adapter;
+  }
+
+  /// @dev Get the total amount of the parent asset that has been deposited into a vault.
+  ///
+  /// @param _vaultId the identifier of the vault.
+  ///
+  /// @return the total amount of deposited tokens.
+  function getVaultTotalDeposited(uint256 _vaultId) external view returns (uint256) {
+    Vault.Data storage _vault = _vaults.get(_vaultId);
+    return _vault.totalDeposited;
+  }
+
   /* Internal Functions */
 
   function _calculateWritedown(ITranchedPool pool, uint256 principal)
@@ -402,6 +549,37 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
       emit PrincipalCollected(from, principal);
       totalLoansOutstanding = totalLoansOutstanding.sub(principal);
     }
+  }
+
+  /// @dev Updates the active vault.
+  ///
+  /// This function reverts if the vault adapter is the zero address, if the token that the vault adapter accepts
+  /// is not the token that this contract defines as the parent asset, or if the contract has not yet been initialized.
+  ///
+  /// @param _adapter the adapter for the new active vault.
+  function _updateActiveVault(IVaultAdapter _adapter) internal {
+    require(_adapter.token() == config.getUSDC(), "Vault token mismatch.");
+    require(!adapters[_adapter], "Vault adapter already in use");
+    adapters[_adapter] = true;
+
+    _vaults.push(Vault.Data({adapter: _adapter, totalDeposited: 0}));
+
+    emit ActiveVaultUpdated(_adapter);
+  }
+
+  /// @dev Recalls an amount of funds from a vault to this contract.
+  ///
+  /// @param _vaultId the identifier of the recall funds from.
+  /// @param _amount  the amount of funds to recall from the vault.
+  ///
+  /// @return the amount of funds that were recalled from the vault to this contract and the decreased vault value.
+  function _recallFunds(uint256 _vaultId, uint256 _amount) internal returns (uint256, uint256) {
+    Vault.Data storage _vault = _vaults.get(_vaultId);
+    (uint256 _withdrawnAmount, uint256 _decreasedValue) = _vault.withdraw(address(this), _amount);
+
+    emit FundsRecalled(_vaultId, _withdrawnAmount, _decreasedValue);
+
+    return (_withdrawnAmount, _decreasedValue);
   }
 
   function sendToReserve(uint256 amount, address userForEvent) internal {
