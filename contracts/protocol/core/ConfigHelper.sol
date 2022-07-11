@@ -13,6 +13,7 @@ import "../../interfaces/IPoolTokens.sol";
 import "../../interfaces/IBackerRewards.sol";
 import "../../interfaces/IGoldfinchFactory.sol";
 import "../../interfaces/IGo.sol";
+import "../../interfaces/IBoostPool.sol";
 
 /**
  * @title ConfigHelper
@@ -56,6 +57,10 @@ library ConfigHelper {
 
   function getGo(GoldfinchConfig config) internal view returns (IGo) {
     return IGo(goAddress(config));
+  }
+
+  function getBoostPool(GoldfinchConfig config) internal view returns (IBoostPool) {
+    return IBoostPool(boostPoolAddress(config));
   }
 
   function oneInchAddress(GoldfinchConfig config) internal view returns (address) {
@@ -132,6 +137,10 @@ library ConfigHelper {
 
   function stakingRewardsAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.StakingRewards));
+  }
+
+  function boostPoolAddress(GoldfinchConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.BoostPool));
   }
 
   function getReserveDenominator(GoldfinchConfig config) internal view returns (uint256) {

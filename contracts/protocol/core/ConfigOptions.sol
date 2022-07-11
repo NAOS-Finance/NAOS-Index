@@ -45,6 +45,7 @@ library ConfigOptions {
     NAOS,
     Go,
     BackerRewards,
-    StakingRewards
+    StakingRewards,
+    BoostPool
   }
 }
