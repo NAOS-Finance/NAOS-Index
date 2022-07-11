@@ -16,8 +16,6 @@ import "./ConfigHelper.sol";
 
 contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
   bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
-  // $1 threshold to handle potential rounding errors, from differing decimals on Fidu and USDC;
-  uint256 public constant ASSET_LIABILITY_MATCH_THRESHOLD = 1e6;
   GoldfinchConfig public config;
   using ConfigHelper for GoldfinchConfig;
 
@@ -101,7 +99,7 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     if (_assets >= liabilitiesInDollars) {
       return true;
     } else {
-      return liabilitiesInDollars.sub(_assets) <= ASSET_LIABILITY_MATCH_THRESHOLD;
+      return liabilitiesInDollars.sub(_assets) <= usdDecimals;
     }
   }
 
@@ -114,7 +112,7 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     if (_assets >= liabilitiesInDollars) {
       return true;
     } else {
-      return liabilitiesInDollars.sub(_assets) <= ASSET_LIABILITY_MATCH_THRESHOLD;
+      return liabilitiesInDollars.sub(_assets) <= usdDecimals;
     }
   }
 
