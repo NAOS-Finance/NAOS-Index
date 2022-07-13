@@ -23,9 +23,18 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   using ConfigHelper for GoldfinchConfig;
   using SafeMath for uint256;
 
+
   uint256 public usdDecimals;
+  
+  struct FeeTier {
+    uint256 veNAOSAmount;
+    uint256 fee;
+  }
+
+  uint256 constant MAX_WITHDRAW_FEE = 50;
 
   mapping(ITranchedPool => uint256) public writedowns;
+  FeeTier[] public feeTiers;
 
   event DepositMade(address indexed capitalProvider, uint256 amount, uint256 shares);
   event WithdrawalMade(address indexed capitalProvider, uint256 userAmount, uint256 reserveAmount);
@@ -39,6 +48,8 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
 
   event GoldfinchConfigUpdated(address indexed who, address configAddress);
 
+  event FeeTierUpdated(uint256 indexed tier, uint256 veNAOSAmount, uint256 fee);
+
   function initialize(address owner, GoldfinchConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
 
@@ -48,8 +59,6 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // Initialize sharePrice to be identical to the legacy pool. This is in the initializer
     // because it must only ever happen once.
     // sharePrice = config.getPool().sharePrice();
-    // totalLoansOutstanding = config.getCreditDesk().totalLoansOutstanding();
-    // totalWritedowns = config.getCreditDesk().totalWritedowns();
     sharePrice = 1;
     totalLoansOutstanding = 0;
     totalWritedowns = 0;
@@ -61,6 +70,11 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
 
     bool success = usdc.approve(address(this), uint256(-1));
     require(success, "Failed to approve USDC");
+
+    feeTiers.push(FeeTier({
+      veNAOSAmount: 0,
+      fee: MAX_WITHDRAW_FEE
+    }));
   }
 
   /**
@@ -239,6 +253,52 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     return usdcToFidu(amount).mul(fiduMantissa()).div(sharePrice);
   }
 
+  /**
+   * @notice Add fee tier
+   * @param veNAOSAmount the veNAOS amount of this tier
+   * @param fee the fee percent
+   */
+  function addFeeTier(uint256 veNAOSAmount, uint256 fee) external onlyAdmin {
+    require(fee <= MAX_WITHDRAW_FEE, "Failed to set fee tier (too large)");
+    require(veNAOSAmount > feeTiers[feeTiers.length - 1].veNAOSAmount, "veNOAS amount should be greater than previous one");
+    require(fee < feeTiers[feeTiers.length - 1].fee, "fee should be less than previous one");
+
+    feeTiers.push(FeeTier({
+      veNAOSAmount: veNAOSAmount,
+      fee: fee
+    }));
+
+    emit FeeTierUpdated(feeTiers.length - 1, veNAOSAmount, fee);
+  }
+
+  /**
+   * @notice Set fee tier
+   * @param tier id
+   * @param veNAOSAmount the veNAOS amount of the tier
+   * @param fee percent
+   */
+  function setFeeTier(uint256 tier, uint256 veNAOSAmount, uint256 fee) external onlyAdmin {
+    require(fee <= MAX_WITHDRAW_FEE, "Failed to set fee tier (too large)");
+    require(tier < feeTiers.length, "Invalid index");
+
+    if (tier > 0) {
+      FeeTier memory previousTier = feeTiers[tier - 1];
+      require(veNAOSAmount > previousTier.fee, "veNOAS amount should be greater than previous one");
+      require(fee < previousTier.veNAOSAmount, "fee should be less than previous one");
+    }
+
+    if (tier < feeTiers.length - 1) {
+      FeeTier memory nextTier = feeTiers[tier - 1];
+      require(veNAOSAmount < nextTier.fee, "veNOAS amount should be less than next one");
+      require(fee > nextTier.veNAOSAmount, "fee should be greate than next one");
+    }
+
+    feeTiers[tier].veNAOSAmount = veNAOSAmount;
+    feeTiers[tier].fee = fee;
+
+    emit FeeTierUpdated(tier, veNAOSAmount, fee);
+  }
+
   /* Internal Functions */
 
   function _calculateWritedown(ITranchedPool pool, uint256 principal)
@@ -314,10 +374,13 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // Ensure the address has enough value in the pool
     require(withdrawShares <= currentShares, "Amount requested is greater than what this address owns");
 
-    uint256 reserveAmount = usdcAmount.div(config.getWithdrawFeeDenominator());
+    uint256 feePercent = getFeeByUser(msg.sender);
+
+    uint256 reserveAmount = userAmount.mul(feePercent).div(config.getWithdrawFeeDenominator());
     userAmount = usdcAmount.sub(reserveAmount);
 
     emit WithdrawalMade(msg.sender, userAmount, reserveAmount);
+
     // Send the amounts
     bool success = doUSDCTransfer(address(this), msg.sender, userAmount);
     require(success, "Failed to transfer for withdraw");
@@ -367,5 +430,15 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     IERC20withDec usdc = config.getUSDC();
     bool success = usdc.approve(address(pool), allowance);
     require(success, "Failed to approve USDC");
+  }
+
+  function getFeeByUser(address user) public view returns (uint256) {
+    uint256 veNAOS = config.getBoostPool().getStakeTotalDepositedWeight(user);
+    for (uint256 index = 0; index < feeTiers.length; index++) {
+      if (veNAOS <= feeTiers[index].veNAOSAmount) {
+        return feeTiers[index].fee;
+      }
+    }
+    return feeTiers[feeTiers.length-1].fee;
   }
 }

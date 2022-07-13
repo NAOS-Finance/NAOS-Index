@@ -148,9 +148,4 @@ contract GoldfinchFactory is BaseUpgradeablePausable {
     require(isAdmin() || isBorrower(), "Must have admin or borrower role to perform this action");
     _;
   }
-
-  modifier onlyCreditDesk() {
-    require(msg.sender == config.creditDeskAddress(), "Only the CreditDesk can call this");
-    _;
-  }
 }

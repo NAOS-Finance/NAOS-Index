@@ -8,12 +8,12 @@ import "../../interfaces/IPool.sol";
 import "../../interfaces/IFidu.sol";
 import "../../interfaces/ISeniorPool.sol";
 import "../../interfaces/ISeniorPoolStrategy.sol";
-import "../../interfaces/ICreditDesk.sol";
 import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/IPoolTokens.sol";
 import "../../interfaces/IBackerRewards.sol";
 import "../../interfaces/IGoldfinchFactory.sol";
 import "../../interfaces/IGo.sol";
+import "../../interfaces/IBoostPool.sol";
 
 /**
  * @title ConfigHelper
@@ -39,10 +39,6 @@ library ConfigHelper {
     return IERC20withDec(usdcAddress(config));
   }
 
-  function getCreditDesk(GoldfinchConfig config) internal view returns (ICreditDesk) {
-    return ICreditDesk(creditDeskAddress(config));
-  }
-
   function getFidu(GoldfinchConfig config) internal view returns (IFidu) {
     return IFidu(fiduAddress(config));
   }
@@ -61,6 +57,10 @@ library ConfigHelper {
 
   function getGo(GoldfinchConfig config) internal view returns (IGo) {
     return IGo(goAddress(config));
+  }
+
+  function getBoostPool(GoldfinchConfig config) internal view returns (IBoostPool) {
+    return IBoostPool(boostPoolAddress(config));
   }
 
   function oneInchAddress(GoldfinchConfig config) internal view returns (address) {
@@ -97,10 +97,6 @@ library ConfigHelper {
 
   function seniorPoolStrategyAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.SeniorPoolStrategy));
-  }
-
-  function creditDeskAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.CreditDesk));
   }
 
   function goldfinchFactoryAddress(GoldfinchConfig config) internal view returns (address) {
@@ -141,6 +137,10 @@ library ConfigHelper {
 
   function stakingRewardsAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.StakingRewards));
+  }
+
+  function boostPoolAddress(GoldfinchConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.BoostPool));
   }
 
   function getReserveDenominator(GoldfinchConfig config) internal view returns (uint256) {
