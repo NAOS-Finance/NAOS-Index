@@ -23,6 +23,9 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   using ConfigHelper for GoldfinchConfig;
   using SafeMath for uint256;
 
+
+  uint256 public usdDecimals;
+  
   struct FeeTier {
     uint256 veNAOSAmount;
     uint256 fee;
@@ -61,6 +64,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     totalWritedowns = 0;
 
     IERC20withDec usdc = config.getUSDC();
+    usdDecimals = uint256(usdc.decimals());
     // Sanity check the address
     usdc.totalSupply();
 
@@ -331,15 +335,15 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     return uint256(10)**uint256(18);
   }
 
-  function usdcMantissa() internal pure returns (uint256) {
-    return uint256(10)**uint256(6);
+  function usdcMantissa() internal view returns (uint256) {
+    return uint256(10)**usdDecimals;
   }
 
-  function usdcToFidu(uint256 amount) internal pure returns (uint256) {
+  function usdcToFidu(uint256 amount) internal view returns (uint256) {
     return amount.mul(fiduMantissa()).div(usdcMantissa());
   }
 
-  function fiduToUSDC(uint256 amount) internal pure returns (uint256) {
+  function fiduToUSDC(uint256 amount) internal view returns (uint256) {
     return amount.div(fiduMantissa().div(usdcMantissa()));
   }
 

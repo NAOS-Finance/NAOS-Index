@@ -16,10 +16,10 @@ import "./ConfigHelper.sol";
 
 contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
   bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
-  // $1 threshold to handle potential rounding errors, from differing decimals on Fidu and USDC;
-  uint256 public constant ASSET_LIABILITY_MATCH_THRESHOLD = 1e6;
   GoldfinchConfig public config;
   using ConfigHelper for GoldfinchConfig;
+
+  uint256 public usdDecimals;
 
   event GoldfinchConfigUpdated(address indexed who, address configAddress);
 
@@ -44,6 +44,9 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     __ERC20Pausable_init_unchained();
 
     config = _config;
+
+    IERC20withDec usdc = config.getUSDC();
+    usdDecimals = uint256(usdc.decimals());
 
     _setupRole(MINTER_ROLE, owner);
     _setupRole(PAUSER_ROLE, owner);
@@ -96,7 +99,7 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     if (_assets >= liabilitiesInDollars) {
       return true;
     } else {
-      return liabilitiesInDollars.sub(_assets) <= ASSET_LIABILITY_MATCH_THRESHOLD;
+      return liabilitiesInDollars.sub(_assets) <= usdDecimals;
     }
   }
 
@@ -109,11 +112,11 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     if (_assets >= liabilitiesInDollars) {
       return true;
     } else {
-      return liabilitiesInDollars.sub(_assets) <= ASSET_LIABILITY_MATCH_THRESHOLD;
+      return liabilitiesInDollars.sub(_assets) <= usdDecimals;
     }
   }
 
-  function fiduToUSDC(uint256 amount) internal pure returns (uint256) {
+  function fiduToUSDC(uint256 amount) internal view returns (uint256) {
     return amount.div(fiduMantissa().div(usdcMantissa()));
   }
 
@@ -121,8 +124,8 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     return uint256(10)**uint256(18);
   }
 
-  function usdcMantissa() internal pure returns (uint256) {
-    return uint256(10)**uint256(6);
+  function usdcMantissa() internal view returns (uint256) {
+    return uint256(10)**usdDecimals;
   }
 
   function updateGoldfinchConfig() external {
