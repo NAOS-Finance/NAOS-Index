@@ -273,8 +273,12 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
    * @notice Returns the net assests controlled by and owed to the pool
    */
   function assets() public view override returns (uint256) {
-    return
-      config.getUSDC().balanceOf(address(this)).add(totalLoansOutstanding).sub(totalWritedowns);
+    uint256 assetsValue = config.getUSDC().balanceOf(address(this)).add(totalLoansOutstanding).sub(totalWritedowns);
+    for (uint256 vaultId = 0; vaultId < _vaults.length(); vaultId++) {
+      Vault.Data storage _vault = _vaults.get(vaultId);
+      assetsValue = assetsValue.add(_vault.totalDeposited);
+    }
+    return assetsValue;
   }
 
   /**
