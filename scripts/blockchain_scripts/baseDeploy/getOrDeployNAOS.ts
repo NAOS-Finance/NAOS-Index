@@ -2,6 +2,7 @@ import {TNAOS} from "../../../types/contracts/protocol/test"
 import BN from "bn.js"
 import {getNamedAccounts} from "hardhat"
 import {CONFIG_KEYS} from "../configKeys"
+import {assertIsString} from "../utils"
 import {
   ContractDeployer,
   assertIsChainId,
@@ -25,7 +26,7 @@ export async function getOrDeployNAOS(deployer: ContractDeployer, config) {
     logger("We don't have a NAOS address for this network, so deploying a fake NAOS")
     const initialAmount = String(new BN("100000000").mul(NAOS_DECIMALS))
     const decimalPlaces = String(new BN(18))
-    // assertIsString(gf_deployer)
+    assertIsString(gf_deployer)
     const fakeNAOS = await deployer.deploy("TNAOS", {
       from: gf_deployer,
       args: [initialAmount, decimalPlaces],

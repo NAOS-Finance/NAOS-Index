@@ -1,5 +1,5 @@
 import {GoldfinchFactory} from "../../../types/contracts/protocol/core"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {getNamedAccounts} from "hardhat"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, getProtocolOwner, updateConfig} from "../deployHelpers"
@@ -13,7 +13,7 @@ export async function deployGoldfinchFactory(
 ): Promise<GoldfinchFactory> {
   logger("Deploying goldfinch factory")
   const {gf_deployer} = await getNamedAccounts()
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const accountant = await deployer.deployLibrary("Accountant", {from: gf_deployer, args: []})
   const protocol_owner = await getProtocolOwner()
 

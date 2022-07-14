@@ -1,5 +1,5 @@
 import hre, {deployments, getNamedAccounts} from "hardhat"
-import {assertIsString} from "packages/utils/src/type"
+import {assertIsString} from "utils/type"
 import {getEthersContract, getProtocolOwner} from "packages/protocol/blockchain_scripts/deployHelpers"
 import {fundWithWhales} from "@goldfinch-eng/protocol/blockchain_scripts/helpers/fundWithWhales"
 

@@ -17,7 +17,7 @@ import {
 import hre, {deployments, getNamedAccounts} from "hardhat"
 import {FixtureFunc} from "hardhat-deploy/types"
 import {HardhatRuntimeEnvironment} from "hardhat/types"
-import {asNonNullable, assertNonNullable} from "packages/utils/src/type"
+import {asNonNullable, assertNonNullable} from "utils/type"
 import {
   $TSFixMe,
   BN,

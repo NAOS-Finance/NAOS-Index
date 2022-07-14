@@ -1,5 +1,5 @@
 import {GoldfinchConfig, Fidu} from "../../../types/contracts/protocol/core"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {getNamedAccounts} from "hardhat"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, getProtocolOwner, updateConfig} from "../deployHelpers"
@@ -9,7 +9,7 @@ const logger = console.log
 export async function deployFidu(deployer: ContractDeployer, config: GoldfinchConfig): Promise<Fidu> {
   logger("About to deploy Fidu...")
   const {gf_deployer} = await getNamedAccounts()
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const protocol_owner = await getProtocolOwner()
   const fidu = await deployer.deploy<Fidu>("Fidu", {
     from: gf_deployer,

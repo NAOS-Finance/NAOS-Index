@@ -22,7 +22,7 @@ import {
   deployTranchedPoolAndBorrowerWithGoldfinchFactoryFixture,
 } from "./util/fixtures"
 import {BorrowerInstance, CreditLineInstance, ERC20Instance, TranchedPoolInstance} from "../typechain/truffle"
-import {assertNonNullable} from "packages/utils/src/type"
+import {assertNonNullable} from "utils/type"
 
 describe("Borrower", async () => {
   let owner,

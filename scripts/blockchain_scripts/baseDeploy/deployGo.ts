@@ -1,13 +1,11 @@
 import {Go, GoldfinchConfig, UniqueIdentity} from "../../../types/contracts/protocol/core"
-// import {UniqueIdentityInstance, TestUniqueIdentityInstance, GoInstance} from "@goldfinch-eng/protocol/typechain/truffle"
-import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {Deployed} from "../baseDeploy"
 import {CONFIG_KEYS} from "../configKeys"
 import {
   ContractDeployer,
   getProtocolOwner,
   getContract,
-  TRUFFLE_CONTRACT_PROVIDER,
   ETHERS_CONTRACT_PROVIDER,
   getEthersContract,
 } from "../deployHelpers"
@@ -30,7 +28,7 @@ export async function deployGo(
   const contractName = "Go"
   logger(`About to deploy ${contractName}...`)
   const {gf_deployer} = await deployer.getNamedAccounts()
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const protocol_owner = await getProtocolOwner()
   const go = await deployer.deploy(contractName, {
     from: gf_deployer,

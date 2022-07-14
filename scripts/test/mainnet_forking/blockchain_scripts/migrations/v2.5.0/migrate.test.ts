@@ -1,5 +1,5 @@
 import hre, {deployments, getNamedAccounts} from "hardhat"
-import {asNonNullable, assertIsString} from "packages/utils/src/type"
+import {asNonNullable, assertIsString} from "utils/type"
 import {
   getProtocolOwner,
   getTruffleContract,

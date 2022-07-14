@@ -11,7 +11,7 @@ import {
   LEVERAGE_RATIO_SETTER_ROLE,
   TRANCHES,
 } from "../blockchain_scripts/deployHelpers"
-import {assertNonNullable} from "packages/utils/src/type"
+import {assertNonNullable} from "utils/type"
 import {deployBaseFixture} from "./util/fixtures"
 const DynamicLeverageRatioStrategy = artifacts.require("DynamicLeverageRatioStrategy")
 

@@ -18,7 +18,7 @@ import {
   SAFE_CONFIG,
 } from "../deployHelpers"
 import {UpgradedContracts} from "../mainnetForkingHelpers"
-import {asNonNullable, assertNonNullable} from "../../../packages/utils/src"
+import {asNonNullable, assertNonNullable} from "../utils"
 import {DefenderUpgrader} from "../adminActions/defenderUpgrader"
 import {PopulatedTransaction} from "@ethersproject/contracts"
 import {BigNumber} from "ethers"

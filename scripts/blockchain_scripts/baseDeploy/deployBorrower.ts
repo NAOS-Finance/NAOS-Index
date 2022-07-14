@@ -1,5 +1,5 @@
 import {Borrower} from "../../../types/contracts/protocol/periphery"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, updateConfig} from "../deployHelpers"
 import {DeployOpts} from "../types"
@@ -10,7 +10,7 @@ export async function deployBorrower(deployer: ContractDeployer, {config}: Deplo
   const contractName = "Borrower"
   const {gf_deployer} = await deployer.getNamedAccounts()
 
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const borrower = await deployer.deploy<Borrower>(contractName, {
     from: gf_deployer,
   })

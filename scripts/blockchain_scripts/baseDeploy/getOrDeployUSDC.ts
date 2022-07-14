@@ -2,6 +2,7 @@ import {TUSDC} from "../../../types/contracts/protocol/test"
 import BN from "bn.js"
 import {getNamedAccounts} from "hardhat"
 import {CONFIG_KEYS} from "../configKeys"
+import {assertIsString} from "../utils"
 import {
   ContractDeployer,
   assertIsChainId,
@@ -9,7 +10,6 @@ import {
   getProtocolOwner,
   USDC_DECIMALS,
   getContract,
-  TRUFFLE_CONTRACT_PROVIDER,
   ETHERS_CONTRACT_PROVIDER,
   updateConfig,
 } from "../deployHelpers"
@@ -26,7 +26,7 @@ export async function getOrDeployUSDC(deployer: ContractDeployer, config) {
     logger("We don't have a USDC address for this network, so deploying a fake USDC")
     const initialAmount = String(new BN("100000000").mul(USDC_DECIMALS))
     const decimalPlaces = String(new BN(6))
-    // assertIsString(gf_deployer)
+    assertIsString(gf_deployer)
     const fakeUSDC = await deployer.deploy("TUSDC", {
       from: gf_deployer,
       args: [initialAmount, decimalPlaces],

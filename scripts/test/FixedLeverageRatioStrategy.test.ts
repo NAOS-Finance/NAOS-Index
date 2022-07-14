@@ -4,7 +4,7 @@ const {deployments, artifacts} = hre
 import {expect, BN, usdcVal, createPoolWithCreditLine} from "./testHelpers"
 import {interestAprAsBN, LEVERAGE_RATIO_DECIMALS, TRANCHES} from "../blockchain_scripts/deployHelpers"
 import {CONFIG_KEYS} from "../blockchain_scripts/configKeys"
-import {assertNonNullable} from "packages/utils/src/type"
+import {assertNonNullable} from "utils/type"
 import {expectEvent} from "@openzeppelin/test-helpers"
 import {deployBaseFixture} from "./util/fixtures"
 const FixedLeverageRatioStrategy = artifacts.require("FixedLeverageRatioStrategy")

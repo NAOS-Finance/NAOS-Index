@@ -1,6 +1,6 @@
 import {promises as fs} from "fs"
 import hre, {deployments, getNamedAccounts} from "hardhat"
-import {assertIsString} from "packages/utils/src/type"
+import {assertIsString} from "utils/type"
 import {
   DISTRIBUTOR_ROLE,
   getProtocolOwner,

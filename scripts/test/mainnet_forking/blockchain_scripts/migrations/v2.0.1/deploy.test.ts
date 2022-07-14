@@ -1,5 +1,5 @@
 import {getNamedAccounts} from "hardhat"
-import {assertIsString} from "packages/utils/src/type"
+import {assertIsString} from "utils/type"
 import {deploy} from "packages/protocol/blockchain_scripts/migrations/v2.0.1/deploy"
 import {ETHDecimals, MINTER_ROLE, OWNER_ROLE, PAUSER_ROLE} from "packages/protocol/blockchain_scripts/deployHelpers"
 import BN from "bn.js"

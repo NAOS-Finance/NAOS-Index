@@ -1,5 +1,5 @@
 import hre from "hardhat"
-import {assertNonNullable} from "packages/utils/src/type"
+import {assertNonNullable} from "utils/type"
 const {getNamedAccounts, ethers} = hre
 
 async function main() {

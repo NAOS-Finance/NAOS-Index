@@ -1,5 +1,5 @@
 import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {ContractDeployer, isTestEnv} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
 
@@ -13,7 +13,7 @@ export async function deployTranchedPool(
   logger("About to deploy TranchedPool...")
   const contractName = "TranchedPool"
 
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const tranchingLogic = await deployer.deployLibrary("TranchingLogic", {from: gf_deployer, args: []})
   logger("About to deploy TranchedPool implementation...")
   const tranchedPoolImpl = await deployer.deploy(contractName, {

@@ -1,5 +1,5 @@
 import {TransferRestrictedVault} from "../../../types/contracts/protocol/periphery"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {ContractDeployer, getProtocolOwner, assertIsChainId} from "../deployHelpers"
 import {DeployOpts} from "../types"
 
@@ -11,8 +11,8 @@ export async function deployTransferRestrictedVault(
 ): Promise<TransferRestrictedVault> {
   const {gf_deployer} = await deployer.getNamedAccounts()
   const protocol_owner = await getProtocolOwner()
-  // assertIsString(protocol_owner)
-  // assertIsString(gf_deployer)
+  assertIsString(protocol_owner)
+  assertIsString(gf_deployer)
   const chainId = await deployer.getChainId()
   assertIsChainId(chainId)
 

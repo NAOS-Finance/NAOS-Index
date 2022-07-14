@@ -1,6 +1,6 @@
 // import {NON_US_UID_TYPES, US_UID_TYPES} from "@goldfinch-eng/autotasks/unique-identity-signer/utils"
 // import {JsonRpcSigner} from "ethers/lib"
-import {assertIsString, assertNonNullable, findEnvLocal} from "../../packages/utils/src"
+import {assertIsString, assertNonNullable, findEnvLocal} from "./utils"
 import BigNumber from "bignumber.js"
 import BN from "bn.js"
 import dotenv from "dotenv"
