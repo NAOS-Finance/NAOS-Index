@@ -408,6 +408,8 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
         sendToReserve(_feeAmount, address(this));
       }
 
+      uint256 harvestInterest = usdcToSharePrice(_harvestedAmount.sub(_feeAmount));
+      sharePrice = sharePrice.add(harvestInterest);
     }
 
     emit FundsHarvested(_harvestedAmount, _decreasedValue);
