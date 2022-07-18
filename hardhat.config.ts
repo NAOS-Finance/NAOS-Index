@@ -1,12 +1,12 @@
-require("@nomiclabs/hardhat-ethers");
-// require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-web3");
-require("@nomiclabs/hardhat-truffle5");
-// require('@openzeppelin/hardhat-upgrades');
-require("@typechain/hardhat");
-require("hardhat-gas-reporter");
-require("hardhat-contract-sizer");
-require("hardhat-deploy");
+import "@nomiclabs/hardhat-ethers"
+// import "@nomiclabs/hardhat-waffle"
+import "@nomiclabs/hardhat-web3"
+import "@nomiclabs/hardhat-truffle5"
+// import '@openzeppelin/hardhat-upgrades'
+import "@typechain/hardhat"
+import "hardhat-gas-reporter"
+import "hardhat-contract-sizer"
+import "hardhat-deploy"
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -58,24 +58,24 @@ module.exports = {
   },
   solidity: {
     compilers: [
-      {
-        version: "0.5.15",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200
-          }
-        }
-      },
-      {
-        version: "0.6.0",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200
-          }
-        }
-      },
+      // {
+      //   version: "0.5.15",
+      //   settings: {
+      //     optimizer: {
+      //       enabled: true,
+      //       runs: 200
+      //     }
+      //   }
+      // },
+      // {
+      //   version: "0.6.0",
+      //   settings: {
+      //     optimizer: {
+      //       enabled: true,
+      //       runs: 200
+      //     }
+      //   }
+      // },
       {
         version: "0.6.12",
         settings: {
@@ -96,11 +96,17 @@ module.exports = {
       },
     ],
   },
-  defaultNetwork: "localhost",
-  networks: {
+  paths: {
+    sources: './contracts',
+    tests: './test',
+    cache: './cache',
+    artifacts: './artifacts'
   },
+  defaultNetwork: "localhost",
+  // networks: {
+  // },
   mocha: {
-    timeout: 0
+    // timeout: 0,
+    reporter: "list",
   }
 }
-
