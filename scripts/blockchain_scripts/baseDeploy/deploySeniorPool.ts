@@ -8,7 +8,11 @@ import {DeployOpts} from "../types"
 const logger = console.log
 
 export async function deploySeniorPool(deployer: ContractDeployer, {config, fidu}: DeployOpts): Promise<SeniorPool> {
-  const contractName = "SeniorPool"
+  let contractName = "SeniorPool"
+  if (isTestEnv()) {
+    contractName = `Test${contractName}`
+  }
+  
   const {gf_deployer} = await deployer.getNamedAccounts()
   const protocol_owner = await getProtocolOwner()
   assertIsString(protocol_owner)

@@ -1,4 +1,4 @@
-import {TUSDC} from "../../../types/contracts/protocol/test"
+import {TestUSDC} from "../../../types"
 import BN from "bn.js"
 import {getNamedAccounts} from "hardhat"
 import {CONFIG_KEYS} from "../configKeys"
@@ -12,6 +12,7 @@ import {
   getContract,
   ETHERS_CONTRACT_PROVIDER,
   updateConfig,
+  isTestEnv
 } from "../deployHelpers"
 
 const logger = console.log
@@ -27,12 +28,12 @@ export async function getOrDeployUSDC(deployer: ContractDeployer, config) {
     const initialAmount = String(new BN("100000000").mul(USDC_DECIMALS))
     const decimalPlaces = String(new BN(6))
     assertIsString(gf_deployer)
-    const fakeUSDC = await deployer.deploy("TUSDC", {
+    const fakeUSDC = await deployer.deploy("TestUSDC", {
       from: gf_deployer,
       args: [initialAmount, decimalPlaces],
     })
     usdcAddress = fakeUSDC.address
-    const usdcContract = await getContract<TUSDC, any>("TUSDC", ETHERS_CONTRACT_PROVIDER, {from: gf_deployer})
+    const usdcContract = await getContract<TestUSDC, any>("TestUSDC", ETHERS_CONTRACT_PROVIDER, {from: gf_deployer})
     await usdcContract.transfer(protocolOwner, String(new BN(100000000).mul(USDC_DECIMALS)))
   }
   await updateConfig(config, "address", CONFIG_KEYS.USDC, usdcAddress, logger)

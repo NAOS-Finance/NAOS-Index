@@ -11,7 +11,10 @@ export async function deployTranchedPool(
   const {gf_deployer} = await deployer.getNamedAccounts()
 
   logger("About to deploy TranchedPool...")
-  const contractName = "TranchedPool"
+  let contractName = "TranchedPool"
+  // if (isTestEnv()) {
+  //   contractName = `Test${contractName}`
+  // }
 
   assertIsString(gf_deployer)
   const tranchingLogic = await deployer.deployLibrary("TranchingLogic", {from: gf_deployer, args: []})

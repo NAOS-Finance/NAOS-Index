@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/drafts/ERC20Permit.sol";
 
-contract TNAOS is ERC20("TEST NAOS", "TNAOS"), ERC20Permit("TEST NAOS") {
+contract TestNAOS is ERC20("TEST NAOS", "TNAOS"), ERC20Permit("TEST NAOS") {
   constructor(uint256 initialSupply, uint8 decimals) public {
     _setupDecimals(decimals);
     _mint(msg.sender, initialSupply);

@@ -46,9 +46,8 @@ import {
   Borrower,
 } from "../../types/contracts/protocol/periphery"
 import {
-  TNAOS,
-  TUSDC,
-} from "../../types/contracts/protocol/test"
+  TestUSDC,
+} from "../../types"
 import {fundWithWhales} from "./helpers/fundWithWhales"
 import {impersonateAccount} from "./helpers/impersonateAccount"
 import {overrideUsdcDomainSeparator} from "./mainnetForkingHelpers"
@@ -83,8 +82,7 @@ async function advanceTime({days, seconds, toSecond}: {days?: Numberish; seconds
   // Cannot go backward
   // expect(newTimestamp).to.bignumber.gt(currentTimestamp)
 
-  // await ethers.provider.send("evm_setNextBlockTimestamp", [newTimestamp.toNumber()])
-  await ethers.provider.send("evm_increaseTime", [secondsPassed.toNumber()])
+  await ethers.provider.send("evm_setNextBlockTimestamp", [newTimestamp.toNumber()])
   return newTimestamp
 }
 
@@ -272,7 +270,7 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
     // assertNonNullable(borrowerSigner)
     const bwrCon = (await ethers.getContractAt("Borrower", protocolBorrowerCon)).connect(borrowerSigner) as Borrower
     const payAmount = new BN(100).mul(USDC_DECIMALS)
-    await (erc20 as TUSDC).connect(borrowerSigner).approve(bwrCon.address, payAmount.mul(new BN(2)).toString())
+    await (erc20 as TestUSDC).connect(borrowerSigner).approve(bwrCon.address, payAmount.mul(new BN(2)).toString())
     await bwrCon.pay(commonPool.address, payAmount.toString())
 
     await advanceTime({days: 32})
@@ -361,9 +359,9 @@ export async function getERC20s({hre, chainId}) {
   const chainUsdcAddress = getUSDCAddress(chainId)
   if (chainUsdcAddress) {
     logger("On a network with known USDC address, so firing up that contract...")
-    erc20 = await ethers.getContractAt("TUSDC", chainUsdcAddress)
+    erc20 = await ethers.getContractAt("TestUSDC", chainUsdcAddress)
   } else {
-    erc20 = await getDeployedAsEthersContract<Contract>(getOrNull, "TUSDC")
+    erc20 = await getDeployedAsEthersContract<Contract>(getOrNull, "TestUSDC")
   }
 
   const erc20s = [
@@ -393,7 +391,7 @@ async function fundAddressAndDepositToCommonPool({
   const signer = ethers.provider.getSigner(depositorAddress)
   const depositAmount = new BN(10000).mul(USDC_DECIMALS)
   
-  await (erc20 as TUSDC).connect(signer).approve(seniorPool.address, depositAmount.mul(new BN(5)).toString())
+  await (erc20 as TestUSDC).connect(signer).approve(seniorPool.address, depositAmount.mul(new BN(5)).toString())
   await seniorPool.connect(signer).deposit(depositAmount.mul(new BN(5)).toString())
   
 
