@@ -1,7 +1,7 @@
-import hre from "hardhat"
+import hre, { ethers } from "hardhat"
 const {deployments, artifacts, web3} = hre
 import {expectEvent} from "@openzeppelin/test-helpers"
-import {expect, bigVal, expectAction} from "./testHelpers"
+import {expect, bigVal, expectAction, bnToHex} from "./testHelpers"
 import {OWNER_ROLE} from "../scripts/blockchain_scripts/deployHelpers"
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import {deployBaseFixture} from "./util/fixtures"
@@ -28,13 +28,13 @@ describe("Fidu", () => {
   })
 
   describe("Initialization", async () => {
-    beforeEach(async () => {
-      goldfinchConfig = await GoldfinchConfig.new({from: owner})
-      await goldfinchConfig.initialize(owner)
+    // beforeEach(async () => {
+    //   goldfinchConfig = await GoldfinchConfig.new({from: owner})
+    //   await goldfinchConfig.initialize(owner)
 
-      fidu = await Fidu.new({from: owner})
-      await fidu.__initialize__(owner, "Fidu", "FIDU", goldfinchConfig.address)
-    })
+    //   fidu = await Fidu.new({from: owner})
+    //   await fidu.__initialize__(owner, "Fidu", "FIDU", goldfinchConfig.address)
+    // })
 
     describe("initialization", async () => {
       it("should not allow it to be called twice", async () => {
@@ -72,7 +72,8 @@ describe("Fidu", () => {
       })
 
       it("should disallow non-owner to set", async () => {
-        return expect(fidu.updateGoldfinchConfig({from: person2})).to.be.rejectedWith(/Must have minter role/)
+        const signer = await ethers.getSigner(person2 as string)
+        return expect(fidu.connect(signer).updateGoldfinchConfig()).to.be.rejectedWith(/Must have minter role/)
       })
     })
   })
@@ -85,10 +86,12 @@ describe("Fidu", () => {
       fidu = deployments.fidu
     })
     it("should allow the minter to call it", async () => {
-      return expect(fidu.mintTo(person2, bigVal(1), {from: owner})).to.be.fulfilled
+      const signer = await ethers.getSigner(owner as string)
+      return expect(fidu.connect(signer).mintTo(person2, bnToHex(bigVal(1)))).to.be.fulfilled
     })
     it("should not allow anyone else to call it", async () => {
-      return expect(fidu.mintTo(person2, bigVal(1), {from: person2})).to.be.rejectedWith(/minter role/)
+      const signer = await ethers.getSigner(person2 as string)
+      return expect(fidu.connect(signer).mintTo(person2, bnToHex(bigVal(1)))).to.be.rejectedWith(/minter role/)
     })
   })
 
@@ -97,15 +100,18 @@ describe("Fidu", () => {
       // Use the full deployment so we have a pool, and the
       // burnFrom function doesn't fail early on the assets/liabilites check
       const deployments = await testSetup()
+      const signer = await ethers.getSigner(owner as string)
       fidu = deployments.fidu
-      await fidu.mintTo(person2, bigVal(1), {from: owner})
+      await fidu.connect(signer).mintTo(person2, bnToHex(bigVal(1)))
     })
 
     it("should allow the minter to call it", async () => {
-      return expect(fidu.burnFrom(person2, bigVal(1), {from: owner})).to.be.fulfilled
+      const signer = await ethers.getSigner(owner as string)
+      return expect(fidu.connect(signer).burnFrom(person2, bnToHex(bigVal(1)))).to.be.fulfilled
     })
     it("should not allow anyone else to call it", async () => {
-      return expect(fidu.burnFrom(person2, bigVal(1), {from: person2})).to.be.rejectedWith(/minter role/)
+      const signer = await ethers.getSigner(person2 as string)
+      return expect(fidu.connect(signer).burnFrom(person2, bnToHex(bigVal(1)))).to.be.rejectedWith(/minter role/)
     })
   })
 })
