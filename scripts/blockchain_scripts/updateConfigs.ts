@@ -2,7 +2,7 @@ import {toAtomic, getDeployedContract, updateConfig} from "./deployHelpers"
 import {CONFIG_KEYS} from "./configKeys"
 import PROTOCOL_CONFIG from "../protocol_config.json"
 import hre from "hardhat"
-import {GoldfinchConfig} from "../typechain/ethers"
+import {GoldfinchConfig} from "../../types"
 import BN from "bn.js"
 
 /*
