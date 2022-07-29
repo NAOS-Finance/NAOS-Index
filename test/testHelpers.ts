@@ -60,7 +60,7 @@ import {
   // TestForwarder,
   TranchedPool,
   TransferRestrictedVault,
-  TNAOS,
+  TestNAOS,
   // GFI,
   // CommunityRewards,
   // MerkleDistributor,
@@ -305,7 +305,7 @@ async function deployAllContracts(
   poolTokens: PoolTokens
   tranchedPool: TranchedPool
   transferRestrictedVault: TransferRestrictedVault
-  gfi: TNAOS
+  gfi: TestNAOS
   // stakingRewards: TestStakingRewards
   // backerRewards: TestBackerRewards
   // communityRewards: CommunityRewards
@@ -348,7 +348,7 @@ async function deployAllContracts(
     deployments,
     "TransferRestrictedVault"
   )
-  const gfi = await getDeployedContract<TNAOS>(deployments, "NAOS")
+  const gfi = await getDeployedContract<TestNAOS>(deployments, "NAOS")
   // const stakingRewards = await getDeployedContract<TestStakingRewards>(deployments, "StakingRewards")
   // const backerRewards = await getDeployedContract<TestBackerRewards>(deployments, "BackerRewards")
 

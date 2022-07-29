@@ -9,9 +9,9 @@ import {TestUniqueIdentity} from "../types"
 import {BN} from "./testHelpers"
 import {BigNumber, constants as ethersConstants} from "ethers"
 import {HardhatRuntimeEnvironment} from "hardhat/types"
-import {expect, bnToHex} from './testHelpers'
+import {expect, bnToHex, bnToBnjs} from './testHelpers'
 
-const {web3} = hre
+const {web3, ethers} = hre
 
 export const MINT_MESSAGE_ELEMENT_TYPES = ["address", "uint256", "uint256", "address"]
 export const EMPTY_STRING_HEX = web3.utils.asciiToHex("")
@@ -88,9 +88,9 @@ export async function mint(
 
   const defaultFrom = overrideFrom
   const from = overrideFrom || defaultFrom
+  const eSigner = await ethers.getSigner(from as string)
 
-  const receipt = await uniqueIdentity.mint(...mintParams, signature, {
-    from,
+  const receipt = await uniqueIdentity.connect(eSigner).mint(...mintParams, signature, {
     value: bnToHex(MINT_PAYMENT),
   })
 
@@ -99,10 +99,10 @@ export async function mint(
   expect(new BN(contractBalanceAfter).sub(new BN(contractBalanceBefore))).to.bignumber.equal(MINT_PAYMENT)
 
   const tokenBalanceAfter = await uniqueIdentity.balanceOf(overrideFrom as string, bnToHex(tokenId))
-  expect(tokenBalanceAfter.sub(tokenBalanceBefore)).to.bignumber.equal(new BN(1))
-  expect(tokenBalanceAfter).to.bignumber.equal(new BN(1))
+  expect(bnToBnjs(tokenBalanceAfter.sub(tokenBalanceBefore))).to.bignumber.equal(new BN(1))
+  expect(bnToBnjs(tokenBalanceAfter)).to.bignumber.equal(new BN(1))
 
-  expect(await uniqueIdentity.nonces(overrideFrom as string)).to.bignumber.equal(nonce.add(new BN(1)))
+  expect(bnToBnjs(await uniqueIdentity.nonces(overrideFrom as string))).to.bignumber.equal(nonce.add(new BN(1)))
 
   // Verify that event was emitted.
   // const transferEvent = getOnlyLog<TransferSingle>(
@@ -146,18 +146,19 @@ export async function burn(
 
   const defaultFrom = recipient
   const from = overrideFrom || defaultFrom
+  const eSigner = await ethers.getSigner(from as string)
 
-  const receipt = await uniqueIdentity.burn(...burnParams, signature, {from})
+  const receipt = await uniqueIdentity.connect(eSigner).burn(...burnParams, signature)
 
   // Verify contract state.
   const contractBalanceAfter = await web3.eth.getBalance(uniqueIdentity.address)
   expect(new BN(contractBalanceAfter)).to.bignumber.equal(new BN(contractBalanceBefore))
 
   const tokenBalanceAfter = await uniqueIdentity.balanceOf(recipient, bnToHex(tokenId))
-  expect(tokenBalanceBefore.sub(tokenBalanceAfter)).to.bignumber.equal(new BN(1))
-  expect(tokenBalanceAfter).to.bignumber.equal(new BN(0))
+  expect(bnToBnjs(tokenBalanceBefore.sub(tokenBalanceAfter))).to.bignumber.equal(new BN(1))
+  expect(bnToBnjs(tokenBalanceAfter)).to.bignumber.equal(new BN(0))
 
-  expect(await uniqueIdentity.nonces(recipient)).to.bignumber.equal(nonce.add(new BN(1)))
+  expect(bnToBnjs(await uniqueIdentity.nonces(recipient))).to.bignumber.equal(nonce.add(new BN(1)))
 
   // Verify that event was emitted.
   // const transferEvent = getOnlyLog<TransferSingle>(
