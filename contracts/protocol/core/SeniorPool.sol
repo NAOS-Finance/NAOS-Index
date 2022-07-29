@@ -95,7 +95,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // Initialize sharePrice to be identical to the legacy pool. This is in the initializer
     // because it must only ever happen once.
     // sharePrice = config.getPool().sharePrice();
-    sharePrice = 1;
+    sharePrice = 1 ether;
     totalLoansOutstanding = 0;
     totalWritedowns = 0;
 
@@ -482,19 +482,19 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     }
   }
 
-  function fiduMantissa() internal pure returns (uint256) {
+  function fiduMantissa() public pure returns (uint256) {
     return uint256(10)**uint256(18);
   }
 
-  function usdcMantissa() internal view returns (uint256) {
+  function usdcMantissa() public view returns (uint256) {
     return uint256(10)**usdDecimals;
   }
 
-  function usdcToFidu(uint256 amount) internal view returns (uint256) {
+  function usdcToFidu(uint256 amount) public view returns (uint256) {
     return amount.mul(fiduMantissa()).div(usdcMantissa());
   }
 
-  function fiduToUSDC(uint256 amount) internal view returns (uint256) {
+  function fiduToUSDC(uint256 amount) public view returns (uint256) {
     return amount.div(fiduMantissa().div(usdcMantissa()));
   }
 

@@ -26,6 +26,7 @@ import {
   erc20Approve,
   getDeployedContract,
   usdcVal,
+  bnToHex
 } from "../testHelpers"
 import { BigNumberish } from "ethers"
 import {expect} from 'chai'
@@ -208,22 +209,24 @@ export const deployTranchedPoolWithGoldfinchFactoryFixture = createFixtureWithRe
     const goldfinchFactory = await getEthersContract<GoldfinchFactory>("GoldfinchFactory", {
       at: goldfinchFactoryDeployment.address,
     })
-    const result: any = await goldfinchFactory.createPool(
+    const tx: any = await goldfinchFactory.createPool(
       borrower,
-      juniorFeePercent as BigNumberish,
-      limit as BigNumberish,
-      interestApr as BigNumberish,
-      paymentPeriodInDays as BigNumberish,
-      termInDays as BigNumberish,
-      lateFeeApr as BigNumberish,
-      principalGracePeriodInDays as BigNumberish,
-      fundableAt as BigNumberish,
+      bnToHex(juniorFeePercent as BN),
+      bnToHex(limit as BN),
+      bnToHex(interestApr as BN),
+      bnToHex(paymentPeriodInDays as BN),
+      bnToHex(termInDays as BN),
+      bnToHex(lateFeeApr as BN),
+      bnToHex(principalGracePeriodInDays as BN),
+      bnToHex(fundableAt as BN),
       allowedUIDTypes as BigNumberish[],
       {from: owner}
     )
-    assertNonNullable(result.logs)
+    const result = await tx.wait()
+
     const event = result.logs[result.logs.length - 1] as $TSFixMe
-    const pool = await getEthersContract<TranchedPool>("TranchedPool", {at: event.args.pool})
+    assertNonNullable(event.topics)
+    const pool = await getEthersContract<TranchedPool>("TranchedPool", {at: '0x' + event.topics[1].substr(26)})
     const creditLine = await getEthersContract<CreditLine>("CreditLine", {at: await pool.creditLine()})
     const tranchedPool = await getEthersContract<TranchedPool>("TestTranchedPool", {at: pool.address})
 

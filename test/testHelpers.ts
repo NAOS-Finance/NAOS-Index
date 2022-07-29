@@ -476,9 +476,9 @@ async function getBalance(address, erc20) {
     throw new Error("Address must be a string")
   }
   if (erc20) {
-    return new BN(await erc20.balanceOf(address))
+    return new BN((await erc20.balanceOf(address)).toString())
   }
-  return new BN(await web3.eth.getBalance(address))
+  return new BN((await web3.eth.getBalance(address)).toString())
 }
 
 const createPoolWithCreditLine = async ({

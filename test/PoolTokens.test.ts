@@ -1,7 +1,7 @@
 /* global web3 artifacts */
 import {
   expect,
-  decodeLogs,
+  // decodeLogs,
   usdcVal,
   expectAction,
   ZERO_ADDRESS,
@@ -10,28 +10,28 @@ import {
   SECONDS_PER_DAY,
   getCurrentTimestamp,
   advanceTime,
-  setupBackerRewards,
-  decodeAndGetFirstLog,
+  // setupBackerRewards,
+  // decodeAndGetFirstLog,
   Numberish,
 } from "./testHelpers"
-import {OWNER_ROLE, interestAprAsBN, GO_LISTER_ROLE} from "../blockchain_scripts/deployHelpers"
+import {OWNER_ROLE, interestAprAsBN, GO_LISTER_ROLE} from "../scripts/blockchain_scripts/deployHelpers"
 import hre from "hardhat"
 import BN from "bn.js"
-import {asNonNullable, assertNonNullable} from "@goldfinch-eng/utils"
-const {deployments} = hre
+import {asNonNullable, assertNonNullable} from "../scripts/blockchain_scripts/utils"
+const {deployments, artifacts, web3} = hre
 const TranchedPool = artifacts.require("TranchedPool")
 import {expectEvent} from "@openzeppelin/test-helpers"
 import {mint} from "./uniqueIdentityHelpers"
 import {
-  GFIInstance,
-  BackerRewardsInstance,
-  GoldfinchFactoryInstance,
-  TestPoolTokensInstance,
-} from "../typechain/truffle"
+  // GFI,
+  // BackerRewards,
+  GoldfinchFactory,
+  TestPoolTokens,
+} from "../types"
 import {deployBaseFixture, deployUninitializedTranchedPoolFixture} from "./util/fixtures"
-import {TokenMinted} from "../typechain/truffle/IPoolTokens"
-import {TokenPrincipalWithdrawn} from "../typechain/truffle/PoolTokens"
-import {PoolCreated} from "../typechain/truffle/GoldfinchFactory"
+// import {TokenMinted} from "../typechain/truffle/IPoolTokens"
+// import {TokenPrincipalWithdrawn} from "../typechain/truffle/PoolTokens"
+// import {PoolCreated} from "../typechain/truffle/GoldfinchFactory"
 
 const testSetup = deployments.createFixture(async ({deployments, getNamedAccounts}) => {
   const [_owner, _person2, _person3] = await web3.eth.getAccounts()
@@ -65,11 +65,11 @@ describe("PoolTokens", () => {
     goldfinchConfig,
     poolTokens,
     pool,
-    goldfinchFactory: GoldfinchFactoryInstance,
+    goldfinchFactory: GoldfinchFactory,
     usdc,
     uniqueIdentity,
-    backerRewards: BackerRewardsInstance,
-    gfi: GFIInstance
+    backerRewards: BackerRewards,
+    gfi: GFI
 
   const withPoolSender = async (func, otherPoolAddress?) => {
     // We need to fake the address so we can bypass the pool
@@ -95,7 +95,7 @@ describe("PoolTokens", () => {
       gfi,
     } = await testSetup())
 
-    await (poolTokens as TestPoolTokensInstance)._disablePoolValidation(true)
+    await (poolTokens as TestPoolTokens)._disablePoolValidation(true)
   })
 
   async function addToLegacyGoList(target, goLister) {
@@ -151,7 +151,7 @@ describe("PoolTokens", () => {
 
     context("with real pool validation turned on", async () => {
       beforeEach(async () => {
-        await (poolTokens as TestPoolTokensInstance)._disablePoolValidation(false)
+        await (poolTokens as TestPoolTokens)._disablePoolValidation(false)
       })
       it("should allow validly created pools to call the mint function", async () => {
         return expect(pool.deposit(new BN(1), usdcVal(5), {from: person2})).to.be.fulfilled
