@@ -3,6 +3,8 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+
 import "./GoldfinchConfig.sol";
 import "../../interfaces/IPool.sol";
 import "../../interfaces/IFidu.sol";
@@ -41,6 +43,10 @@ library ConfigHelper {
 
   function getFidu(GoldfinchConfig config) internal view returns (IFidu) {
     return IFidu(fiduAddress(config));
+  }
+
+  function getNAOS(GoldfinchConfig config) internal view returns (IERC20) {
+    return IFidu(naosAddress(config));
   }
 
   function getPoolTokens(GoldfinchConfig config) internal view returns (IPoolTokens) {
@@ -105,6 +111,10 @@ library ConfigHelper {
 
   function usdcAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.USDC));
+  }
+
+  function naosAddress(GoldfinchConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.NAOS));
   }
 
   function tranchedPoolAddress(GoldfinchConfig config) internal view returns (address) {
