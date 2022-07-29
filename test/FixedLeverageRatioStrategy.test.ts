@@ -1,12 +1,13 @@
 /* global web3 */
 import hre from "hardhat"
 const {deployments, artifacts, web3} = hre
-import {expect, BN, usdcVal, createPoolWithCreditLine, bnToHex} from "./testHelpers"
+import {expect, BN, usdcVal, createPoolWithCreditLine, bnToHex, bnToBnjs} from "./testHelpers"
 import {interestAprAsBN, LEVERAGE_RATIO_DECIMALS, TRANCHES} from "../scripts/blockchain_scripts/deployHelpers"
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import {assertNonNullable} from "../scripts/blockchain_scripts/utils/type"
 import {expectEvent} from "@openzeppelin/test-helpers"
 import {deployBaseFixture} from "./util/fixtures"
+// TODO: with artifacts.require, we don't need bnToBnjs (maybe it's truffle/web3 contract object)
 const FixedLeverageRatioStrategy = artifacts.require("FixedLeverageRatioStrategy")
 
 const EXPECTED_LEVERAGE_RATIO: BN = new BN(String(4e18))
@@ -60,7 +61,7 @@ describe("FixedLeverageRatioStrategy", () => {
 
     it("returns the leverage ratio maintained by Goldfinch config, unadjusted for the relevant number of decimal places", async () => {
       const configLeverageRatio = await goldfinchConfig.getNumber(CONFIG_KEYS.LeverageRatio)
-      expect(configLeverageRatio).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
+      expect(bnToBnjs(configLeverageRatio)).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
 
       const strategyLeverageRatio = await strategy.getLeverageRatio(tranchedPool.address)
       expect(strategyLeverageRatio).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
@@ -89,7 +90,7 @@ describe("FixedLeverageRatioStrategy", () => {
         const leverageRatio = await strategy.getLeverageRatio(tranchedPool.address)
         expect(leverageRatio).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
 
-        await goldfinchConfig.setNumber(CONFIG_KEYS.LeverageRatio, new BN(String(4.5e18)), {from: owner})
+        await goldfinchConfig.setNumber(CONFIG_KEYS.LeverageRatio, bnToHex(new BN(String(4.5e18))), {from: owner})
 
         const leverageRatio2 = await strategy.getLeverageRatio(tranchedPool.address)
         expect(leverageRatio2).to.bignumber.equal(new BN(String(4.5e18)))
@@ -248,7 +249,7 @@ describe("FixedLeverageRatioStrategy", () => {
         const leverageRatio = await strategy.getLeverageRatio(tranchedPool.address)
         expect(leverageRatio).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
 
-        await goldfinchConfig.setNumber(CONFIG_KEYS.LeverageRatio, new BN(String(4.5e18)), {from: owner})
+        await goldfinchConfig.setNumber(CONFIG_KEYS.LeverageRatio, bnToHex(new BN(String(4.5e18))), {from: owner})
 
         const leverageRatio2 = await strategy.getLeverageRatio(tranchedPool.address)
         expect(leverageRatio2).to.bignumber.equal(new BN(String(4.5e18)))
