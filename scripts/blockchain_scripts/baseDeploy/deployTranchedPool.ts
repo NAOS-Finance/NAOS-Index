@@ -12,6 +12,7 @@ export async function deployTranchedPool(
 
   logger("About to deploy TranchedPool...")
   let contractName = "TranchedPool"
+  // TODO: contract too large error
   // if (isTestEnv()) {
   //   contractName = `Test${contractName}`
   // }
