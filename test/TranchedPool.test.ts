@@ -11,34 +11,36 @@ import {
   SECONDS_PER_DAY,
   UNIT_SHARE_PRICE,
   ZERO,
-  decodeLogs,
-  getFirstLog,
-  decodeAndGetFirstLog,
-  setupBackerRewards,
+  // decodeLogs,
+  // getFirstLog,
+  // decodeAndGetFirstLog,
+  // setupBackerRewards,
   getCurrentTimestamp,
+  bnToHex,
+  bnToBnjs
 } from "./testHelpers"
-import {interestAprAsBN, TRANCHES, MAX_UINT, OWNER_ROLE, PAUSER_ROLE} from "../blockchain_scripts/deployHelpers"
+import {interestAprAsBN, TRANCHES, MAX_UINT, OWNER_ROLE, PAUSER_ROLE} from "../scripts/blockchain_scripts/deployHelpers"
 import {expectEvent, time} from "@openzeppelin/test-helpers"
 import hre from "hardhat"
 import BN from "bn.js"
-const {deployments, artifacts} = hre
+const {deployments, artifacts, web3} = hre
 import {ecsign} from "ethereumjs-util"
 const CreditLine = artifacts.require("CreditLine")
 import {getApprovalDigest, getWallet} from "./permitHelpers"
-import {DepositMade, TrancheLocked, PaymentApplied, SharePriceUpdated} from "../typechain/truffle/TranchedPool"
+// import {DepositMade, TrancheLocked, PaymentApplied, SharePriceUpdated} from "../types"
 import {
-  CreditLineInstance,
-  GoldfinchConfigInstance,
-  GoldfinchFactoryInstance,
-  PoolTokensInstance,
-  TestUniqueIdentityInstance,
-  SeniorPoolInstance,
-  TranchedPoolInstance,
-  BackerRewardsInstance,
-  GFIInstance,
-} from "../typechain/truffle"
-import {CONFIG_KEYS} from "../blockchain_scripts/configKeys"
-import {assertNonNullable} from "@goldfinch-eng/utils"
+  CreditLine,
+  GoldfinchConfig,
+  GoldfinchFactory,
+  PoolTokens,
+  TestUniqueIdentity,
+  SeniorPool,
+  TranchedPool,
+  BackerRewards,
+  // GFI,
+} from "../types"
+import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
+import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
 import {mint} from "./uniqueIdentityHelpers"
 import {deployBaseFixture, deployTranchedPoolWithGoldfinchFactoryFixture} from "./util/fixtures"
 
@@ -52,7 +54,7 @@ const HALF_CENT = usdcVal(1).div(new BN(200))
 const expectPaymentRelatedEventsEmitted = (
   receipt: unknown,
   borrowerAddress: unknown,
-  tranchedPool: TranchedPoolInstance,
+  tranchedPool: TranchedPool,
   amounts: {
     interest: BN
     principal: BN
@@ -85,17 +87,17 @@ describe("TranchedPool", () => {
   let owner,
     borrower,
     otherPerson,
-    goldfinchConfig: GoldfinchConfigInstance,
+    goldfinchConfig: GoldfinchConfig,
     usdc,
-    uniqueIdentity: TestUniqueIdentityInstance,
-    poolTokens: PoolTokensInstance,
-    goldfinchFactory: GoldfinchFactoryInstance,
-    creditLine: CreditLineInstance,
+    uniqueIdentity: TestUniqueIdentity,
+    poolTokens: PoolTokens,
+    goldfinchFactory: GoldfinchFactory,
+    creditLine: CreditLine,
     treasury,
-    backerRewards: BackerRewardsInstance,
-    tranchedPool: TranchedPoolInstance,
-    gfi: GFIInstance,
-    seniorPool: SeniorPoolInstance
+    backerRewards: BackerRewards,
+    tranchedPool: TranchedPool,
+    // gfi: GFI,
+    seniorPool: SeniorPool
   const limit = usdcVal(1000)
   let interestApr = interestAprAsBN("5.00")
   const paymentPeriodInDays = new BN(30)
@@ -107,16 +109,16 @@ describe("TranchedPool", () => {
 
   const testSetup = deployments.createFixture(async ({deployments}) => {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;({usdc, goldfinchConfig, goldfinchFactory, poolTokens, backerRewards, uniqueIdentity, seniorPool, gfi} =
+    ;({usdc, goldfinchConfig, goldfinchFactory, poolTokens, uniqueIdentity, seniorPool, gfi} =
       await deployBaseFixture())
     await goldfinchConfig.bulkAddToGoList([owner, borrower, otherPerson])
     await goldfinchConfig.setTreasuryReserve(treasury)
-    await setupBackerRewards(gfi, backerRewards, owner)
+    // await setupBackerRewards(gfi, backerRewards, owner)
     await erc20Transfer(usdc, [otherPerson], usdcVal(20000), owner)
     await erc20Transfer(usdc, [borrower], usdcVal(10000), owner)
 
     await erc20Approve(usdc, seniorPool.address, usdcVal(1000), [otherPerson])
-    await seniorPool.deposit(usdcVal(1000), {from: otherPerson})
+    await seniorPool.deposit(bnToHex(usdcVal(1000)), {from: otherPerson})
 
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     const {tranchedPool, creditLine} = await deployTranchedPoolWithGoldfinchFactoryFixture({
@@ -2047,7 +2049,7 @@ describe("TranchedPool", () => {
   describe("multiple drawdowns", async () => {
     // Reference: https://docs.google.com/spreadsheets/d/1d1rJ1vMhQ1-fdW9YhMPJKWrhylp6rXQ8dakDe4pN0RY/edit#gid=0
 
-    let tranchedPool: TranchedPoolInstance, creditLine: CreditLineInstance
+    let tranchedPool: TranchedPool, creditLine: CreditLine
     beforeEach(async () => {
       interestApr = interestAprAsBN("10.00")
       termInDays = new BN(365)
@@ -2066,13 +2068,13 @@ describe("TranchedPool", () => {
       await tranchedPool.grantRole(await tranchedPool.SENIOR_ROLE(), owner)
     })
 
-    async function depositAndGetTokenId(pool: TranchedPoolInstance, tranche, value): Promise<BN> {
+    async function depositAndGetTokenId(pool: TranchedPool, tranche, value): Promise<BN> {
       const receipt = await pool.deposit(tranche, value)
       const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, tranchedPool, "DepositMade")
       return getFirstLog(logs).args.tokenId
     }
 
-    async function investAndGetTokenId(pool: TranchedPoolInstance): Promise<BN> {
+    async function investAndGetTokenId(pool: TranchedPool): Promise<BN> {
       const receipt = await seniorPool.invest(pool.address)
       const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, tranchedPool, "DepositMade")
       return getFirstLog(logs).args.tokenId

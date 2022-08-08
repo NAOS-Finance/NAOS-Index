@@ -103,8 +103,25 @@ module.exports = {
     artifacts: './artifacts'
   },
   defaultNetwork: "localhost",
-  // networks: {
-  // },
+  networks: {
+    hardhat: {
+      mining: {
+        mempool: {
+          order: "fifo",
+        },
+      },
+      allowUnlimitedContractSize: true,
+      timeout: 1800000,
+      accounts: {mnemonic: "test test test test test test test test test test test junk"},
+    //   chainId: process.env.HARDHAT_FORK === "mainnet" ? 1 : 31337,
+    //   forking: process.env.HARDHAT_FORK
+    //     ? {
+    //         url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+    //         blockNumber: 14762303, // May-12-2022 05:07:13 PM +UTC
+    //       }
+    //     : undefined,
+    },
+  },
   mocha: {
     // timeout: 0,
     reporter: "list",

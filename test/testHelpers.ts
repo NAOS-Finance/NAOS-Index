@@ -91,7 +91,7 @@ import {Contract, BaseContract, BigNumber, ContractReceipt, ContractTransaction,
 chai.use(ChaiBN(BN))
 
 const MAX_UINT = new BN("115792089237316195423570985008687907853269984665640564039457584007913129639935")
-const fiduTolerance = decimals.div(NAOS_DECIMALS)
+const fiduTolerance = decimals.div(USDC_DECIMALS)
 const EMPTY_DATA = "0x"
 const BLOCKS_PER_DAY = 5760
 const ZERO = new BN(0)
@@ -685,6 +685,10 @@ export const bnToHex = (bn: BN): string => {
 
 export const bnToBnjs = (bn: BigNumber): BN => {
   return new BN(bn.toString())
+}
+
+export const bnjsToHex = (bn: BigNumber): string => {
+  return bn.toHexString()
 }
 
 export {

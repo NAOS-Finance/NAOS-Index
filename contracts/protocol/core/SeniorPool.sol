@@ -525,9 +525,10 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     // Ensure the address has enough value in the pool
     require(withdrawShares <= currentShares, "Amount requested is greater than what this address owns");
 
-    uint256 feePercent = getFeeByUser(msg.sender);
+    // uint256 feePercent = getFeeByUser(msg.sender);
 
-    uint256 reserveAmount = userAmount.mul(feePercent).div(config.getWithdrawFeeDenominator());
+    // uint256 reserveAmount = userAmount.mul(feePercent).div(config.getWithdrawFeeDenominator());
+    uint256 reserveAmount = usdcAmount.div(config.getWithdrawFeeDenominator());
     userAmount = usdcAmount.sub(reserveAmount);
 
     emit WithdrawalMade(msg.sender, userAmount, reserveAmount);
