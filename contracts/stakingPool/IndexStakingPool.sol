@@ -178,7 +178,6 @@ contract IndexStakingPool is ReentrancyGuard {
         _ctx.totalRewardWeight = _totalRewardWeight;
     }
 
-
     /// @dev Stakes tokens into a pool.
     ///
     /// @param _poolId The pool id.
@@ -194,7 +193,7 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _poolId The pool id.
     /// @param _index The index of deposited order.
-    function withdraw(uint256 _poolId, uint256[] calldata _index) external nonReentrant {
+    function withdraw(uint256 _poolId, uint256[] calldata _index, uint256[] calldata _amount) external nonReentrant {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
@@ -206,10 +205,9 @@ contract IndexStakingPool is ReentrancyGuard {
             Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
             _stake.update(_pool, _ctx);
 
-            require(!_stake.isWithdraw, "The order has been withdrew");
-            _stake.isWithdraw = true;
+            require(_stake.totalDeposited >= _amount[i], "No enough money for the withdrawn");
 
-            _withdraw(_poolId, _pool, _stake);
+            _withdraw(_poolId, _pool, _stake, _amount[i]);
             _claim(_poolId, _stake);
         }
     }
@@ -354,7 +352,6 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @return totalDeposited the amount of the deposited order.
     /// @return totalDepositedWeight the weighted amount of the deposited order.
     /// @return depositTime the deposited time of the deposited order.
-    /// @return isWithdraw the deposited order is withdraw or not.
     function getUserStakeOrderByIndex(uint256 _poolId, address _account, uint256 _index)
         external
         view
@@ -362,12 +359,11 @@ contract IndexStakingPool is ReentrancyGuard {
             uint256 totalDeposited,
             uint256 totalDepositedWeight,
             uint256 depositTime,
-            bool isWithdraw
         )
     {
         uint256 userStakedIndex = userStakedList[_account][_poolId][_index];
         Stake.Data storage _stake = _stakes[_poolId][userStakedIndex];
-        return (_stake.totalDeposited, _stake.totalDepositedWeight, _stake.depositTime, _stake.isWithdraw);
+        return (_stake.totalDeposited, _stake.totalDepositedWeight, _stake.depositTime);
     }
 
     /// @dev Get the user weight in the pool.
@@ -418,7 +414,7 @@ contract IndexStakingPool is ReentrancyGuard {
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
 
         userStakedList[msg.sender][_poolId].push(_stakes[_poolId].length);
-        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.number, lastAccumulatedWeight: FixedPointMath.uq192x64(0), isWithdraw: false}));
+        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.number, lastAccumulatedWeight: FixedPointMath.uq192x64(0)}));
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
@@ -433,12 +429,11 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @param _poolId The pool id.
     /// @param _pool The pool data.
     /// @param _stake The deposited data which will be withdrew.
-    function _withdraw(uint256 _poolId, Pool.Data storage _pool, Stake.Data storage _stake) internal {
-        uint256 _withdrawAmount = _stake.totalDeposited;
-        _pool.totalDeposited = _pool.totalDeposited.sub(_stake.totalDeposited);
-        _pool.totalDepositedWeight = _pool.totalDepositedWeight.sub(_stake.totalDepositedWeight);
-        _stake.totalDeposited = 0;
-        _stake.totalDepositedWeight = 0;
+    function _withdraw(uint256 _poolId, Pool.Data storage _pool, Stake.Data storage _stake, uint256 _withdrawAmount) internal {
+        _pool.totalDeposited = _pool.totalDeposited.sub(_withdrawAmount);
+        _stake.totalDeposited = _stake.totalDeposited.sub(_withdrawAmount);
+
+        _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
 
         require(_pool.token.transfer(msg.sender, _withdrawAmount), "token transfer failed");
 
