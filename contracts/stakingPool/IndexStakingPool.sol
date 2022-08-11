@@ -37,6 +37,8 @@ contract IndexStakingPool is ReentrancyGuard {
 
     event PenaltyPercentUpdated(uint256 percent);
 
+    event VestingDurationUpdated(uint256 vestingDuration);
+
     event TokensDeposited(address indexed user, uint256 indexed poolId, uint256 amount);
 
     event TokensWithdrawn(address indexed user, uint256 indexed poolId, uint256 amount);
@@ -55,11 +57,11 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev The address which is the candidate of governance
     address public pendingGovernance;
 
+    /// @notice The duration in seconds over which rewards vest
+    uint256 public vestingDuration;
+
     /// @dev The resolution of fixed point. The resolution allows for a granularity of 1% increments.
     uint256 public constant PERCENT_RESOLUTION = 100;
-
-    /// @notice The duration in seconds over which rewards vest
-    uint256 public constant VESTING_DURATION = 365 days;
 
     /// @dev Tokens are mapped to their pool identifier plus one. Tokens that do not have an associated pool
     /// will return an identifier of zero.
@@ -91,6 +93,7 @@ contract IndexStakingPool is ReentrancyGuard {
         reward = _reward;
         governance = _governance;
         boostPool = _boostPool;
+        vestingDuration = 365 days;
     }
 
     /// @dev A modifier which reverts when the caller is not the governance.
@@ -119,17 +122,6 @@ contract IndexStakingPool is ReentrancyGuard {
         emit GovernanceUpdated(pendingGovernance);
     }
 
-    /// @dev Sets the distribution reward rate.
-    ///
-    /// @param _rewardRate The number of tokens to distribute per block.
-    function setRewardRate(uint256 _rewardRate) external onlyGovernance {
-        _updatePools();
-
-        _ctx.rewardRate = _rewardRate;
-
-        emit RewardRateUpdated(_rewardRate);
-    }
-
     /// @dev Creates a new pool.
     ///
     /// The created pool will need to have its reward weight initialized before it begins generating rewards.
@@ -150,6 +142,17 @@ contract IndexStakingPool is ReentrancyGuard {
         emit PoolCreated(_poolId, _token);
 
         return _poolId;
+    }
+
+    /// @dev Sets the distribution reward rate.
+    ///
+    /// @param _rewardRate The number of tokens to distribute per block.
+    function setRewardRate(uint256 _rewardRate) external onlyGovernance {
+        _updatePools();
+
+        _ctx.rewardRate = _rewardRate;
+
+        emit RewardRateUpdated(_rewardRate);
     }
 
     /// @dev Sets the reward weights of all of the pools.
@@ -176,6 +179,15 @@ contract IndexStakingPool is ReentrancyGuard {
         }
 
         _ctx.totalRewardWeight = _totalRewardWeight;
+    }
+
+    /// @dev Set vesting duration.
+    ///
+    /// @param _vestingDuration Vesting duration.
+    function setVestingDuration(uint256 _vestingDuration) external onlyGovernance {
+        vestingDuration = _vestingDuration;
+
+        emit VestingDurationUpdated(_vestingDuration);
     }
 
     /// @dev Stakes tokens into a pool.
@@ -326,8 +338,8 @@ contract IndexStakingPool is ReentrancyGuard {
         uint256 _elapsedTime = block.timestamp.sub(_stake.depositTime);
 
         uint256 _claimAmountAfterVesting = _claimAmount;
-        if (_elapsedTime < 365 days) {
-            _claimAmountAfterVesting = _claimAmount.mul(_elapsedTime).div(365 days);
+        if (_elapsedTime < vestingDuration) {
+            _claimAmountAfterVesting = _claimAmount.mul(_elapsedTime).div(vestingDuration);
         }
 
         return (_claimAmount, _claimAmountAfterVesting);
@@ -358,7 +370,7 @@ contract IndexStakingPool is ReentrancyGuard {
         returns (
             uint256 totalDeposited,
             uint256 totalDepositedWeight,
-            uint256 depositTime,
+            uint256 depositTime
         )
     {
         uint256 userStakedIndex = userStakedList[_account][_poolId][_index];
@@ -453,8 +465,8 @@ contract IndexStakingPool is ReentrancyGuard {
         uint256 _penalty = 0;
         uint256 _claimable = _claimAmount;
 
-        if (_elapsedTime < VESTING_DURATION) {
-            _claimable = _claimAmount.mul(_elapsedTime).div(VESTING_DURATION);
+        if (_elapsedTime < vestingDuration) {
+            _claimable = _claimAmount.mul(_elapsedTime).div(vestingDuration);
             _penalty = _claimAmount.sub(_claimable);
         }
 
