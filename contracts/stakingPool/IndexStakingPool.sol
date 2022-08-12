@@ -192,13 +192,14 @@ contract IndexStakingPool is ReentrancyGuard {
 
     /// @dev Stakes tokens into a pool.
     ///
+    /// @param _user The user address
     /// @param _poolId The pool id.
     /// @param _depositAmount The amount of tokens to deposit.
-    function deposit(uint256 _poolId, uint256 _depositAmount) external nonReentrant {
+    function deposit(address _user, uint256 _poolId, uint256 _depositAmount) external nonReentrant {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        _deposit(_poolId, _depositAmount);
+        _deposit(_user, _poolId, _depositAmount);
     }
 
     /// @dev Withdraws deposited tokens from a pool.
@@ -421,19 +422,19 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _poolId the pool id
     /// @param _depositAmount the amount of tokens to deposit.
-    function _deposit(uint256 _poolId, uint256 _depositAmount) internal {
+    function _deposit(address _user, uint256 _poolId, uint256 _depositAmount) internal {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
 
-        userStakedList[msg.sender][_poolId].push(_stakes[_poolId].length);
+        userStakedList[_user][_poolId].push(_stakes[_poolId].length);
         _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.number, lastAccumulatedWeight: FixedPointMath.uq192x64(0)}));
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
-        _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
+        _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(_user));
 
         require(_pool.token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
 
-        emit TokensDeposited(msg.sender, _poolId, _depositAmount);
+        emit TokensDeposited(_user, _poolId, _depositAmount);
     }
 
     /// @dev Withdraws deposited tokens from a pool.
