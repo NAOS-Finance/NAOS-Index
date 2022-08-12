@@ -80,12 +80,10 @@ contract IndexStakingPool is ReentrancyGuard {
     mapping(address => mapping(uint256 => uint256[])) public userStakedList;
 
     constructor(
-        IERC20 _token,
         IERC20 _reward,
         IBoostPool _boostPool,
         address _governance
     ) public {
-        require(address(_token) != address(0), "token address cannot be 0x0");
         require(address(_reward) != address(0), "reward address cannot be 0x0");
         require(_governance != address(0), "governance address cannot be 0x0");
         require(address(_boostPool) != address(0), "boost pool address cannot be 0x0");
