@@ -964,11 +964,8 @@ describe("SeniorPool", () => {
         const expectedNewWritedown = expectedWritedown.div(new BN(2))
         const signer = await ethers.getSigner(borrower)
         // await erc20Transfer(usdc, [borrower], interestPaid, owner)
-        console.log('a', usdc.address, tranchedPool.address, borrower, interestPaid.toString())
         await erc20Approve(usdc, tranchedPool.address, interestPaid, [borrower])
-        console.log('a')
         await tranchedPool.connect(signer).pay(bnToHex(interestPaid))
-        console.log('a')
 
         await seniorPool.writedown(bnjsToHex(tokenId))
         // await expectAction(() => seniorPool.writedown(tokenId)).toChange([
