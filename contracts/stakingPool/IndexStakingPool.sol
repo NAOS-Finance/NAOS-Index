@@ -265,11 +265,25 @@ contract IndexStakingPool is ReentrancyGuard {
         }
     }
 
+    /// @dev Gets the number of pools that exist.
+    ///
+    /// @return the pool count.
+    function poolCount() external view returns (uint256) {
+        return _pools.length();
+    }
+
     /// @dev Gets the rate at which tokens are minted to stakers for all pools.
     ///
     /// @return the reward rate.
     function rewardRate() external view returns (uint256) {
         return _ctx.rewardRate;
+    }
+
+    /// @dev Gets the total reward weight between all the pools.
+    ///
+    /// @return the total reward weight.
+    function totalRewardWeight() external view returns (uint256) {
+        return _ctx.totalRewardWeight;
     }
 
     /// @dev Gets the token a pool accepts.
@@ -278,6 +292,26 @@ contract IndexStakingPool is ReentrancyGuard {
     function getPoolToken(uint256 _poolId) external view returns (IERC20) {
         Pool.Data storage _pool = _pools.get(_poolId);
         return _pool.token;
+    }
+
+    /// @dev Gets the reward weight of a pool which determines how much of the total rewards it receives per block.
+    ///
+    /// @param _poolId the identifier of the pool.
+    ///
+    /// @return the pool reward weight.
+    function getPoolRewardWeight(uint256 _poolId) external view returns (uint256) {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        return _pool.rewardWeight;
+    }
+
+    /// @dev Gets the amount of tokens per block being distributed to stakers for a pool.
+    ///
+    /// @param _poolId the identifier of the pool.
+    ///
+    /// @return the pool reward rate.
+    function getPoolRewardRate(uint256 _poolId) external view returns (uint256) {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        return _pool.getRewardRate(_ctx);
     }
 
     /// @dev Gets the total amount of funds deposited in a pool.
