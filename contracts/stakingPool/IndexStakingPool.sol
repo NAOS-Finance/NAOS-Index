@@ -133,7 +133,7 @@ contract IndexStakingPool is ReentrancyGuard {
 
         uint256 _poolId = _pools.length();
 
-        _pools.push(Pool.Data({token: _token, totalDeposited: 0, totalDepositedWeight:0, rewardWeight: 0, accumulatedRewardWeight: FixedPointMath.uq192x64(0), lastUpdatedBlock: block.number}));
+        _pools.push(Pool.Data({token: _token, totalDeposited: 0, totalDepositedWeight:0, rewardWeight: 0, accumulatedRewardWeight: FixedPointMath.uq192x64(0), lastUpdatedTimestamp: block.timestamp}));
 
         tokenPoolIds[_token] = _poolId + 1;
 
@@ -144,7 +144,7 @@ contract IndexStakingPool is ReentrancyGuard {
 
     /// @dev Sets the distribution reward rate.
     ///
-    /// @param _rewardRate The number of tokens to distribute per block.
+    /// @param _rewardRate The number of tokens to distribute per second.
     function setRewardRate(uint256 _rewardRate) external onlyGovernance {
         _updatePools();
 
@@ -208,7 +208,8 @@ contract IndexStakingPool is ReentrancyGuard {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        require(_index.length <= userStakedList[msg.sender][_poolId].length, "invalid index");   
+        require(_index.length <= userStakedList[msg.sender][_poolId].length, "invalid index");
+        require(_index.length == _amount.length, "inconsistent input index");
 
         for (uint256 i = 0; i < _index.length; i++) {
             require(_index[i] < userStakedList[msg.sender][_poolId].length, "invalid index");
@@ -459,7 +460,7 @@ contract IndexStakingPool is ReentrancyGuard {
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
 
         userStakedList[_user][_poolId].push(_stakes[_poolId].length);
-        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.number, lastAccumulatedWeight: FixedPointMath.uq192x64(0)}));
+        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.timestamp, lastAccumulatedWeight: FixedPointMath.uq192x64(0)}));
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(_user));

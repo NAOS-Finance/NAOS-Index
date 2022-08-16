@@ -28,7 +28,7 @@ library Pool {
         uint256 totalDepositedWeight;
         uint256 rewardWeight;
         FixedPointMath.uq192x64 accumulatedRewardWeight;
-        uint256 lastUpdatedBlock;
+        uint256 lastUpdatedTimestamp;
     }
 
     struct List {
@@ -40,7 +40,7 @@ library Pool {
     /// @param _ctx the pool context.
     function update(Data storage _data, Context storage _ctx) internal {
         _data.accumulatedRewardWeight = _data.getUpdatedAccumulatedRewardWeight(_ctx);
-        _data.lastUpdatedBlock = block.number;
+        _data.lastUpdatedTimestamp = block.timestamp;
     }
 
     /// @dev Gets the rate at which the pool will distribute rewards to stakers.
@@ -62,7 +62,7 @@ library Pool {
             return _data.accumulatedRewardWeight;
         }
 
-        uint256 _elapsedTime = block.number.sub(_data.lastUpdatedBlock);
+        uint256 _elapsedTime = block.timestamp.sub(_data.lastUpdatedTimestamp);
         if (_elapsedTime == 0) {
             return _data.accumulatedRewardWeight;
         }
@@ -74,7 +74,7 @@ library Pool {
             return _data.accumulatedRewardWeight;
         }
 
-        FixedPointMath.uq192x64 memory _rewardWeight = FixedPointMath.fromU256(_distributeAmount).div(_data.totalDeposited);
+        FixedPointMath.uq192x64 memory _rewardWeight = FixedPointMath.fromU256(_distributeAmount).div(_data.totalDepositedWeight);
         return _data.accumulatedRewardWeight.add(_rewardWeight);
     }
 
