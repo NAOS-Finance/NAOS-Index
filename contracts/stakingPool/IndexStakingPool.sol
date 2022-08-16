@@ -220,7 +220,6 @@ contract IndexStakingPool is ReentrancyGuard {
             require(_stake.totalDeposited >= _amount[i], "No enough money for the withdrawn");
 
             _withdraw(_poolId, _pool, _stake, _amount[i]);
-            _claim(_poolId, _stake);
         }
     }
 
