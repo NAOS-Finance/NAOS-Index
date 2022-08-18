@@ -81,14 +81,14 @@ contract Go is IGo, BaseUpgradeablePausable {
   function go(address account) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
 
-    if (_getLegacyGoList().goList(account) || IUniqueIdentity0612(uniqueIdentity).expiration(account, ID_TYPE_0) > 0) {
+    if (_getLegacyGoList().goList(account) || (IUniqueIdentity0612(uniqueIdentity).expiration(account, ID_TYPE_0) > 0 && IUniqueIdentity0612(uniqueIdentity).expiration(account, ID_TYPE_0) < block.timestamp)) {
       return true;
     }
 
     // start loop at index 1 because we checked index 0 above
     for (uint256 i = 1; i < allIdTypes.length; ++i) {
-      uint256 idTypeBalance = IUniqueIdentity0612(uniqueIdentity).expiration(account, allIdTypes[i]);
-      if (idTypeBalance > 0) {
+      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, allIdTypes[i]);
+      if (idTypeExpiration > 0 && idTypeExpiration < block.timestamp) {
         return true;
       }
     }
@@ -109,8 +109,8 @@ contract Go is IGo, BaseUpgradeablePausable {
       if (onlyIdTypes[i] == ID_TYPE_0 && goListSource.goList(account)) {
         return true;
       }
-      uint256 idTypeBalance = IUniqueIdentity0612(uniqueIdentity).expiration(account, onlyIdTypes[i]);
-      if (idTypeBalance > 0) {
+      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, onlyIdTypes[i]);
+      if (idTypeExpiration > 0 && idTypeExpiration < block.timestamp) {
         return true;
       }
     }
@@ -129,8 +129,8 @@ contract Go is IGo, BaseUpgradeablePausable {
     }
     uint256[2] memory seniorPoolIdTypes = [ID_TYPE_0, ID_TYPE_1];
     for (uint256 i = 0; i < seniorPoolIdTypes.length; ++i) {
-      uint256 idTypeBalance = IUniqueIdentity0612(uniqueIdentity).expiration(account, seniorPoolIdTypes[i]);
-      if (idTypeBalance > 0) {
+      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, seniorPoolIdTypes[i]);
+      if (idTypeExpiration > 0 && idTypeExpiration < block.timestamp) {
         return true;
       }
     }
