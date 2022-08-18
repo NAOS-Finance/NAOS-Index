@@ -96,8 +96,8 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     uint256 expiresAt,
     bytes calldata signature
   ) public override onlySigner(account, id, expiresAt, signature) incrementNonce(account) {
-    require(expiresAt < block.timestamp, "Expiration must be smaller than current timestamp");
-    // require(expiration[_msgSender()][id] < expiresAt, "Expiration before must be 0");
+    require(expiresAt == 0, "Expiration must be 0");
+    // require(expiration[_msgSender()][id] > 0, "Expiration must be bigger than 0");
 
     _updateExpiration(_msgSender(), id, expiresAt);
   }
