@@ -18,7 +18,7 @@ import {Vault} from "../../library/Vault.sol";
 
 /**
  * @title NAOS's IndexPool contract
- * @notice Main entry point for senior LPs (a.k.a. capital providers)
+ * @notice Main entry point for index LPs (a.k.a. capital providers)
  *  Automatically invests across borrower pools using an adjustable strategy.
  */
 contract IndexPool is BaseUpgradeablePausable, IIndexPool {
@@ -32,6 +32,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   uint256 public usdDecimals;
   
   mapping(IJuniorPool => uint256) public writedowns;
+
+  mapping(IJuniorPool => mapping(uint256 => bool)) isTokenWritedown;
 
   /// @dev A mapping of adapter addresses to keep track of vault adapters that have already been added
   mapping(IVaultAdapter => bool) public adapters;
@@ -63,7 +65,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   event PrincipalCollected(address indexed payer, uint256 amount);
   event ReserveFundsCollected(address indexed user, uint256 amount);
 
-  event PrincipalWrittenDown(address indexed juniorPool, int256 amount);
+  event PrincipalWrittenDown(address indexed juniorPool, uint256 amount);
+  event PrincipalCompensate(address indexed juniorPool, uint256 amount);
   event InvestmentMadeInSenior(address indexed juniorPool, uint256 amount);
   event InvestmentMadeInJunior(address indexed juniorPool, uint256 amount);
 
@@ -108,7 +111,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     // Check if the amount of new shares to be added is within limits
     depositShares = getNumShares(amount);
     uint256 potentialNewTotalShares = totalShares().add(depositShares);
-    require(sharesWithinLimit(potentialNewTotalShares), "Deposit would put the senior pool over the total limit.");
+    require(sharesWithinLimit(potentialNewTotalShares), "Deposit would put the index pool over the total limit.");
     emit DepositMade(msg.sender, amount, depositShares);
     bool success = doUSDCTransfer(msg.sender, address(this), amount);
     require(success, "Failed to transfer for deposit");
@@ -119,7 +122,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
   /**
    * @notice Identical to deposit, except it allows for a passed up signature to permit
-   *  the Senior Pool to move funds on behalf of the user, all within one transaction.
+   *  the Index Pool to move funds on behalf of the user, all within one transaction.
    * @param amount The amount of USDC to deposit
    * @param v secp256k1 signature component
    * @param r secp256k1 signature component
@@ -168,7 +171,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   /**
-   * @notice Invest in an IJuniorPool's senior tranche using the senior pool's strategy
+   * @notice Invest in an IJuniorPool's senior tranche using the index pool's strategy
    * @param pool An IJuniorPool whose senior tranche should be considered for investment
    */
   function invest(IJuniorPool pool) public override whenNotPaused nonReentrant {
@@ -180,7 +183,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     require(amount > 0, "Investment amount must be positive");
 
     approvePool(pool, amount);
-    pool.deposit(uint256(IJuniorPool.Tranches.Senior), amount);
+    uint256 tokenId = pool.deposit(uint256(IJuniorPool.Tranches.Senior), amount);
+    juniorPoolTokens[pool].push(tokenId);
 
     emit InvestmentMadeInSenior(address(pool), amount);
     totalLoansOutstanding = totalLoansOutstanding.add(amount);
@@ -203,43 +207,43 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     IJuniorPool pool = IJuniorPool(tokenInfo.pool);
     (uint256 interestRedeemed, uint256 principalRedeemed) = pool.withdrawMax(tokenId);
 
-    _collectInterestAndPrincipal(address(pool), interestRedeemed, principalRedeemed);
+    _collectInterestAndPrincipal(pool, interestRedeemed, principalRedeemed);
   }
 
   /**
-   * @notice Write down an IJuniorPool investment. This will adjust the senior pool's share price
+   * @notice Write down an IJuniorPool investment. This will adjust the index pool's share price
    *  down if we're considering the investment a loss, or up if the borrower has subsequently
    *  made repayments that restore confidence that the full loan will be repaid.
-   * @param tokenId the ID of an IPoolTokens token to be considered for writedown
+   * @param pool the junior pool address
    */
-  function writedown(uint256 tokenId) public override whenNotPaused nonReentrant {
-    IPoolTokens poolTokens = config.getPoolTokens();
-    require(address(this) == poolTokens.ownerOf(tokenId), "Only tokens owned by the senior pool can be written down");
-
-    IPoolTokens.TokenInfo memory tokenInfo = poolTokens.getTokenInfo(tokenId);
-    IJuniorPool pool = IJuniorPool(tokenInfo.pool);
+  function writedown(IJuniorPool pool) public override whenNotPaused nonReentrant {
+    require(msg.sender == config.loanManagerAddress(), "invalid sender");
     require(validPool(pool), "Pool must be valid");
 
-    uint256 principalRemaining = tokenInfo.principalAmount.sub(tokenInfo.principalRedeemed);
+    IPoolTokens poolTokens = config.getPoolTokens();
+    require(pool.liquidated() == IJuniorPool.LiquidationProcess.Starting, "The pool is not in the liquidation process");
 
-    (uint256 writedownPercent, uint256 writedownAmount) = _calculateWritedown(pool, principalRemaining);
+    uint256 principalRemaining = 0;
+    for(uint256 i = 0; i < juniorPoolTokens[pool].length; i++) {
+      uint256 tokenId = juniorPoolTokens[pool][i];
+      require(address(this) == poolTokens.ownerOf(tokenId), "Only tokens owned by the index pool can be written down");
 
-    uint256 prevWritedownAmount = writedowns[pool];
-
-    if (writedownPercent == 0 && prevWritedownAmount == 0) {
-      return;
+      IPoolTokens.TokenInfo memory tokenInfo = poolTokens.getTokenInfo(tokenId);
+      require(address(pool) == tokenInfo.pool, "inconsistent pool address");
+      require(!isTokenWritedown[pool][tokenId], "The token has been writedown");
+      isTokenWritedown[pool][tokenId] = true;
+      principalRemaining = principalRemaining.add(tokenInfo.principalAmount.sub(tokenInfo.principalRedeemed));
     }
 
-    int256 writedownDelta = int256(prevWritedownAmount) - int256(writedownAmount);
+    uint256 writedownAmount = _calculateWritedown(pool, principalRemaining);
+    require(writedownAmount > 0, "No writedown amount");
+
     writedowns[pool] = writedownAmount;
-    distributeLosses(writedownDelta);
-    if (writedownDelta > 0) {
-      // If writedownDelta is positive, that means we got money back. So subtract from totalWritedowns.
-      totalWritedowns = totalWritedowns.sub(uint256(writedownDelta));
-    } else {
-      totalWritedowns = totalWritedowns.add(uint256(writedownDelta * -1));
-    }
-    emit PrincipalWrittenDown(address(pool), writedownDelta);
+    uint256 delta = usdcToSharePrice(writedownAmount);
+    sharePrice = sharePrice.sub(delta);
+    totalWritedowns = totalWritedowns.add(writedownAmount);
+
+    emit PrincipalWrittenDown(address(pool), writedownAmount);
   }
 
   /**
@@ -253,8 +257,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
     uint256 principalRemaining = tokenInfo.principalAmount.sub(tokenInfo.principalRedeemed);
 
-    (, uint256 writedownAmount) = _calculateWritedown(pool, principalRemaining);
-    return writedownAmount;
+    return _calculateWritedown(pool, principalRemaining);
   }
 
   /**
@@ -396,31 +399,19 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   function _calculateWritedown(IJuniorPool pool, uint256 principal)
     internal
     view
-    returns (uint256 writedownPercent, uint256 writedownAmount)
+    returns (uint256 writedownAmount)
   {
     return
       Accountant.calculateWritedownForPrincipal(
         pool.creditLine(),
         principal,
         currentTime(),
-        config.getLatenessGracePeriodInDays(),
         config.getLatenessMaxDays()
       );
   }
 
   function currentTime() internal view virtual returns (uint256) {
     return block.timestamp;
-  }
-
-  function distributeLosses(int256 writedownDelta) internal {
-    if (writedownDelta > 0) {
-      uint256 delta = usdcToSharePrice(uint256(writedownDelta));
-      sharePrice = sharePrice.add(delta);
-    } else {
-      // If delta is negative, convert to positive uint, and sub from sharePrice
-      uint256 delta = usdcToSharePrice(uint256(writedownDelta * -1));
-      sharePrice = sharePrice.sub(delta);
-    }
   }
 
   function rwaMantissa() public pure returns (uint256) {
@@ -437,6 +428,10 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
   function rwaToUSDC(uint256 amount) public view returns (uint256) {
     return amount.div(rwaMantissa().div(usdcMantissa()));
+  }
+
+  function juniorPoolTokensCount(IJuniorPool pool) external override view returns (uint256) {
+    return juniorPoolTokens[pool].length;
   }
 
   function getUSDCAmountFromShares(uint256 rwaAmount) internal view returns (uint256) {
@@ -487,7 +482,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   function _collectInterestAndPrincipal(
-    address from,
+    IJuniorPool from,
     uint256 interest,
     uint256 principal
   ) internal {
@@ -495,11 +490,32 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     sharePrice = sharePrice.add(increment);
 
     if (interest > 0) {
-      emit InterestCollected(from, interest);
+      emit InterestCollected(address(from), interest);
     }
     if (principal > 0) {
-      emit PrincipalCollected(from, principal);
+      emit PrincipalCollected(address(from), principal);
       totalLoansOutstanding = totalLoansOutstanding.sub(principal);
+
+      if (config.getJuniorPool().liquidated() == IJuniorPool.LiquidationProcess.Processing) {
+        uint256 prevWritedownAmount = writedowns[from];
+
+        if (prevWritedownAmount == 0) {
+          return;
+        }
+
+        if (principal > prevWritedownAmount) {
+          principal = prevWritedownAmount;
+        }
+
+        writedowns[from] = writedowns[from].sub(principal);
+
+        uint256 delta = usdcToSharePrice(principal);
+        sharePrice = sharePrice.add(delta);
+
+        totalWritedowns = totalWritedowns.sub(principal);
+
+        emit PrincipalCompensate(address(from), principal);
+      }
     }
   }
 

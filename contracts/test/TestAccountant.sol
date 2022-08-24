@@ -13,17 +13,16 @@ contract TestAccountant {
     uint256 lateFeeGracePeriod
   ) public view returns (uint256, uint256) {
     CreditLine cl = CreditLine(creditLineAddress);
-    return Accountant.calculateInterestAndPrincipalAccrued(cl, timestamp, lateFeeGracePeriod);
+    return Accountant.calculateInterestAndPrincipalAccrued(cl, timestamp, lateFeeGracePeriod, IJuniorPool.LiquidationProcess.NotInProcess);
   }
 
   function calculateWritedownFor(
     address creditLineAddress,
     uint256 blockNumber,
-    uint256 gracePeriod,
     uint256 maxLatePeriods
-  ) public view returns (uint256, uint256) {
+  ) public view returns (uint256) {
     CreditLine cl = CreditLine(creditLineAddress);
-    return Accountant.calculateWritedownFor(cl, blockNumber, gracePeriod, maxLatePeriods);
+    return Accountant.calculateWritedownFor(cl, blockNumber, maxLatePeriods);
   }
 
   function calculateAmountOwedForOneDay(address creditLineAddress) public view returns (FixedPoint.Unsigned memory) {

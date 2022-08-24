@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import "./CreditLine.sol";
 import "../../interfaces/ICreditLine.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "../../external/FixedPoint.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
@@ -36,37 +37,30 @@ library Accountant {
   function calculateInterestAndPrincipalAccrued(
     CreditLine cl,
     uint256 timestamp,
-    uint256 lateFeeGracePeriod
+    uint256 lateFeeGracePeriod,
+    IJuniorPool.LiquidationProcess liquidated
   ) public view returns (uint256, uint256) {
     uint256 balance = cl.balance(); // gas optimization
-    uint256 interestAccrued = calculateInterestAccrued(cl, balance, timestamp, lateFeeGracePeriod);
-    uint256 principalAccrued = calculatePrincipalAccrued(cl, balance, timestamp);
-    return (interestAccrued, principalAccrued);
-  }
-
-  function calculateInterestAndPrincipalAccruedOverPeriod(
-    CreditLine cl,
-    uint256 balance,
-    uint256 startTime,
-    uint256 endTime,
-    uint256 lateFeeGracePeriod
-  ) public view returns (uint256, uint256) {
-    uint256 interestAccrued = calculateInterestAccruedOverPeriod(cl, balance, startTime, endTime, lateFeeGracePeriod);
-    uint256 principalAccrued = calculatePrincipalAccrued(cl, balance, endTime);
+    uint256 interestAccrued = 0;
+    if (liquidated != IJuniorPool.LiquidationProcess.Processing) {
+      interestAccrued = calculateInterestAccrued(cl, balance, timestamp, lateFeeGracePeriod);
+    }
+    uint256 principalAccrued = calculatePrincipalAccrued(cl, balance, timestamp, liquidated);
     return (interestAccrued, principalAccrued);
   }
 
   function calculatePrincipalAccrued(
     ICreditLine cl,
     uint256 balance,
-    uint256 timestamp
+    uint256 timestamp,
+    IJuniorPool.LiquidationProcess liquidated
   ) public view returns (uint256) {
     // If we've already accrued principal as of the term end time, then don't accrue more principal
     uint256 termEndTime = cl.termEndTime();
-    if (cl.interestAccruedAsOf() >= termEndTime) {
+    if (cl.interestAccruedAsOf() >= termEndTime || liquidated == IJuniorPool.LiquidationProcess.Processing) {
       return 0;
     }
-    if (timestamp >= termEndTime) {
+    if (timestamp >= termEndTime || liquidated == IJuniorPool.LiquidationProcess.Starting) {
       return balance;
     } else {
       return 0;
@@ -76,50 +70,36 @@ library Accountant {
   function calculateWritedownFor(
     ICreditLine cl,
     uint256 timestamp,
-    uint256 gracePeriodInDays,
     uint256 maxDaysLate
-  ) public view returns (uint256, uint256) {
-    return calculateWritedownForPrincipal(cl, cl.balance(), timestamp, gracePeriodInDays, maxDaysLate);
+  ) public view returns (uint256) {
+    return calculateWritedownForPrincipal(cl, cl.balance(), timestamp, maxDaysLate);
   }
 
   function calculateWritedownForPrincipal(
     ICreditLine cl,
     uint256 principal,
     uint256 timestamp,
-    uint256 gracePeriodInDays,
     uint256 maxDaysLate
-  ) public view returns (uint256, uint256) {
+  ) public view returns (uint256) {
     FixedPoint.Unsigned memory amountOwedPerDay = calculateAmountOwedForOneDay(cl);
     if (amountOwedPerDay.isEqual(0)) {
-      return (0, 0);
+      return 0;
     }
-    FixedPoint.Unsigned memory fpGracePeriod = FixedPoint.fromUnscaledUint(gracePeriodInDays);
     FixedPoint.Unsigned memory daysLate;
 
-    // Excel math: =min(1,max(0,periods_late_in_days-graceperiod_in_days)/MAX_ALLOWED_DAYS_LATE) grace_period = 30,
-    // Before the term end date, we use the interestOwed to calculate the periods late. However, after the loan term
-    // has ended, since the interest is a much smaller fraction of the principal, we cannot reliably use interest to
-    // calculate the periods later.
-    uint256 totalOwed = cl.interestOwed().add(cl.principalOwed());
-    daysLate = FixedPoint.fromUnscaledUint(totalOwed).div(amountOwedPerDay);
-    if (timestamp > cl.termEndTime()) {
+    uint256 interestOwed = cl.interestOwed();
+    uint256 totalOwed = interestOwed.add(cl.principalOwed());
+    daysLate = FixedPoint.fromUnscaledUint(interestOwed).div(amountOwedPerDay);
+    if (timestamp > cl.termEndTime() && totalOwed > 0) {
       uint256 secondsLate = timestamp.sub(cl.termEndTime());
       daysLate = daysLate.add(FixedPoint.fromUnscaledUint(secondsLate).div(SECONDS_PER_DAY));
     }
 
     FixedPoint.Unsigned memory maxLate = FixedPoint.fromUnscaledUint(maxDaysLate);
-    FixedPoint.Unsigned memory writedownPercent;
-    if (daysLate.isLessThanOrEqual(fpGracePeriod)) {
-      // Within the grace period, we don't have to write down, so assume 0%
-      writedownPercent = FixedPoint.fromUnscaledUint(0);
-    } else {
-      writedownPercent = FixedPoint.min(FixedPoint.fromUnscaledUint(1), (daysLate.sub(fpGracePeriod)).div(maxLate));
+    if (daysLate.isLessThanOrEqual(maxLate)) {
+      return 0;
     }
-
-    FixedPoint.Unsigned memory writedownAmount = writedownPercent.mul(principal).div(FP_SCALING_FACTOR);
-    // This will return a number between 0-100 representing the write down percent with no decimals
-    uint256 unscaledWritedownPercent = writedownPercent.mul(100).div(FP_SCALING_FACTOR).rawValue;
-    return (unscaledWritedownPercent, writedownAmount.rawValue);
+    return principal;
   }
 
   function calculateAmountOwedForOneDay(ICreditLine cl) public view returns (FixedPoint.Unsigned memory interestOwed) {
@@ -179,14 +159,26 @@ library Accountant {
     uint256 paymentAmount,
     uint256 balance,
     uint256 interestOwed,
-    uint256 principalOwed
+    uint256 principalOwed,
+    IJuniorPool.LiquidationProcess liquidated
   ) public pure returns (PaymentAllocation memory) {
     uint256 paymentRemaining = paymentAmount;
-    uint256 interestPayment = Math.min(interestOwed, paymentRemaining);
-    paymentRemaining = paymentRemaining.sub(interestPayment);
+    uint256 interestPayment;
+    uint256 principalPayment;
 
-    uint256 principalPayment = Math.min(principalOwed, paymentRemaining);
-    paymentRemaining = paymentRemaining.sub(principalPayment);
+    if (liquidated == IJuniorPool.LiquidationProcess.NotInProcess) {
+      interestPayment = Math.min(interestOwed, paymentRemaining);
+      paymentRemaining = paymentRemaining.sub(interestPayment);
+
+      principalPayment = Math.min(principalOwed, paymentRemaining);
+      paymentRemaining = paymentRemaining.sub(principalPayment);
+    } else {
+      principalPayment = Math.min(principalOwed, paymentRemaining);
+      paymentRemaining = paymentRemaining.sub(principalPayment);
+
+      interestPayment = Math.min(interestOwed, paymentRemaining);
+      paymentRemaining = paymentRemaining.sub(interestPayment);
+    }
 
     uint256 balanceRemaining = balance.sub(principalPayment);
     uint256 additionalBalancePayment = Math.min(paymentRemaining, balanceRemaining);

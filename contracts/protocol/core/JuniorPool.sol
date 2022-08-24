@@ -32,7 +32,6 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
   uint256 public juniorFeePercent;
   bool public drawdownsPaused;
   uint256[] public allowedUIDTypes;
-  uint256 public totalDeployed;
   uint256 public fundableAt;
 
   PoolSlice[] public poolSlices;
@@ -71,7 +70,6 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
   event DrawdownMade(address indexed borrower, uint256 amount);
   event DrawdownsPaused(address indexed pool);
   event DrawdownsUnpaused(address indexed pool);
-  event EmergencyShutdown(address indexed pool);
   event TrancheLocked(address indexed pool, uint256 trancheId, uint256 lockedUntil);
   event SliceCreated(address indexed pool, uint256 sliceId);
 
@@ -119,12 +117,14 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     _setRoleAdmin(LOCKER_ROLE, OWNER_ROLE);
     _setRoleAdmin(SENIOR_ROLE, OWNER_ROLE);
 
-    // Give the senior pool the ability to deposit into the senior pool
+    // Give the index pool the ability to deposit into the index pool
     _setupRole(SENIOR_ROLE, address(config.getIndexPool()));
 
     // Unlock self for infinite amount
     bool success = config.getUSDC().approve(address(this), uint256(-1));
     require(success, "Failed to approve USDC");
+
+    liquidated = LiquidationProcess.NotInProcess;
   }
 
   function setAllowedUIDTypes(uint256[] calldata ids) public onlyLocker {
@@ -241,7 +241,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
   function drawdown(uint256 amount) external override onlyLocker whenNotPaused {
     require(!drawdownsPaused, "Drawdowns are paused");
     if (!locked()) {
-      // Assumes the senior pool has invested already (saves the borrower a separate transaction to lock the pool)
+      // Assumes the index pool has invested already (saves the borrower a separate transaction to lock the pool)
       _lockPool();
     }
     // Drawdown only draws down from the current slice for simplicity. It's harder to account for how much
@@ -340,6 +340,11 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     _assess();
   }
 
+  function setLiquidated(LiquidationProcess status) external override {
+    require(msg.sender == config.loanManagerAddress(), "invalid sender");
+    liquidated = status;
+  }
+
   /**
    * @notice Migrates to a new naos config address
    */
@@ -347,29 +352,6 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     config = NAOSConfig(config.configAddress());
     creditLine.updateNAOSConfig();
     emit NAOSConfigUpdated(msg.sender, address(config));
-  }
-
-  /**
-   * @notice Pauses the pool and sweeps any remaining funds to the treasury reserve.
-   */
-  function emergencyShutdown() public onlyAdmin {
-    if (!paused()) {
-      pause();
-    }
-
-    IERC20withDec usdc = config.getUSDC();
-    address reserveAddress = config.reserveAddress();
-    // Sweep any funds to community reserve
-    uint256 poolBalance = usdc.balanceOf(address(this));
-    if (poolBalance > 0) {
-      safeERC20Transfer(usdc, reserveAddress, poolBalance);
-    }
-
-    uint256 clBalance = usdc.balanceOf(address(creditLine));
-    if (clBalance > 0) {
-      safeERC20TransferFrom(usdc, address(creditLine), reserveAddress, clBalance);
-    }
-    emit EmergencyShutdown(address(this));
   }
 
   /**
@@ -438,26 +420,6 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
       safeERC20TransferFrom(config.getUSDC(), originalClAddr, newClAddr, clBalance);
     }
     emit CreditLineMigrated(originalClAddr, newClAddr);
-  }
-
-  /**
-   * @notice Migrates to a new creditline without copying the accounting variables
-   */
-  function migrateAndSetNewCreditLine(address newCl) public onlyAdmin {
-    require(newCl != address(0), "Creditline cannot be empty");
-    address originalClAddr = address(creditLine);
-    // Transfer any funds to new CL
-    uint256 clBalance = config.getUSDC().balanceOf(originalClAddr);
-    if (clBalance > 0) {
-      safeERC20TransferFrom(config.getUSDC(), originalClAddr, newCl, clBalance);
-    }
-    TranchingLogic.closeCreditLine(originalClAddr);
-    // set new CL
-    creditLine = IV2CreditLine(newCl);
-    // sanity check that the new address is in fact a creditline
-    creditLine.limit();
-
-    emit CreditLineMigrated(originalClAddr, address(creditLine));
   }
 
   // CreditLine proxy method

@@ -8,11 +8,19 @@ import "./IV2CreditLine.sol";
 abstract contract IJuniorPool {
   IV2CreditLine public creditLine;
   uint256 public createdAt;
+  uint256 public totalDeployed;
+  LiquidationProcess public liquidated;
 
   enum Tranches {
     Reserved,
     Senior,
     Junior
+  }
+
+  enum LiquidationProcess {
+    NotInProcess,
+    Starting,
+    Processing
   }
 
   struct TrancheInfo {
@@ -104,4 +112,6 @@ abstract contract IJuniorPool {
     returns (uint256 interestWithdrawn, uint256 principalWithdrawn);
 
   function withdrawMultiple(uint256[] calldata tokenIds, uint256[] calldata amounts) external virtual;
+
+  function setLiquidated(LiquidationProcess status) external virtual;
 }
