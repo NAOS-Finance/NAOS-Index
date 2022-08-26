@@ -3,7 +3,7 @@ import CreditLine from "../artifacts/contracts/protocol/core/CreditLine.sol/Cred
 import {SECONDS_PER_DAY} from "../test/testHelpers"
 import {displayCreditLine} from "./protocolHelpers"
 import {ethers} from "hardhat"
-import {assertNonNullable} from "packages/utils/src/type"
+import {assertNonNullable} from "utils/type"
 
 async function main() {
   assertNonNullable(process.env.CREDIT_LINE, "You did not pass term in days or credit line address!")

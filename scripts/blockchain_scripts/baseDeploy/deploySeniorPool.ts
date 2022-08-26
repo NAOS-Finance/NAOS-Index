@@ -1,5 +1,5 @@
 import {SeniorPool} from "../../../types/contracts/protocol/core"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {grantMinterRoleToPool} from "../baseDeploy"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, isTestEnv, getProtocolOwner, updateConfig} from "../deployHelpers"
@@ -9,13 +9,14 @@ const logger = console.log
 
 export async function deploySeniorPool(deployer: ContractDeployer, {config, fidu}: DeployOpts): Promise<SeniorPool> {
   let contractName = "SeniorPool"
-  // if (isTestEnv()) {
-  //   contractName = "TestSeniorPool"
-  // }
+  if (isTestEnv()) {
+    contractName = `Test${contractName}`
+  }
+  
   const {gf_deployer} = await deployer.getNamedAccounts()
   const protocol_owner = await getProtocolOwner()
-  // assertIsString(protocol_owner)
-  // assertIsString(gf_deployer)
+  assertIsString(protocol_owner)
+  assertIsString(gf_deployer)
   const accountant = await deployer.deployLibrary("Accountant", {from: gf_deployer, args: []})
   const seniorPool = await deployer.deploy<SeniorPool>(contractName, {
     from: gf_deployer,

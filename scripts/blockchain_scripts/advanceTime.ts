@@ -17,6 +17,7 @@ async function advanceTime(logger = console.log) {
     method: "evm_setNextBlockTimestamp",
     params: [newTimestamp.toNumber()],
   })
+  await hre.network.provider.send("evm_increaseTime", [secondsToAdvance.toNumber()])
   logger("Done")
 }
 

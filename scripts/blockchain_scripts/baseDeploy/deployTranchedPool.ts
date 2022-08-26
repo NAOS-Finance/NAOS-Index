@@ -1,5 +1,5 @@
 import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {ContractDeployer, isTestEnv} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
 
@@ -11,9 +11,13 @@ export async function deployTranchedPool(
   const {gf_deployer} = await deployer.getNamedAccounts()
 
   logger("About to deploy TranchedPool...")
-  const contractName = "TranchedPool"
+  let contractName = "TranchedPool"
+  // TODO: contract too large error
+  if (isTestEnv()) {
+    contractName = `Test${contractName}`
+  }
 
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const tranchingLogic = await deployer.deployLibrary("TranchingLogic", {from: gf_deployer, args: []})
   logger("About to deploy TranchedPool implementation...")
   const tranchedPoolImpl = await deployer.deploy(contractName, {

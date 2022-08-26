@@ -35,7 +35,7 @@ import {
   assertNonNullable,
 //   assertUnreachable,
 //   genExhaustiveTuple,
-} from "../../../packages/utils/src"
+} from "../utils"
 import {getExistingContracts, MAINNET_MULTISIG} from "../mainnetForkingHelpers"
 
 import {ContractDeployer} from "./contractDeployer"

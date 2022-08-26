@@ -1,6 +1,6 @@
 import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
 import {BackerRewards} from "../../../types/contracts/rewards"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, isTestEnv, getProtocolOwner, getEthersContract, ETHERS_CONTRACT_PROVIDER} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
@@ -18,12 +18,9 @@ export async function deployBackerRewards(
   }
 ): Promise<BackerRewards> {
   const {gf_deployer} = await deployer.getNamedAccounts()
-  let contractName = "BackerRewards"
-  if (isTestEnv()) {
-    contractName = "TestBackerRewards"
-  }
+  const contractName = "BackerRewards"
   logger("About to deploy BackerRewards...")
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const protocol_owner = await getProtocolOwner()
   const backerRewards = await deployer.deploy<BackerRewards>(contractName, {
     from: gf_deployer,

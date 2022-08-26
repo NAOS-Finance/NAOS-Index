@@ -1,5 +1,5 @@
 import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, updateConfig} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
@@ -13,10 +13,10 @@ export async function deployClImplementation(
 ) {
   const {gf_deployer} = await deployer.getNamedAccounts()
 
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const accountant = await deployer.deployLibrary("Accountant", {from: gf_deployer, args: []})
   // Deploy the credit line as well so we generate the ABI
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const clDeployResult = await deployer.deploy("CreditLine", {
     from: gf_deployer,
     libraries: {["Accountant"]: accountant.address},

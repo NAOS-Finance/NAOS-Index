@@ -1,16 +1,13 @@
-// import {toEthers} from "@goldfinch-eng/protocol/test/testHelpers"
 import {UniqueIdentity} from "../../../types/contracts/protocol/core"
-// import {UniqueIdentityInstance, TestUniqueIdentityInstance} from "@goldfinch-eng/protocol/typechain/truffle"
-// import {assertIsString} from "@goldfinch-eng/utils"
+import {assertIsString} from "../utils"
 import {Deployed} from "../baseDeploy"
 import {
   ContractDeployer,
   getContract,
   getProtocolOwner,
-  isTestEnv,
   SIGNER_ROLE,
-  TRUFFLE_CONTRACT_PROVIDER,
-  ETHERS_CONTRACT_PROVIDER
+  ETHERS_CONTRACT_PROVIDER,
+  isTestEnv
 } from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
 import {UNIQUE_IDENTITY_METADATA_URI} from "../uniqueIdentity/constants"
@@ -26,10 +23,14 @@ export async function deployUniqueIdentity({
   trustedSigner: string
   deployEffects: DeployEffects
 }): Promise<Deployed<UniqueIdentity>> {
-  const contractName = "UniqueIdentity"
+  let contractName = "UniqueIdentity"
+  if (isTestEnv()) {
+    contractName = `Test${contractName}`
+  }
+
   logger(`About to deploy ${contractName}...`)
   const {gf_deployer} = await deployer.getNamedAccounts()
-  // assertIsString(gf_deployer)
+  assertIsString(gf_deployer)
   const protocol_owner = await getProtocolOwner()
   const uniqueIdentity = await deployer.deploy(contractName, {
     from: gf_deployer,
@@ -45,11 +46,11 @@ export async function deployUniqueIdentity({
       },
     },
   })
-  const truffleContract = await getContract<
+  const contract = await getContract<
     UniqueIdentity,
     any
   >(contractName, ETHERS_CONTRACT_PROVIDER, {at: uniqueIdentity.address})
-  const ethersContract = truffleContract.connect(await getProtocolOwner())
+  const ethersContract = contract.connect(await getProtocolOwner())
 
   await deployEffects.add({
     deferred: [await ethersContract.populateTransaction.grantRole(SIGNER_ROLE, trustedSigner)],
@@ -57,6 +58,6 @@ export async function deployUniqueIdentity({
 
   return {
     name: contractName,
-    contract: truffleContract,
+    contract,
   }
 }
