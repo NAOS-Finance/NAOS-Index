@@ -14,7 +14,6 @@ import {deployPoolTokens} from "./baseDeploy/deployPoolTokens"
 import {deploySeniorPool} from "./baseDeploy/deploySeniorPool"
 import {deploySeniorPoolStrategies} from "./baseDeploy/deploySeniorPoolStrategies"
 import {deployTranchedPool} from "./baseDeploy/deployTranchedPool"
-import {deployTransferRestrictedVault} from "./baseDeploy/deployTransferRestrictedVault"
 import {deployBackerRewards} from "./baseDeploy/deployBackerRewards"
 import {deployConfig} from "./baseDeploy/deployConfig"
 import {deployGo} from "./baseDeploy/deployGo"
@@ -51,7 +50,6 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   await getOrDeployNAOS(deployer, config)
   const fidu = await deployFidu(deployer, config)
   await deployPoolTokens(deployer, {config})
-  await deployTransferRestrictedVault(deployer, {config})
   await deployTranchedPool(deployer, {config, deployEffects})
 
   await deploySeniorPool(deployer, {config, fidu})

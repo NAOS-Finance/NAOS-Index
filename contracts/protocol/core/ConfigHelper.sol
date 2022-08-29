@@ -127,10 +127,6 @@ library ConfigHelper {
     return config.getAddress(uint256(ConfigOptions.Addresses.ProtocolAdmin));
   }
 
-  function borrowerImplementationAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.BorrowerImplementation));
-  }
-
   function goAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.Go));
   }

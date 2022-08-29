@@ -41,7 +41,6 @@ library ConfigOptions {
     TranchedPoolImplementation,
     SeniorPool,
     SeniorPoolStrategy,
-    BorrowerImplementation,
     NAOS,
     Go,
     BackerRewards,
