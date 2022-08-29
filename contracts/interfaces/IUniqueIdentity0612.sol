@@ -6,5 +6,5 @@ pragma solidity 0.6.12;
 /// interface -- namely, the subset of functionality needed by Goldfinch protocol contracts
 /// compiled with Solidity version 0.6.12.
 interface IUniqueIdentity0612 {
-  function balanceOf(address account, uint256 id) external view returns (uint256);
+  function expiration(address account, uint256 id) external view returns (uint256);
 }
