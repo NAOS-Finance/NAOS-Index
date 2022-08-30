@@ -63,6 +63,10 @@ library ConfigHelper {
     return IBoostPool(boostPoolAddress(config));
   }
 
+  function getWithdrawQueue(GoldfinchConfig config) internal view returns (address) {
+    return withdrawQueueAddress(config);
+  }
+
   function creditLineImplementationAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.CreditLineImplementation));
   }
@@ -125,6 +129,10 @@ library ConfigHelper {
 
   function boostPoolAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.BoostPool));
+  }
+
+  function withdrawQueueAddress (GoldfinchConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.WithdrawQueue));
   }
 
   function getReserveDenominator(GoldfinchConfig config) internal view returns (uint256) {

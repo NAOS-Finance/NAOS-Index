@@ -37,4 +37,8 @@ abstract contract ISeniorPool {
   function assets() public view virtual returns (uint256);
 
   function getNumShares(uint256 amount) public view virtual returns (uint256);
+
+  function vaultCount() public view virtual returns (uint256);
+
+  function getVaultTotalDeposited(uint256 _vaultId) external view virtual returns (uint256);
 }
