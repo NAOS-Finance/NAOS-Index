@@ -33,7 +33,6 @@ library ConfigOptions {
     USDC,
     TreasuryReserve,
     ProtocolAdmin,
-    OneInch,
     TrustedForwarder,
     CUSDCContract,
     GoldfinchConfig,

@@ -20,11 +20,10 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, ISeniorPoolS
    * tranche, what is committed to the senior tranche, and a leverage ratio to the junior tranche. Because
    * it takes into account what is already committed to the senior tranche, the value returned by this
    * function can be used "idempotently" to achieve the investment target amount without exceeding that target.
-   * @param seniorPool The senior pool to invest from
    * @param pool The tranched pool to invest into (as the senior)
    * @return The amount of money to invest into the tranched pool's senior tranche, from the senior pool
    */
-  function invest(ISeniorPool seniorPool, ITranchedPool pool) public view override returns (uint256) {
+  function invest(ITranchedPool pool) public view override returns (uint256) {
     ITranchedPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Junior));
     ITranchedPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Senior));
 
@@ -40,11 +39,10 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, ISeniorPoolS
    * @notice A companion of `invest()`: determines how much would be returned by `invest()`, as the
    * value to invest into the senior tranche, if the junior tranche were locked and the senior tranche
    * were not locked.
-   * @param seniorPool The senior pool to invest from
    * @param pool The tranched pool to invest into (as the senior)
    * @return The amount of money to invest into the tranched pool's senior tranche, from the senior pool
    */
-  function estimateInvestment(ISeniorPool seniorPool, ITranchedPool pool) public view override returns (uint256) {
+  function estimateInvestment(ITranchedPool pool) public view override returns (uint256) {
     ITranchedPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Junior));
     ITranchedPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Senior));
 

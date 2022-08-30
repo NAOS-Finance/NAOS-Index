@@ -63,10 +63,6 @@ library ConfigHelper {
     return IBoostPool(boostPoolAddress(config));
   }
 
-  function oneInchAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.OneInch));
-  }
-
   function creditLineImplementationAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.CreditLineImplementation));
   }
