@@ -67,10 +67,6 @@ library ConfigHelper {
     return config.getAddress(uint256(ConfigOptions.Addresses.CreditLineImplementation));
   }
 
-  function trustedForwarderAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.TrustedForwarder));
-  }
-
   function configAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.GoldfinchConfig));
   }
@@ -101,10 +97,6 @@ library ConfigHelper {
 
   function fiduAddress(GoldfinchConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.Fidu));
-  }
-
-  function cusdcContractAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.CUSDCContract));
   }
 
   function usdcAddress(GoldfinchConfig config) internal view returns (address) {
@@ -153,10 +145,6 @@ library ConfigHelper {
 
   function getDrawdownPeriodInSeconds(GoldfinchConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.DrawdownPeriodInSeconds));
-  }
-
-  function getTransferRestrictionPeriodInDays(GoldfinchConfig config) internal view returns (uint256) {
-    return config.getNumber(uint256(ConfigOptions.Numbers.TransferRestrictionPeriodInDays));
   }
 
   function getLeverageRatio(GoldfinchConfig config) internal view returns (uint256) {
