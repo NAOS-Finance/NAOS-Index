@@ -388,9 +388,9 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         uint256 veNAOS = config.getBoostPool().getStakeTotalDepositedWeight(
             _user
         );
-        for (uint256 index = 0; index < feeTiers.length; index++) {
-            if (veNAOS <= feeTiers[index].veNAOSAmount) {
-                return feeTiers[index].fee;
+        for (uint256 index = 1; index < feeTiers.length; index++) {
+            if (veNAOS < feeTiers[index].veNAOSAmount) {
+                return feeTiers[index - 1].fee;
             }
         }
         return feeTiers[feeTiers.length - 1].fee;
