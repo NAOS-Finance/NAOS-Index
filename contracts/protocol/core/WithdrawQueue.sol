@@ -77,7 +77,11 @@ contract WithdrawQueue is BaseUpgradeablePausable {
 
         IFidu fidu = config.getFidu();
         ISeniorPool seniorPool = config.getSeniorPool();
-        require((address(fidu) != address(0)) && (address(seniorPool) != address(0)), "config is not set");
+        require(
+            (address(fidu) != address(0)) &&
+                (address(seniorPool) != address(0)),
+            "config is not set"
+        );
         fidu.approve(address(seniorPool), uint256(-1));
     }
 
@@ -209,18 +213,14 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         }
 
         // calcualte withdrawable index token amount
-        uint256 withdrawIndexAmount = seniorPool.getNumShares(
-            indexUSDCAmount
-        );
+        uint256 withdrawIndexAmount = seniorPool.getNumShares(indexUSDCAmount);
         if (withdrawIndexAmount > totalRegisteredAmount) {
             withdrawIndexAmount = totalRegisteredAmount;
         }
         if (withdrawIndexAmount == 0) {
             return;
         }
-        totalRegisteredAmount = totalRegisteredAmount.sub(
-            withdrawIndexAmount
-        );
+        totalRegisteredAmount = totalRegisteredAmount.sub(withdrawIndexAmount);
 
         // withdraw index tokens from index pool
         uint256 seniorTokenPrice = seniorPool.sharePrice();
@@ -310,7 +310,10 @@ contract WithdrawQueue is BaseUpgradeablePausable {
     ///
     /// @param _user the user address
     /// @param _ceiling the verified required.
-    function setUserCeiling(address _user, uint256 _ceiling) external onlyAdmin {
+    function setUserCeiling(address _user, uint256 _ceiling)
+        external
+        onlyAdmin
+    {
         UserWithdrawData storage userData = userWithdrawData[_user];
         userData.ceiling = _ceiling;
     }
@@ -320,7 +323,10 @@ contract WithdrawQueue is BaseUpgradeablePausable {
      * @param _veNAOSAmount the veNAOS amount of this tier
      * @param _fee the fee percent
      */
-    function addFeeTier(uint256 _veNAOSAmount, uint256 _fee) external onlyAdmin {
+    function addFeeTier(uint256 _veNAOSAmount, uint256 _fee)
+        external
+        onlyAdmin
+    {
         require(_fee <= MAX_WITHDRAW_FEE, "Failed to set fee tier (too large)");
         require(
             _veNAOSAmount > feeTiers[feeTiers.length - 1].veNAOSAmount,
