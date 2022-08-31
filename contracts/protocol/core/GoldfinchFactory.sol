@@ -5,7 +5,6 @@ pragma experimental ABIEncoderV2;
 
 import "./GoldfinchConfig.sol";
 import "./BaseUpgradeablePausable.sol";
-import "../../interfaces/IBorrower.sol";
 import "../../interfaces/ITranchedPool.sol";
 import "./ConfigHelper.sol";
 
@@ -55,18 +54,6 @@ contract GoldfinchFactory is BaseUpgradeablePausable {
     address creditLine = deployMinimal(config.creditLineImplementationAddress());
     emit CreditLineCreated(creditLine);
     return creditLine;
-  }
-
-  /**
-   * @notice Allows anyone to create a Borrower contract instance
-   * @param owner The address that will own the new Borrower instance
-   */
-  function createBorrower(address owner) external returns (address) {
-    address _borrower = deployMinimal(config.borrowerImplementationAddress());
-    IBorrower borrower = IBorrower(_borrower);
-    borrower.initialize(owner, address(config));
-    emit BorrowerCreated(address(borrower), owner);
-    return address(borrower);
   }
 
   /**

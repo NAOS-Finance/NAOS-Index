@@ -6,8 +6,6 @@ pragma experimental ABIEncoderV2;
 interface IGoldfinchFactory {
   function createCreditLine() external returns (address);
 
-  function createBorrower(address owner) external returns (address);
-
   function createPool(
     address _borrower,
     uint256 _juniorFeePercent,

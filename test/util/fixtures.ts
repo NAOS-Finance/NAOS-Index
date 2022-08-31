@@ -294,13 +294,13 @@ export const deployTranchedPoolAndBorrowerWithGoldfinchFactoryFixture = createFi
       at: goldfinchFactoryDeploy.address,
     })
 
-    const result: any = await goldfinchFactory.createBorrower(borrower, {from: owner})
-    const event = result.logs[result.logs.length - 1] as $TSFixMe
-    const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: event.args.borrower})
+    // const result: any = await goldfinchFactory.createBorrower(borrower, {from: owner})
+    // const event = result.logs[result.logs.length - 1] as $TSFixMe
+    // const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: event.args.borrower})
 
     const otherDeploys = await deployTranchedPoolWithGoldfinchFactoryFixture({
       usdcAddress: usdcAddress,
-      borrower: borrowerContract.address,
+      // borrower: borrowerContract.address,
       juniorFeePercent,
       limit,
       interestApr,
@@ -376,12 +376,13 @@ export const deployBorrowerWithGoldfinchFactoryFixture = createFixtureWithRequir
     })
     const usdc = await getEthersContract<ERC20>("ERC20", {at: asNonNullable(usdcAddress)})
 
-    const result: any = await goldfinchFactory.createBorrower(borrower, {from: owner})
-    const event = result.logs[result.logs.length - 1] as $TSFixMe
-    const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: event.args.borrower})
-    await usdc.approve(borrowerContract.address, MAX_UINT as any, {from: borrower})
+    // const result: any = await goldfinchFactory.createBorrower(borrower, {from: owner})
+    // const event = result.logs[result.logs.length - 1] as $TSFixMe
+    // const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: event.args.borrower})
+    // await usdc.approve(borrowerContract.address, MAX_UINT as any, {from: borrower})
 
-    return {borrowerContract}
+    // return {borrowerContract}
+    return {usdc}
   }
 )
 

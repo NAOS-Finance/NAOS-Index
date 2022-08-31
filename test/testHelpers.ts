@@ -33,7 +33,6 @@ import {DeploymentsExtension} from "hardhat-deploy/types"
 //   CreditLine,
 //   TestForwarder,
 //   TranchedPool,
-//   TransferRestrictedVault,
 //   GFI,
 //   CommunityRewards,
 //   MerkleDistributor,
@@ -59,7 +58,6 @@ import {
   CreditLine,
   // TestForwarder,
   TranchedPool,
-  TransferRestrictedVault,
   TestNAOS,
   // GFI,
   // CommunityRewards,
@@ -304,7 +302,6 @@ async function deployAllContracts(
   // forwarder: TestForwarder | null
   poolTokens: PoolTokens
   tranchedPool: TranchedPool
-  transferRestrictedVault: TransferRestrictedVault
   gfi: TestNAOS
   // stakingRewards: TestStakingRewards
   // backerRewards: TestBackerRewards
@@ -344,10 +341,6 @@ async function deployAllContracts(
   //   await forwarder.registerDomainSeparator("Defender", "1")
   // }
   const tranchedPool = await getDeployedContract<TranchedPool>(deployments, "TranchedPool")
-  const transferRestrictedVault = await getDeployedContract<TransferRestrictedVault>(
-    deployments,
-    "TransferRestrictedVault"
-  )
   const gfi = await getDeployedContract<TestNAOS>(deployments, "NAOS")
   // const stakingRewards = await getDeployedContract<TestStakingRewards>(deployments, "StakingRewards")
   // const backerRewards = await getDeployedContract<TestBackerRewards>(deployments, "BackerRewards")
@@ -412,7 +405,6 @@ async function deployAllContracts(
     // forwarder,
     poolTokens,
     tranchedPool,
-    transferRestrictedVault,
     gfi,
     // stakingRewards,
     uniqueIdentity,

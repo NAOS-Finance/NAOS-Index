@@ -9,7 +9,7 @@ import "./ITranchedPool.sol";
 abstract contract ISeniorPoolStrategy {
   function getLeverageRatio(ITranchedPool pool) public view virtual returns (uint256);
 
-  function invest(ISeniorPool seniorPool, ITranchedPool pool) public view virtual returns (uint256 amount);
+  function invest(ITranchedPool pool) public view virtual returns (uint256 amount);
 
-  function estimateInvestment(ISeniorPool seniorPool, ITranchedPool pool) public view virtual returns (uint256);
+  function estimateInvestment(ITranchedPool pool) public view virtual returns (uint256);
 }

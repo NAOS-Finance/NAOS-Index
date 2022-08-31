@@ -13,35 +13,27 @@ library ConfigOptions {
   // NEVER EVER CHANGE THE ORDER OF THESE!
   // You can rename or append. But NEVER change the order.
   enum Numbers {
-    TransactionLimit,
     TotalFundsLimit,
-    MaxUnderwriterLimit,
     ReserveDenominator,
     WithdrawFeeDenominator,
     LatenessGracePeriodInDays,
     LatenessMaxDays,
     DrawdownPeriodInSeconds,
-    TransferRestrictionPeriodInDays,
     LeverageRatio
   }
   enum Addresses {
     Pool,
     CreditLineImplementation,
     GoldfinchFactory,
-    CreditDesk,
     Fidu,
     USDC,
     TreasuryReserve,
     ProtocolAdmin,
-    OneInch,
-    TrustedForwarder,
-    CUSDCContract,
     GoldfinchConfig,
     PoolTokens,
     TranchedPoolImplementation,
     SeniorPool,
     SeniorPoolStrategy,
-    BorrowerImplementation,
     NAOS,
     Go,
     BackerRewards,
