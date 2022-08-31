@@ -38,6 +38,7 @@ library ConfigOptions {
     Go,
     BackerRewards,
     StakingRewards,
-    BoostPool
+    BoostPool,
+    WithdrawQueue
   }
 }
