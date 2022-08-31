@@ -11,6 +11,11 @@ import {FixedPointMath} from "../library/FixedPointMath.sol";
 import {Pool} from "../library/indexStakingPool/Pool.sol";
 import {Stake} from "../library/indexStakingPool/Stake.sol";
 import {IBoostPool} from "../interfaces/IBoostPool.sol";
+import {ISeniorPool} from "../interfaces/ISeniorPool.sol";
+import {IERC20withDec} from "../interfaces/IERC20withDec.sol";
+import {IGoldfinchConfig} from "../interfaces/IGoldfinchConfig.sol";
+import {ConfigHelper} from "../protocol/core/ConfigHelper.sol";
+import {GoldfinchConfig} from "../protocol/core/GoldfinchConfig.sol";
 
 /// @title IndexStakingPool
 /// @dev A contract which allows users to stake to farm tokens.
@@ -24,6 +29,7 @@ contract IndexStakingPool is ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using Stake for Stake.Data;
+    using ConfigHelper for GoldfinchConfig;
 
     event PendingGovernanceUpdated(address pendingGovernance);
 
@@ -33,7 +39,7 @@ contract IndexStakingPool is ReentrancyGuard {
 
     event PoolRewardWeightUpdated(uint256 indexed poolId, uint256 rewardWeight);
 
-    event PoolCreated(uint256 indexed poolId, IERC20 indexed token);
+    event PoolCreated(uint256 indexed poolId, IERC20withDec indexed token);
 
     event PenaltyPercentUpdated(uint256 percent);
 
@@ -65,7 +71,7 @@ contract IndexStakingPool is ReentrancyGuard {
 
     /// @dev Tokens are mapped to their pool identifier plus one. Tokens that do not have an associated pool
     /// will return an identifier of zero.
-    mapping(IERC20 => uint256) public tokenPoolIds;
+    mapping(IERC20withDec => uint256) public tokenPoolIds;
 
     /// @dev The context shared between the pools.
     Pool.Context private _ctx;
@@ -124,16 +130,17 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// The created pool will need to have its reward weight initialized before it begins generating rewards.
     ///
-    /// @param _token The token the pool will accept for staking.
+    /// @param _config The config of the pool.
     ///
     /// @return _poolId the identifier for the newly created pool.
-    function createPool(IERC20 _token) external onlyGovernance returns (uint256) {
-        require(address(_token) != address(0), "token address cannot be 0x0");
-        require(tokenPoolIds[_token] == 0, "token already has a pool");
+    function createPool(GoldfinchConfig _config) external onlyGovernance returns (uint256) {
+        require(address(_config) != address(0), "config address cannot be 0x0");
+        IERC20withDec _token = _config.getUSDC();
+        require(tokenPoolIds[_token] == 0, "config already has a pool");
 
         uint256 _poolId = _pools.length();
 
-        _pools.push(Pool.Data({token: _token, totalDeposited: 0, totalDepositedWeight:0, rewardWeight: 0, accumulatedRewardWeight: FixedPointMath.uq192x64(0), lastUpdatedTimestamp: block.timestamp}));
+        _pools.push(Pool.Data({config: _config, totalDeposited: 0, totalDepositedWeight:0, rewardWeight: 0, accumulatedRewardWeight: FixedPointMath.uq192x64(0), lastUpdatedTimestamp: block.timestamp}));
 
         tokenPoolIds[_token] = _poolId + 1;
 
@@ -190,14 +197,13 @@ contract IndexStakingPool is ReentrancyGuard {
 
     /// @dev Stakes tokens into a pool.
     ///
-    /// @param _user The user address
     /// @param _poolId The pool id.
     /// @param _depositAmount The amount of tokens to deposit.
-    function deposit(address _user, uint256 _poolId, uint256 _depositAmount) external nonReentrant {
+    function deposit(uint256 _poolId, uint256 _depositAmount) external nonReentrant {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        _deposit(_user, _poolId, _depositAmount);
+        _deposit(_poolId, _depositAmount);
     }
 
     /// @dev Withdraws deposited tokens from a pool.
@@ -289,9 +295,10 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev Gets the token a pool accepts.
     ///
     /// @return the token.
-    function getPoolToken(uint256 _poolId) external view returns (IERC20) {
+    function getPoolToken(uint256 _poolId) external view returns (IERC20withDec) {
         Pool.Data storage _pool = _pools.get(_poolId);
-        return _pool.token;
+        IERC20withDec token = _pool.config.getFidu();
+        return token;
     }
 
     /// @dev Gets the reward weight of a pool which determines how much of the total rewards it receives per block.
@@ -436,6 +443,48 @@ contract IndexStakingPool is ReentrancyGuard {
         return weighted;
     }
 
+    /// @notice Deposit to SeniorPool and stake your shares in the same transaction.
+    /// @param _usdcAmount The amount of USDC to deposit into the senior pool. All shares from deposit
+    /// @param _poolId The pool id
+    ///   will be staked.
+    function depositAndStake(uint256 _usdcAmount, uint256 _poolId) public nonReentrant {
+        uint256 fiduAmount = depositToSeniorPool(_usdcAmount, _poolId);
+        _deposit(_poolId, fiduAmount);
+    }
+
+    function depositToSeniorPool(uint256 _usdcAmount, uint256 _poolId) internal returns (uint256 fiduAmount) {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        GoldfinchConfig config = _pool.config;
+        require(config.getGo().goSeniorPool(msg.sender), "This address has not been go-listed");
+        IERC20withDec usdc = config.getUSDC();
+        usdc.transferFrom(msg.sender, address(this), _usdcAmount);
+
+        ISeniorPool seniorPool = config.getSeniorPool();
+        usdc.approve(address(seniorPool), _usdcAmount);
+        return seniorPool.deposit(_usdcAmount);
+    }
+
+    /// @notice Identical to `depositAndStake`, except it allows for a signature to be passed that permits
+    ///   this contract to move funds on behalf of the user.
+    /// @param _usdcAmount The amount of USDC to deposit
+    /// @param _poolId The pool id
+    /// @param _v secp256k1 signature component
+    /// @param _r secp256k1 signature component
+    /// @param _s secp256k1 signature component
+    function depositWithPermitAndStake(
+        uint256 _usdcAmount,
+        uint256 _poolId,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) public {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        GoldfinchConfig config = _pool.config;
+        IERC20withDec(config.getUSDC()).permit(msg.sender, address(this), _usdcAmount, _deadline, _v, _r, _s);
+        depositAndStake(_usdcAmount, _poolId);
+    }
+
     /// @dev Updates all of the pools.
     ///
     /// Warning:
@@ -454,7 +503,8 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _poolId the pool id
     /// @param _depositAmount the amount of tokens to deposit.
-    function _deposit(address _user, uint256 _poolId, uint256 _depositAmount) internal {
+    function _deposit(uint256 _poolId, uint256 _depositAmount) internal {
+        address _user = msg.sender;
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
 
@@ -463,8 +513,9 @@ contract IndexStakingPool is ReentrancyGuard {
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(_user));
+        IERC20withDec token = _pool.config.getFidu();
 
-        require(_pool.token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
+        require(token.transferFrom(_user, address(this), _depositAmount), "token transfer failed");
 
         emit TokensDeposited(_user, _poolId, _depositAmount);
     }
@@ -479,8 +530,9 @@ contract IndexStakingPool is ReentrancyGuard {
         _stake.totalDeposited = _stake.totalDeposited.sub(_withdrawAmount);
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
+        IERC20withDec token = _pool.config.getFidu();
 
-        require(_pool.token.transfer(msg.sender, _withdrawAmount), "token transfer failed");
+        require(token.transfer(msg.sender, _withdrawAmount), "token transfer failed");
 
         emit TokensWithdrawn(msg.sender, _poolId, _withdrawAmount);
     }
