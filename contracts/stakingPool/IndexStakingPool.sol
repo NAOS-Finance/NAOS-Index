@@ -232,7 +232,7 @@ contract IndexStakingPool is ReentrancyGuard {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) public {
+    ) external {
         Pool.Data storage _pool = _pools.get(_poolId);
         GoldfinchConfig config = _pool.config;
         IERC20withDec(config.getUSDC()).permit(msg.sender, address(this), _usdcAmount, _deadline, _v, _r, _s);
