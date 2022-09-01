@@ -135,7 +135,7 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @return _poolId the identifier for the newly created pool.
     function createPool(GoldfinchConfig _config) external onlyGovernance returns (uint256) {
         require(address(_config) != address(0), "config address cannot be 0x0");
-        IERC20withDec _token = _config.getUSDC();
+        IERC20withDec _token = _config.getFidu();
         require(tokenPoolIds[_token] == 0, "config already has a pool");
 
         uint256 _poolId = _pools.length();
@@ -204,6 +204,39 @@ contract IndexStakingPool is ReentrancyGuard {
         _pool.update(_ctx);
 
         _deposit(_poolId, _depositAmount);
+    }
+
+    /// @notice Deposit to SeniorPool and stake your shares in the same transaction.
+    /// @param _usdcAmount The amount of USDC to deposit into the senior pool. All shares from deposit
+    /// @param _poolId The pool id
+    ///   will be staked.
+    function depositAndStake(uint256 _usdcAmount, uint256 _poolId) public nonReentrant {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        _pool.update(_ctx);
+
+        uint256 fiduAmount = _depositToSeniorPool(_usdcAmount, _pool);
+        _deposit(_poolId, fiduAmount);
+    }
+
+    /// @notice Identical to `depositAndStake`, except it allows for a signature to be passed that permits
+    ///   this contract to move funds on behalf of the user.
+    /// @param _usdcAmount The amount of USDC to deposit
+    /// @param _poolId The pool id
+    /// @param _v secp256k1 signature component
+    /// @param _r secp256k1 signature component
+    /// @param _s secp256k1 signature component
+    function depositWithPermitAndStake(
+        uint256 _usdcAmount,
+        uint256 _poolId,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) public {
+        Pool.Data storage _pool = _pools.get(_poolId);
+        GoldfinchConfig config = _pool.config;
+        IERC20withDec(config.getUSDC()).permit(msg.sender, address(this), _usdcAmount, _deadline, _v, _r, _s);
+        depositAndStake(_usdcAmount, _poolId);
     }
 
     /// @dev Withdraws deposited tokens from a pool.
@@ -443,48 +476,6 @@ contract IndexStakingPool is ReentrancyGuard {
         return weighted;
     }
 
-    /// @notice Deposit to SeniorPool and stake your shares in the same transaction.
-    /// @param _usdcAmount The amount of USDC to deposit into the senior pool. All shares from deposit
-    /// @param _poolId The pool id
-    ///   will be staked.
-    function depositAndStake(uint256 _usdcAmount, uint256 _poolId) public nonReentrant {
-        uint256 fiduAmount = depositToSeniorPool(_usdcAmount, _poolId);
-        _deposit(_poolId, fiduAmount);
-    }
-
-    function depositToSeniorPool(uint256 _usdcAmount, uint256 _poolId) internal returns (uint256 fiduAmount) {
-        Pool.Data storage _pool = _pools.get(_poolId);
-        GoldfinchConfig config = _pool.config;
-        require(config.getGo().goSeniorPool(msg.sender), "This address has not been go-listed");
-        IERC20withDec usdc = config.getUSDC();
-        usdc.transferFrom(msg.sender, address(this), _usdcAmount);
-
-        ISeniorPool seniorPool = config.getSeniorPool();
-        usdc.approve(address(seniorPool), _usdcAmount);
-        return seniorPool.deposit(_usdcAmount);
-    }
-
-    /// @notice Identical to `depositAndStake`, except it allows for a signature to be passed that permits
-    ///   this contract to move funds on behalf of the user.
-    /// @param _usdcAmount The amount of USDC to deposit
-    /// @param _poolId The pool id
-    /// @param _v secp256k1 signature component
-    /// @param _r secp256k1 signature component
-    /// @param _s secp256k1 signature component
-    function depositWithPermitAndStake(
-        uint256 _usdcAmount,
-        uint256 _poolId,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) public {
-        Pool.Data storage _pool = _pools.get(_poolId);
-        GoldfinchConfig config = _pool.config;
-        IERC20withDec(config.getUSDC()).permit(msg.sender, address(this), _usdcAmount, _deadline, _v, _r, _s);
-        depositAndStake(_usdcAmount, _poolId);
-    }
-
     /// @dev Updates all of the pools.
     ///
     /// Warning:
@@ -504,20 +495,19 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @param _poolId the pool id
     /// @param _depositAmount the amount of tokens to deposit.
     function _deposit(uint256 _poolId, uint256 _depositAmount) internal {
-        address _user = msg.sender;
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
 
-        userStakedList[_user][_poolId].push(_stakes[_poolId].length);
+        userStakedList[msg.sender][_poolId].push(_stakes[_poolId].length);
         _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.timestamp, lastAccumulatedWeight: FixedPointMath.uq192x64(0)}));
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
-        _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(_user));
+        _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
         IERC20withDec token = _pool.config.getFidu();
 
-        require(token.transferFrom(_user, address(this), _depositAmount), "token transfer failed");
+        require(token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
 
-        emit TokensDeposited(_user, _poolId, _depositAmount);
+        emit TokensDeposited(msg.sender, _poolId, _depositAmount);
     }
 
     /// @dev Withdraws deposited tokens from a pool.
@@ -576,5 +566,20 @@ contract IndexStakingPool is ReentrancyGuard {
 
         _pool.totalDepositedWeight = _pool.totalDepositedWeight.sub(_stake.totalDepositedWeight).add(weight);
         _stake.totalDepositedWeight = weight;
+    }
+
+    /// @dev deposit in to index pool
+    ///
+    /// @param _usdcAmount The USDC amount
+    /// @param _pool The user pool struct
+    function _depositToSeniorPool(uint256 _usdcAmount, Pool.Data storage _pool) internal returns (uint256 fiduAmount) {
+        GoldfinchConfig config = _pool.config;
+        require(config.getGo().goSeniorPool(msg.sender), "This address has not been go-listed");
+        IERC20withDec usdc = config.getUSDC();
+        usdc.transferFrom(msg.sender, address(this), _usdcAmount);
+
+        ISeniorPool seniorPool = config.getSeniorPool();
+        usdc.approve(address(seniorPool), _usdcAmount);
+        return seniorPool.deposit(_usdcAmount);
     }
 }

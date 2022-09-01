@@ -5,7 +5,6 @@ import {Math} from "@openzeppelin/contracts/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-// import {IGoldfinchConfig} from "../../interfaces/IGoldfinchConfig.sol";
 import {ConfigHelper} from "../../protocol/core/ConfigHelper.sol";
 import {GoldfinchConfig} from "../../protocol/core/GoldfinchConfig.sol";
 
