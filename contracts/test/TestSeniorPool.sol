@@ -3,9 +3,9 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "../protocol/core/SeniorPool.sol";
+import "../protocol/core/IndexPool.sol";
 
-contract TestSeniorPool is SeniorPool {
+contract TestIndexPool is IndexPool {
   function _getNumShares(uint256 amount) public view returns (uint256) {
     return getNumShares(amount);
   }
@@ -18,8 +18,8 @@ contract TestSeniorPool is SeniorPool {
   //   return fiduMantissa();
   // }
 
-  function _usdcToFidu(uint256 amount) public view returns (uint256) {
-    return usdcToFidu(amount);
+  function _usdcToRWA(uint256 amount) public view returns (uint256) {
+    return usdcToRWA(amount);
   }
 
   function _setSharePrice(uint256 newSharePrice) public returns (uint256) {

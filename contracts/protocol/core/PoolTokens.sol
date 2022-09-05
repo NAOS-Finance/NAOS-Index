@@ -3,9 +3,9 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "../../external/ERC721PresetMinterPauserAutoId.sol";
-import "./GoldfinchConfig.sol";
+import "./NAOSConfig.sol";
 import "./ConfigHelper.sol";
-import "../../interfaces/ITranchedPool.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "../../interfaces/IPoolTokens.sol";
 
 /**
@@ -17,8 +17,8 @@ import "../../interfaces/IPoolTokens.sol";
 
 contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
   bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
 
   struct PoolInfo {
     uint256 totalMinted;
@@ -50,21 +50,21 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
 
   event TokenBurned(address indexed owner, address indexed pool, uint256 indexed tokenId);
 
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
 
   /*
     We are using our own initializer function so that OZ doesn't automatically
     set owner as msg.sender. Also, it lets us set our config contract
   */
   // solhint-disable-next-line func-name-mixedcase
-  function __initialize__(address owner, GoldfinchConfig _config) external initializer {
+  function __initialize__(address owner, NAOSConfig _config) external initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
 
     __Context_init_unchained();
     __AccessControl_init_unchained();
     __ERC165_init_unchained();
     // This is setting name and symbol of the NFT's
-    __ERC721_init_unchained("Goldfinch V2 Pool Tokens", "GFI-V2-PT");
+    __ERC721_init_unchained("NAOS RWA LP Tokens", "NAOS-RWA-LP");
     __Pausable_init_unchained();
     __ERC721Pausable_init_unchained();
 
@@ -94,7 +94,7 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
     address poolAddress = _msgSender();
     tokenId = createToken(params, poolAddress);
     _mint(to, tokenId);
-    config.getBackerRewards().setPoolTokenAccRewardsPerPrincipalDollarAtMint(_msgSender(), tokenId);
+    config.getJuniorRewards().setPoolTokenAccRewardsPerPrincipalDollarAtMint(_msgSender(), tokenId);
     emit TokenMinted(to, poolAddress, tokenId, params.principalAmount, params.tranche);
     return tokenId;
   }
@@ -149,11 +149,11 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
   }
 
   /**
-   * @notice Called by the GoldfinchFactory to register the pool as a valid pool. Only valid pools can mint/redeem
+   * @notice Called by the NAOSFactory  to register the pool as a valid pool. Only valid pools can mint/redeem
    * tokens
    * @param newPool The address of the newly created pool
    */
-  function onPoolCreated(address newPool) external override onlyGoldfinchFactory {
+  function onPoolCreated(address newPool) external override onlyNAOSFactory  {
     pools[newPool].created = true;
   }
 
@@ -203,9 +203,9 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
   /**
    * @notice Migrates to a new goldfinch config address
    */
-  function updateGoldfinchConfig() external onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+  function updateNAOSConfig() external onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 
   modifier onlyAdmin() {
@@ -217,7 +217,7 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
     return hasRole(OWNER_ROLE, _msgSender());
   }
 
-  modifier onlyGoldfinchFactory() {
+  modifier onlyNAOSFactory () {
     require(_msgSender() == config.goldfinchFactoryAddress(), "Only Goldfinch factory is allowed");
     _;
   }

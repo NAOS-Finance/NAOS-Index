@@ -3,13 +3,13 @@ pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
-import "../../interfaces/ISeniorPool.sol";
+import "../../interfaces/IIndexPool.sol";
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
 
 contract WithdrawQueue is BaseUpgradeablePausable {
-    GoldfinchConfig public config;
-    using ConfigHelper for GoldfinchConfig;
+    NAOSConfig public config;
+    using ConfigHelper for NAOSConfig;
     using SafeMath for uint256;
 
     struct WithdrawData {
@@ -60,7 +60,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         uint256 fee
     );
 
-    function initialize(address owner, GoldfinchConfig _config)
+    function initialize(address owner, NAOSConfig _config)
         public
         initializer
     {
@@ -75,8 +75,8 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         verifyRequired = false;
         feeTiers.push(FeeTier({veNAOSAmount: 0, fee: MAX_WITHDRAW_FEE}));
 
-        IFidu fidu = config.getFidu();
-        ISeniorPool seniorPool = config.getSeniorPool();
+        IRWA fidu = config.getRWA();
+        IIndexPool seniorPool = config.getIndexPool();
         require(
             (address(fidu) != address(0)) &&
                 (address(seniorPool) != address(0)),
@@ -91,7 +91,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
     function register(uint256 _amount) external {
         if (verifyRequired) {
             require(
-                config.getGo().goSeniorPool(msg.sender),
+                config.getVerified().goIndexPool(msg.sender),
                 "This address has not been go-listed"
             );
         }
@@ -121,7 +121,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         );
         totalRegisteredAmount = totalRegisteredAmount.add(_amount);
 
-        IFidu fidu = config.getFidu();
+        IRWA fidu = config.getRWA();
         require(
             fidu.transferFrom(msg.sender, address(this), _amount),
             "transfer failed"
@@ -157,7 +157,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
             _amount
         );
         totalRegisteredAmount = totalRegisteredAmount.sub(_amount);
-        IFidu fidu = config.getFidu();
+        IRWA fidu = config.getRWA();
         require(fidu.transfer(msg.sender, _amount), "transfer failed");
 
         emit WithdrawQueueUpdated(
@@ -191,7 +191,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         emit UserClaimableAmountUpdated(msg.sender, 0);
     }
 
-    /// @dev Withdraw the Fidu from index pool and distribute usd to the user in the queue.
+    /// @dev Withdraw the RWA from index pool and distribute usd to the user in the queue.
     function withdrawFromIndexPool() external {
         _withdrawFromIndexPool();
     }
@@ -203,7 +203,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
 
         // retrieve index pool usd amount
         IERC20withDec usdc = config.getUSDC();
-        ISeniorPool seniorPool = config.getSeniorPool();
+        IIndexPool seniorPool = config.getIndexPool();
         uint256 indexUSDCAmount = usdc.balanceOf(address(seniorPool));
         uint256 vaultCount = seniorPool.vaultCount();
         if (vaultCount > 0) {
@@ -224,7 +224,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
 
         // withdraw index tokens from index pool
         uint256 seniorTokenPrice = seniorPool.sharePrice();
-        uint256 withdrawUSDAmount = seniorPool.withdrawInFidu(
+        uint256 withdrawUSDAmount = seniorPool.withdrawInRWA(
             withdrawIndexAmount
         );
 

@@ -3,7 +3,7 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-interface IGoldfinchConfig {
+interface INAOSConfig {
   function getNumber(uint256 index) external returns (uint256);
 
   function getAddress(uint256 index) external returns (address);

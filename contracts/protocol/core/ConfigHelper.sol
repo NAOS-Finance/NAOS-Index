@@ -5,167 +5,167 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 
-import "./GoldfinchConfig.sol";
+import "./NAOSConfig.sol";
 import "../../interfaces/IPool.sol";
-import "../../interfaces/IFidu.sol";
-import "../../interfaces/ISeniorPool.sol";
-import "../../interfaces/ISeniorPoolStrategy.sol";
+import "../../interfaces/IRWA.sol";
+import "../../interfaces/IIndexPool.sol";
+import "../../interfaces/IIndexPoolStrategy.sol";
 import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/IPoolTokens.sol";
-import "../../interfaces/IBackerRewards.sol";
-import "../../interfaces/IGoldfinchFactory.sol";
+import "../../interfaces/IJuniorRewards.sol";
+import "../../interfaces/INAOSFactory.sol";
 import "../../interfaces/IGo.sol";
 import "../../interfaces/IBoostPool.sol";
 
 /**
  * @title ConfigHelper
  * @notice A convenience library for getting easy access to other contracts and constants within the
- *  protocol, through the use of the GoldfinchConfig contract
+ *  protocol, through the use of the NAOSConfig contract
  * @author Goldfinch
  */
 
 library ConfigHelper {
-  function getPool(GoldfinchConfig config) internal view returns (IPool) {
+  function getPool(NAOSConfig config) internal view returns (IPool) {
     return IPool(poolAddress(config));
   }
 
-  function getSeniorPool(GoldfinchConfig config) internal view returns (ISeniorPool) {
-    return ISeniorPool(seniorPoolAddress(config));
+  function getIndexPool(NAOSConfig config) internal view returns (IIndexPool) {
+    return IIndexPool(seniorPoolAddress(config));
   }
 
-  function getSeniorPoolStrategy(GoldfinchConfig config) internal view returns (ISeniorPoolStrategy) {
-    return ISeniorPoolStrategy(seniorPoolStrategyAddress(config));
+  function getIndexPoolStrategy(NAOSConfig config) internal view returns (IIndexPoolStrategy) {
+    return IIndexPoolStrategy(seniorPoolStrategyAddress(config));
   }
 
-  function getUSDC(GoldfinchConfig config) internal view returns (IERC20withDec) {
+  function getUSDC(NAOSConfig config) internal view returns (IERC20withDec) {
     return IERC20withDec(usdcAddress(config));
   }
 
-  function getFidu(GoldfinchConfig config) internal view returns (IFidu) {
-    return IFidu(fiduAddress(config));
+  function getRWA(NAOSConfig config) internal view returns (IRWA) {
+    return IRWA(fiduAddress(config));
   }
 
-  function getNAOS(GoldfinchConfig config) internal view returns (IERC20) {
-    return IFidu(naosAddress(config));
+  function getNAOS(NAOSConfig config) internal view returns (IERC20) {
+    return IRWA(naosAddress(config));
   }
 
-  function getPoolTokens(GoldfinchConfig config) internal view returns (IPoolTokens) {
+  function getPoolTokens(NAOSConfig config) internal view returns (IPoolTokens) {
     return IPoolTokens(poolTokensAddress(config));
   }
 
-  function getBackerRewards(GoldfinchConfig config) internal view returns (IBackerRewards) {
-    return IBackerRewards(backerRewardsAddress(config));
+  function getJuniorRewards(NAOSConfig config) internal view returns (IJuniorRewards) {
+    return IJuniorRewards(backerRewardsAddress(config));
   }
 
-  function getGoldfinchFactory(GoldfinchConfig config) internal view returns (IGoldfinchFactory) {
-    return IGoldfinchFactory(goldfinchFactoryAddress(config));
+  function getNAOSFactory (NAOSConfig config) internal view returns (INAOSFactory ) {
+    return INAOSFactory (goldfinchFactoryAddress(config));
   }
 
-  function getGo(GoldfinchConfig config) internal view returns (IGo) {
+  function getVerified(NAOSConfig config) internal view returns (IGo) {
     return IGo(goAddress(config));
   }
 
-  function getBoostPool(GoldfinchConfig config) internal view returns (IBoostPool) {
+  function getBoostPool(NAOSConfig config) internal view returns (IBoostPool) {
     return IBoostPool(boostPoolAddress(config));
   }
 
-  function getWithdrawQueue(GoldfinchConfig config) internal view returns (address) {
+  function getWithdrawQueue(NAOSConfig config) internal view returns (address) {
     return withdrawQueueAddress(config);
   }
 
-  function creditLineImplementationAddress(GoldfinchConfig config) internal view returns (address) {
+  function creditLineImplementationAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.CreditLineImplementation));
   }
 
-  function configAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.GoldfinchConfig));
+  function configAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.NAOSConfig));
   }
 
-  function poolAddress(GoldfinchConfig config) internal view returns (address) {
+  function poolAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.Pool));
   }
 
-  function poolTokensAddress(GoldfinchConfig config) internal view returns (address) {
+  function poolTokensAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.PoolTokens));
   }
 
-  function backerRewardsAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.BackerRewards));
+  function backerRewardsAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.JuniorRewards));
   }
 
-  function seniorPoolAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.SeniorPool));
+  function seniorPoolAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.IndexPool));
   }
 
-  function seniorPoolStrategyAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.SeniorPoolStrategy));
+  function seniorPoolStrategyAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.IndexPoolStrategy));
   }
 
-  function goldfinchFactoryAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.GoldfinchFactory));
+  function goldfinchFactoryAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.NAOSFactory ));
   }
 
-  function fiduAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.Fidu));
+  function fiduAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.RWA));
   }
 
-  function usdcAddress(GoldfinchConfig config) internal view returns (address) {
+  function usdcAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.USDC));
   }
 
-  function naosAddress(GoldfinchConfig config) internal view returns (address) {
+  function naosAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.NAOS));
   }
 
-  function tranchedPoolAddress(GoldfinchConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.TranchedPoolImplementation));
+  function tranchedPoolAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.JuniorPoolImplementation));
   }
 
-  function reserveAddress(GoldfinchConfig config) internal view returns (address) {
+  function reserveAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.TreasuryReserve));
   }
 
-  function protocolAdminAddress(GoldfinchConfig config) internal view returns (address) {
+  function protocolAdminAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.ProtocolAdmin));
   }
 
-  function goAddress(GoldfinchConfig config) internal view returns (address) {
+  function goAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.Go));
   }
 
-  function stakingRewardsAddress(GoldfinchConfig config) internal view returns (address) {
+  function stakingRewardsAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.StakingRewards));
   }
 
-  function boostPoolAddress(GoldfinchConfig config) internal view returns (address) {
+  function boostPoolAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.BoostPool));
   }
 
-  function withdrawQueueAddress (GoldfinchConfig config) internal view returns (address) {
+  function withdrawQueueAddress (NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.WithdrawQueue));
   }
 
-  function getReserveDenominator(GoldfinchConfig config) internal view returns (uint256) {
+  function getReserveDenominator(NAOSConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.ReserveDenominator));
   }
 
-  function getWithdrawFeeDenominator(GoldfinchConfig config) internal view returns (uint256) {
+  function getWithdrawFeeDenominator(NAOSConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.WithdrawFeeDenominator));
   }
 
-  function getLatenessGracePeriodInDays(GoldfinchConfig config) internal view returns (uint256) {
+  function getLatenessGracePeriodInDays(NAOSConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.LatenessGracePeriodInDays));
   }
 
-  function getLatenessMaxDays(GoldfinchConfig config) internal view returns (uint256) {
+  function getLatenessMaxDays(NAOSConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.LatenessMaxDays));
   }
 
-  function getDrawdownPeriodInSeconds(GoldfinchConfig config) internal view returns (uint256) {
+  function getDrawdownPeriodInSeconds(NAOSConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.DrawdownPeriodInSeconds));
   }
 
-  function getLeverageRatio(GoldfinchConfig config) internal view returns (uint256) {
+  function getLeverageRatio(NAOSConfig config) internal view returns (uint256) {
     return config.getNumber(uint256(ConfigOptions.Numbers.LeverageRatio));
   }
 }

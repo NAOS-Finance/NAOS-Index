@@ -5,12 +5,12 @@ pragma experimental ABIEncoderV2;
 
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
-import "../../interfaces/ISeniorPoolStrategy.sol";
-import "../../interfaces/ISeniorPool.sol";
-import "../../interfaces/ITranchedPool.sol";
+import "../../interfaces/IIndexPoolStrategy.sol";
+import "../../interfaces/IIndexPool.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
-abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, ISeniorPoolStrategy {
+abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, IIndexPoolStrategy {
   using SafeMath for uint256;
 
   uint256 internal constant LEVERAGE_RATIO_DECIMALS = 1e18;
@@ -23,9 +23,9 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, ISeniorPoolS
    * @param pool The tranched pool to invest into (as the senior)
    * @return The amount of money to invest into the tranched pool's senior tranche, from the senior pool
    */
-  function invest(ITranchedPool pool) public view override returns (uint256) {
-    ITranchedPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Junior));
-    ITranchedPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Senior));
+  function invest(IJuniorPool pool) public view override returns (uint256) {
+    IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));
+    IJuniorPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Senior));
 
     // If junior capital is not yet invested, or pool already locked, then don't invest anything.
     if (juniorTranche.lockedUntil == 0 || seniorTranche.lockedUntil > 0) {
@@ -42,17 +42,17 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, ISeniorPoolS
    * @param pool The tranched pool to invest into (as the senior)
    * @return The amount of money to invest into the tranched pool's senior tranche, from the senior pool
    */
-  function estimateInvestment(ITranchedPool pool) public view override returns (uint256) {
-    ITranchedPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Junior));
-    ITranchedPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Senior));
+  function estimateInvestment(IJuniorPool pool) public view override returns (uint256) {
+    IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));
+    IJuniorPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Senior));
 
     return _invest(pool, juniorTranche, seniorTranche);
   }
 
   function _invest(
-    ITranchedPool pool,
-    ITranchedPool.TrancheInfo memory juniorTranche,
-    ITranchedPool.TrancheInfo memory seniorTranche
+    IJuniorPool pool,
+    IJuniorPool.TrancheInfo memory juniorTranche,
+    IJuniorPool.TrancheInfo memory seniorTranche
   ) internal view returns (uint256) {
     uint256 juniorCapital = juniorTranche.principalDeposited;
     uint256 existingSeniorCapital = seniorTranche.principalDeposited;

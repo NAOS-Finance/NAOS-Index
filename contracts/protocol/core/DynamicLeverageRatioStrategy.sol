@@ -6,9 +6,9 @@ pragma experimental ABIEncoderV2;
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
 import "./LeverageRatioStrategy.sol";
-import "../../interfaces/ISeniorPoolStrategy.sol";
-import "../../interfaces/ISeniorPool.sol";
-import "../../interfaces/ITranchedPool.sol";
+import "../../interfaces/IIndexPoolStrategy.sol";
+import "../../interfaces/IIndexPool.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
 contract DynamicLeverageRatioStrategy is LeverageRatioStrategy {
@@ -39,10 +39,10 @@ contract DynamicLeverageRatioStrategy is LeverageRatioStrategy {
     _setRoleAdmin(LEVERAGE_RATIO_SETTER_ROLE, OWNER_ROLE);
   }
 
-  function getLeverageRatio(ITranchedPool pool) public view override returns (uint256) {
+  function getLeverageRatio(IJuniorPool pool) public view override returns (uint256) {
     LeverageRatioInfo memory ratioInfo = ratios[address(pool)];
-    ITranchedPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Junior));
-    ITranchedPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Senior));
+    IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));
+    IJuniorPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Senior));
 
     require(ratioInfo.juniorTrancheLockedUntil > 0, "Leverage ratio has not been set yet.");
     if (seniorTranche.lockedUntil > 0) {
@@ -83,13 +83,13 @@ contract DynamicLeverageRatioStrategy is LeverageRatioStrategy {
    * require 20 bytes; and the future SHA256 hashes, which require 32 bytes) for this value.
    */
   function setLeverageRatio(
-    ITranchedPool pool,
+    IJuniorPool pool,
     uint256 leverageRatio,
     uint256 juniorTrancheLockedUntil,
     bytes32 version
   ) public onlySetterRole {
-    ITranchedPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Junior));
-    ITranchedPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(ITranchedPool.Tranches.Senior));
+    IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));
+    IJuniorPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Senior));
 
     // NOTE: We allow a `leverageRatio` of 0.
     require(

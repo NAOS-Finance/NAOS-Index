@@ -10,8 +10,8 @@ import "../library/SafeERC20Transfer.sol";
 import "../protocol/core/ConfigHelper.sol";
 import "../protocol/core/BaseUpgradeablePausable.sol";
 import "../interfaces/IPoolTokens.sol";
-import "../interfaces/ITranchedPool.sol";
-import "../interfaces/IBackerRewards.sol";
+import "../interfaces/IJuniorPool.sol";
+import "../interfaces/IJuniorRewards.sol";
 
 // Basically, Every time a interest payment comes back
 // we keep a running total of dollars (totalInterestReceived) until it reaches the maxInterestDollarsEligible limit
@@ -22,16 +22,16 @@ import "../interfaces/IBackerRewards.sol";
 // Every time a PoolToken withdraws rewards, we determine the allocated rewards,
 // increase that PoolToken's rewardsClaimed, and transfer the owner the NAOS
 
-contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Transfer {
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Transfer {
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
   using SafeMath for uint256;
 
-  struct BackerRewardsInfo {
+  struct JuniorRewardsInfo {
     uint256 accRewardsPerPrincipalDollar; // accumulator gfi per interest dollar
   }
 
-  struct BackerRewardsTokenInfo {
+  struct JuniorRewardsTokenInfo {
     uint256 rewardsClaimed; // gfi claimed
     uint256 accRewardsPerPrincipalDollarAtMint; // Pool's accRewardsPerPrincipalDollar at PoolToken mint()
   }
@@ -41,12 +41,12 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
   uint256 public rewardRate;
   uint256 public usdDecimals;
 
-  mapping(uint256 => BackerRewardsTokenInfo) public tokens; // poolTokenId -> BackerRewardsTokenInfo
+  mapping(uint256 => JuniorRewardsTokenInfo) public tokens; // poolTokenId -> JuniorRewardsTokenInfo
 
-  mapping(address => BackerRewardsInfo) public pools; // pool.address -> BackerRewardsInfo
+  mapping(address => JuniorRewardsInfo) public pools; // pool.address -> JuniorRewardsInfo
 
   // solhint-disable-next-line func-name-mixedcase
-  function __initialize__(address owner, GoldfinchConfig _config) public initializer {
+  function __initialize__(address owner, NAOSConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
     __BaseUpgradeablePausable__init(owner);
     config = _config;
@@ -61,7 +61,7 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
    * @param _interestPaymentAmount The amount of total dollars the interest payment
    */
   function allocateRewards(uint256 _interestPaymentAmount) external override onlyPool {
-    // note: do not use a require statment because that will TranchedPool kill execution
+    // note: do not use a require statment because that will JuniorPool kill execution
     if (_interestPaymentAmount > 0) {
       _allocateRewards(_interestPaymentAmount);
     }
@@ -73,7 +73,7 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
    */
   function setMaxInterestDollarsEligible(uint256 _maxInterestDollarsEligible) public onlyAdmin {
     maxInterestDollarsEligible = _maxInterestDollarsEligible;
-    emit BackerRewardsSetMaxInterestDollarsEligible(_msgSender(), _maxInterestDollarsEligible);
+    emit JuniorRewardsSetMaxInterestDollarsEligible(_msgSender(), _maxInterestDollarsEligible);
   }
 
   /**
@@ -109,7 +109,7 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
     IPoolTokens poolTokens = config.getPoolTokens();
     IPoolTokens.TokenInfo memory tokenInfo = poolTokens.getTokenInfo(tokenId);
 
-    // Note: If a TranchedPool is oversubscribed, reward allocation's scale down proportionately.
+    // Note: If a JuniorPool is oversubscribed, reward allocation's scale down proportionately.
 
     uint256 diffOfAccRewardsPerPrincipalDollar = pools[tokenInfo.pool].accRewardsPerPrincipalDollar.sub(
       tokens[tokenId].accRewardsPerPrincipalDollarAtMint
@@ -160,7 +160,7 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
 
     tokens[tokenId].rewardsClaimed = poolTokenRewardsClaimed.add(totalClaimableRewards);
     safeERC20Transfer(config.getNAOS(), poolTokens.ownerOf(tokenId), totalClaimableRewards);
-    emit BackerRewardsClaimed(_msgSender(), tokenId, totalClaimableRewards);
+    emit JuniorRewardsClaimed(_msgSender(), tokenId, totalClaimableRewards);
   }
 
   /* Internal functions  */
@@ -175,8 +175,8 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
     // Gross NAOS Rewards earned for incoming interest dollars
     uint256 newGrossRewards = _calculateNewGrossRewardsForInterestAmount(_interestPaymentAmount);
 
-    ITranchedPool pool = ITranchedPool(_poolAddress);
-    BackerRewardsInfo storage _poolInfo = pools[_poolAddress];
+    IJuniorPool pool = IJuniorPool(_poolAddress);
+    JuniorRewardsInfo storage _poolInfo = pools[_poolAddress];
 
     uint256 totalJuniorDeposits = pool.totalJuniorDeposits();
     if (totalJuniorDeposits == 0) {
@@ -237,9 +237,9 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
     return amount.div(mantissa().div(usdcMantissa()));
   }
 
-  function updateGoldfinchConfig() external onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(_msgSender(), address(config));
+  function updateNAOSConfig() external onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(_msgSender(), address(config));
   }
 
   /* ======== MODIFIERS  ======== */
@@ -250,8 +250,8 @@ contract BackerRewards is IBackerRewards, BaseUpgradeablePausable, SafeERC20Tran
   }
 
   /* ======== EVENTS ======== */
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
-  event BackerRewardsClaimed(address indexed owner, uint256 indexed tokenId, uint256 amount);
-  event BackerRewardsSetMaxInterestDollarsEligible(address indexed owner, uint256 maxInterestDollarsEligible);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
+  event JuniorRewardsClaimed(address indexed owner, uint256 indexed tokenId, uint256 amount);
+  event JuniorRewardsSetMaxInterestDollarsEligible(address indexed owner, uint256 maxInterestDollarsEligible);
   event RewardRateUpdated(uint256 indexed rate);
 }

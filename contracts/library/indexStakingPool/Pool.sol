@@ -6,7 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {ConfigHelper} from "../../protocol/core/ConfigHelper.sol";
-import {GoldfinchConfig} from "../../protocol/core/GoldfinchConfig.sol";
+import {NAOSConfig} from "../../protocol/core/NAOSConfig.sol";
 
 import {FixedPointMath} from "../FixedPointMath.sol";
 
@@ -18,7 +18,7 @@ library Pool {
     using Pool for Pool.Data;
     using Pool for Pool.List;
     using SafeMath for uint256;
-    using ConfigHelper for GoldfinchConfig;
+    using ConfigHelper for NAOSConfig;
 
     struct Context {
         uint256 rewardRate;
@@ -26,7 +26,7 @@ library Pool {
     }
 
     struct Data {
-        GoldfinchConfig config;
+        NAOSConfig config;
         uint256 totalDeposited;
         uint256 totalDepositedWeight;
         uint256 rewardWeight;

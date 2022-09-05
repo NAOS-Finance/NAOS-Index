@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 
 /**
  * @title ConfigOptions
- * @notice A central place for enumerating the configurable options of our GoldfinchConfig contract
+ * @notice A central place for enumerating the configurable options of our NAOSConfig contract
  * @author Goldfinch
  */
 
@@ -24,19 +24,19 @@ library ConfigOptions {
   enum Addresses {
     Pool,
     CreditLineImplementation,
-    GoldfinchFactory,
-    Fidu,
+    NAOSFactory ,
+    RWA,
     USDC,
     TreasuryReserve,
     ProtocolAdmin,
-    GoldfinchConfig,
+    NAOSConfig,
     PoolTokens,
-    TranchedPoolImplementation,
-    SeniorPool,
-    SeniorPoolStrategy,
+    JuniorPoolImplementation,
+    IndexPool,
+    IndexPoolStrategy,
     NAOS,
     Go,
-    BackerRewards,
+    JuniorRewards,
     StakingRewards,
     BoostPool,
     WithdrawQueue

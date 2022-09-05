@@ -4,11 +4,11 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "./BaseUpgradeablePausable.sol";
-import "../../interfaces/IGoldfinchConfig.sol";
+import "../../interfaces/INAOSConfig.sol";
 import "./ConfigOptions.sol";
 
 /**
- * @title GoldfinchConfig
+ * @title NAOSConfig
  * @notice This contract stores mappings of useful "protocol config state", giving a central place
  *  for all other contracts to access it. For example, the TransactionLimit, or the PoolAddress. These config vars
  *  are enumerated in the `ConfigOptions` library, and can only be changed by admins of the protocol.
@@ -17,7 +17,7 @@ import "./ConfigOptions.sol";
  * @author Goldfinch
  */
 
-contract GoldfinchConfig is BaseUpgradeablePausable {
+contract NAOSConfig is BaseUpgradeablePausable {
   bytes32 public constant GO_LISTER_ROLE = keccak256("GO_LISTER_ROLE");
 
   mapping(uint256 => address) public addresses;
@@ -60,8 +60,8 @@ contract GoldfinchConfig is BaseUpgradeablePausable {
     addresses[key] = newTreasuryReserve;
   }
 
-  function setSeniorPoolStrategy(address newStrategy) public onlyAdmin {
-    uint256 key = uint256(ConfigOptions.Addresses.SeniorPoolStrategy);
+  function setIndexPoolStrategy(address newStrategy) public onlyAdmin {
+    uint256 key = uint256(ConfigOptions.Addresses.IndexPoolStrategy);
     emit AddressUpdated(msg.sender, key, addresses[key], newStrategy);
     addresses[key] = newStrategy;
   }
@@ -72,14 +72,14 @@ contract GoldfinchConfig is BaseUpgradeablePausable {
     addresses[key] = newAddress;
   }
 
-  function setTranchedPoolImplementation(address newAddress) public onlyAdmin {
-    uint256 key = uint256(ConfigOptions.Addresses.TranchedPoolImplementation);
+  function setJuniorPoolImplementation(address newAddress) public onlyAdmin {
+    uint256 key = uint256(ConfigOptions.Addresses.JuniorPoolImplementation);
     emit AddressUpdated(msg.sender, key, addresses[key], newAddress);
     addresses[key] = newAddress;
   }
 
-  function setGoldfinchConfig(address newAddress) public onlyAdmin {
-    uint256 key = uint256(ConfigOptions.Addresses.GoldfinchConfig);
+  function setNAOSConfig(address newAddress) public onlyAdmin {
+    uint256 key = uint256(ConfigOptions.Addresses.NAOSConfig);
     emit AddressUpdated(msg.sender, key, addresses[key], newAddress);
     addresses[key] = newAddress;
   }
@@ -90,7 +90,7 @@ contract GoldfinchConfig is BaseUpgradeablePausable {
     uint256 addressesLength
   ) public onlyAdmin {
     require(!valuesInitialized, "Already initialized values");
-    IGoldfinchConfig initialConfig = IGoldfinchConfig(_initialConfig);
+    INAOSConfig initialConfig = INAOSConfig(_initialConfig);
     for (uint256 i = 0; i < numbersLength; i++) {
       setNumber(i, initialConfig.getNumber(i));
     }

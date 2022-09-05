@@ -3,9 +3,9 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "./ITranchedPool.sol";
+import "./IJuniorPool.sol";
 
-abstract contract ISeniorPool {
+abstract contract IIndexPool {
   uint256 public sharePrice;
   uint256 public totalLoansOutstanding;
   uint256 public totalWritedowns;
@@ -22,11 +22,11 @@ abstract contract ISeniorPool {
 
   function withdraw(uint256 usdcAmount) external virtual returns (uint256 amount);
 
-  function withdrawInFidu(uint256 fiduAmount) external virtual returns (uint256 amount);
+  function withdrawInRWA(uint256 fiduAmount) external virtual returns (uint256 amount);
 
-  function invest(ITranchedPool pool) public virtual;
+  function invest(IJuniorPool pool) public virtual;
 
-  function estimateInvestment(ITranchedPool pool) public view virtual returns (uint256);
+  function estimateInvestment(IJuniorPool pool) public view virtual returns (uint256);
 
   function redeem(uint256 tokenId) public virtual;
 

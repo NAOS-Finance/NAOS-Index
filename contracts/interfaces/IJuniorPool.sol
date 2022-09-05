@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import "./IV2CreditLine.sol";
 
-abstract contract ITranchedPool {
+abstract contract IJuniorPool {
   IV2CreditLine public creditLine;
   uint256 public createdAt;
 

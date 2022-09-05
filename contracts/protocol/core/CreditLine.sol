@@ -3,7 +3,7 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "./GoldfinchConfig.sol";
+import "./NAOSConfig.sol";
 import "./ConfigHelper.sol";
 import "./BaseUpgradeablePausable.sol";
 import "./Accountant.sol";
@@ -16,8 +16,8 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
  * @title CreditLine
  * @notice A contract that represents the agreement between Backers and
  *  a Borrower. Includes the terms of the loan, as well as the current accounting state, such as interest owed.
- *  A CreditLine belongs to a TranchedPool, and is fully controlled by that TranchedPool. It does not
- *  operate in any standalone capacity. It should generally be considered internal to the TranchedPool.
+ *  A CreditLine belongs to a JuniorPool, and is fully controlled by that JuniorPool. It does not
+ *  operate in any standalone capacity. It should generally be considered internal to the JuniorPool.
  * @author Goldfinch
  */
 
@@ -25,7 +25,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   uint256 public constant SECONDS_PER_DAY = 60 * 60 * 24;
 
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
 
   // Credit line terms
   address public override borrower;
@@ -47,8 +47,8 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   uint256 public override lastFullPaymentTime;
   uint256 public totalInterestAccrued;
 
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
 
   function initialize(
     address _config,
@@ -63,7 +63,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   ) public initializer {
     require(_config != address(0) && owner != address(0) && _borrower != address(0), "Zero address passed in");
     __BaseUpgradeablePausable__init(owner);
-    config = GoldfinchConfig(_config);
+    config = NAOSConfig(_config);
     borrower = _borrower;
     maxLimit = _maxLimit;
     interestApr = _interestApr;
@@ -73,7 +73,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
     principalGracePeriodInDays = _principalGracePeriodInDays;
     interestAccruedAsOf = block.timestamp;
 
-    // Unlock owner, which is a TranchedPool, for infinite amount
+    // Unlock owner, which is a JuniorPool, for infinite amount
     bool success = config.getUSDC().approve(owner, uint256(-1));
     require(success, "Failed to approve USDC");
   }
@@ -109,9 +109,9 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   /**
    * @notice Migrates to a new goldfinch config address
    */
-  function updateGoldfinchConfig() external onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+  function updateNAOSConfig() external onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 
   function setLateFeeApr(uint256 newLateFeeApr) external onlyAdmin {

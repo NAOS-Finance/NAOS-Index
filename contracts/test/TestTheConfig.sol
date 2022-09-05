@@ -3,7 +3,7 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "../protocol/core/GoldfinchConfig.sol";
+import "../protocol/core/NAOSConfig.sol";
 
 contract TestTheConfig {
   address public poolAddress = 0xBAc2781706D0aA32Fb5928c9a5191A13959Dc4AE;
@@ -14,22 +14,22 @@ contract TestTheConfig {
   address public goldfinchConfigAddress = address(8);
 
   function testTheEnums(address configAddress) public {
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.TotalFundsLimit), 2);
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.ReserveDenominator), 4);
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.WithdrawFeeDenominator), 5);
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LatenessGracePeriodInDays), 6);
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LatenessMaxDays), 7);
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.DrawdownPeriodInSeconds), 8);
-    GoldfinchConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LeverageRatio), 10);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.TotalFundsLimit), 2);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.ReserveDenominator), 4);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.WithdrawFeeDenominator), 5);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LatenessGracePeriodInDays), 6);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LatenessMaxDays), 7);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.DrawdownPeriodInSeconds), 8);
+    NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LeverageRatio), 10);
 
-    GoldfinchConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.Fidu), fiduAddress);
-    GoldfinchConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.Pool), poolAddress);
-    GoldfinchConfig(configAddress).setAddress(
-      uint256(ConfigOptions.Addresses.GoldfinchFactory),
+    NAOSConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.RWA), fiduAddress);
+    NAOSConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.Pool), poolAddress);
+    NAOSConfig(configAddress).setAddress(
+      uint256(ConfigOptions.Addresses.NAOSFactory ),
       goldfinchFactoryAddress
     );
-    GoldfinchConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.GoldfinchConfig), goldfinchConfigAddress);
+    NAOSConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.NAOSConfig), goldfinchConfigAddress);
 
-    GoldfinchConfig(configAddress).setTreasuryReserve(treasuryReserveAddress);
+    NAOSConfig(configAddress).setTreasuryReserve(treasuryReserveAddress);
   }
 }

@@ -3,32 +3,32 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "./GoldfinchConfig.sol";
+import "./NAOSConfig.sol";
 import "./BaseUpgradeablePausable.sol";
-import "../../interfaces/ITranchedPool.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "./ConfigHelper.sol";
 
 /**
- * @title GoldfinchFactory
+ * @title NAOSFactory 
  * @notice Contract that allows us to create other contracts, such as CreditLines and BorrowerContracts
- *  Note GoldfinchFactory is a legacy name. More properly this can be considered simply the GoldfinchFactory
+ *  Note NAOSFactory  is a legacy name. More properly this can be considered simply the NAOSFactory 
  * @author Goldfinch
  */
 
-contract GoldfinchFactory is BaseUpgradeablePausable {
-  GoldfinchConfig public config;
+contract NAOSFactory  is BaseUpgradeablePausable {
+  NAOSConfig public config;
 
   /// Role to allow for pool creation
   bytes32 public constant BORROWER_ROLE = keccak256("BORROWER_ROLE");
 
-  using ConfigHelper for GoldfinchConfig;
+  using ConfigHelper for NAOSConfig;
 
   event BorrowerCreated(address indexed borrower, address indexed owner);
   event PoolCreated(address indexed pool, address indexed borrower);
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
   event CreditLineCreated(address indexed creditLine);
 
-  function initialize(address owner, GoldfinchConfig _config) public initializer {
+  function initialize(address owner, NAOSConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
     __BaseUpgradeablePausable__init(owner);
     config = _config;
@@ -48,7 +48,7 @@ contract GoldfinchFactory is BaseUpgradeablePausable {
   /**
    * @notice Allows anyone to create a CreditLine contract instance
    * @dev There is no value to calling this function directly. It is only meant to be called
-   *  by a TranchedPool during it's creation process.
+   *  by a JuniorPool during it's creation process.
    */
   function createCreditLine() external returns (address) {
     address creditLine = deployMinimal(config.creditLineImplementationAddress());
@@ -57,7 +57,7 @@ contract GoldfinchFactory is BaseUpgradeablePausable {
   }
 
   /**
-   * @notice Allows anyone to create a new TranchedPool for a single borrower
+   * @notice Allows anyone to create a new JuniorPool for a single borrower
    * @param _borrower The borrower for whom the CreditLine will be created
    * @param _juniorFeePercent The percent of senior interest allocated to junior investors, expressed as
    *  integer percents. eg. 20% is simply 20
@@ -89,7 +89,7 @@ contract GoldfinchFactory is BaseUpgradeablePausable {
   ) external onlyAdminOrBorrower returns (address pool) {
     address tranchedPoolImplAddress = config.tranchedPoolAddress();
     pool = deployMinimal(tranchedPoolImplAddress);
-    ITranchedPool(pool).initialize(
+    IJuniorPool(pool).initialize(
       address(config),
       _borrower,
       _juniorFeePercent,
@@ -107,9 +107,9 @@ contract GoldfinchFactory is BaseUpgradeablePausable {
     return pool;
   }
 
-  function updateGoldfinchConfig() external onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+  function updateNAOSConfig() external onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 
   // Stolen from:

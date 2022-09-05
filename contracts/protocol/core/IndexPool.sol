@@ -6,7 +6,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/drafts/IERC20Permit.sol";
 
-import "../../interfaces/ISeniorPool.sol";
+import "../../interfaces/IIndexPool.sol";
 import "../../interfaces/IPoolTokens.sol";
 import "./Accountant.sol";
 import "./BaseUpgradeablePausable.sol";
@@ -17,14 +17,14 @@ import {IVaultAdapter} from "../../interfaces/IVaultAdapter.sol";
 import {Vault} from "../../library/Vault.sol";
 
 /**
- * @title Goldfinch's SeniorPool contract
+ * @title Goldfinch's IndexPool contract
  * @notice Main entry point for senior LPs (a.k.a. capital providers)
  *  Automatically invests across borrower pools using an adjustable strategy.
  * @author Goldfinch
  */
-contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+contract IndexPool is BaseUpgradeablePausable, IIndexPool {
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
   using SafeMath for uint256;
   using Vault for Vault.Data;
   using Vault for Vault.List;
@@ -32,7 +32,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
 
   uint256 public usdDecimals;
   
-  mapping(ITranchedPool => uint256) public writedowns;
+  mapping(IJuniorPool => uint256) public writedowns;
 
   /// @dev A mapping of adapter addresses to keep track of vault adapters that have already been added
   mapping(IVaultAdapter => bool) public adapters;
@@ -68,7 +68,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   event InvestmentMadeInSenior(address indexed tranchedPool, uint256 amount);
   event InvestmentMadeInJunior(address indexed tranchedPool, uint256 amount);
 
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
 
   event HarvestFeeUpdated(uint256 fee);
   event ActiveVaultUpdated(IVaultAdapter indexed adapter);
@@ -76,7 +76,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   event FundsHarvested(uint256 withdrawnAmount, uint256 decreasedValue);
   event FundsRecalled(uint256 indexed vaultId, uint256 withdrawnAmount, uint256 decreasedValue);
 
-  function initialize(address owner, GoldfinchConfig _config) public initializer {
+  function initialize(address owner, NAOSConfig _config) public initializer {
     require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
 
     __BaseUpgradeablePausable__init(owner);
@@ -99,12 +99,12 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   }
 
   /**
-   * @notice Deposits `amount` USDC from msg.sender into the SeniorPool, and grants you the
+   * @notice Deposits `amount` USDC from msg.sender into the IndexPool, and grants you the
    *  equivalent value of FIDU tokens
    * @param amount The amount of USDC to deposit
    */
   function deposit(uint256 amount) public override whenNotPaused nonReentrant returns (uint256 depositShares) {
-    require(config.getGo().goSeniorPool(msg.sender), "This address has not been go-listed");
+    require(config.getVerified().goIndexPool(msg.sender), "This address has not been go-listed");
     require(amount > 0, "Must deposit more than zero");
     // Check if the amount of new shares to be added is within limits
     depositShares = getNumShares(amount);
@@ -114,7 +114,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     bool success = doUSDCTransfer(msg.sender, address(this), amount);
     require(success, "Failed to transfer for deposit");
 
-    config.getFidu().mintTo(msg.sender, depositShares);
+    config.getRWA().mintTo(msg.sender, depositShares);
     return depositShares;
   }
 
@@ -138,7 +138,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   }
 
   /**
-   * @notice Withdraws USDC from the SeniorPool to msg.sender, and burns the equivalent value of FIDU tokens
+   * @notice Withdraws USDC from the IndexPool to msg.sender, and burns the equivalent value of FIDU tokens
    * @param usdcAmount The amount of USDC to withdraw
    */
   function withdraw(uint256 usdcAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
@@ -149,10 +149,10 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   }
 
   /**
-   * @notice Withdraws USDC (denominated in FIDU terms) from the SeniorPool to msg.sender
+   * @notice Withdraws USDC (denominated in FIDU terms) from the IndexPool to msg.sender
    * @param fiduAmount The amount of USDC to withdraw in terms of FIDU shares
    */
-  function withdrawInFidu(uint256 fiduAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
+  function withdrawInRWA(uint256 fiduAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
     require(msg.sender == config.getWithdrawQueue(), "The address is not the withdraw queue");
     require(fiduAmount > 0, "Must withdraw more than zero");
     uint256 usdcAmount = getUSDCAmountFromShares(fiduAmount);
@@ -163,52 +163,52 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   /**
    * @notice Migrates to a new goldfinch config address
    */
-  function updateGoldfinchConfig() external onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+  function updateNAOSConfig() external onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 
   /**
-   * @notice Invest in an ITranchedPool's senior tranche using the senior pool's strategy
-   * @param pool An ITranchedPool whose senior tranche should be considered for investment
+   * @notice Invest in an IJuniorPool's senior tranche using the senior pool's strategy
+   * @param pool An IJuniorPool whose senior tranche should be considered for investment
    */
-  function invest(ITranchedPool pool) public override whenNotPaused nonReentrant {
+  function invest(IJuniorPool pool) public override whenNotPaused nonReentrant {
     require(validPool(pool), "Pool must be valid");
 
-    ISeniorPoolStrategy strategy = config.getSeniorPoolStrategy();
+    IIndexPoolStrategy strategy = config.getIndexPoolStrategy();
     uint256 amount = strategy.invest(pool);
 
     require(amount > 0, "Investment amount must be positive");
 
     approvePool(pool, amount);
-    pool.deposit(uint256(ITranchedPool.Tranches.Senior), amount);
+    pool.deposit(uint256(IJuniorPool.Tranches.Senior), amount);
 
     emit InvestmentMadeInSenior(address(pool), amount);
     totalLoansOutstanding = totalLoansOutstanding.add(amount);
   }
 
-  function estimateInvestment(ITranchedPool pool) public view override returns (uint256) {
+  function estimateInvestment(IJuniorPool pool) public view override returns (uint256) {
     require(validPool(pool), "Pool must be valid");
-    ISeniorPoolStrategy strategy = config.getSeniorPoolStrategy();
+    IIndexPoolStrategy strategy = config.getIndexPoolStrategy();
     return strategy.estimateInvestment(pool);
   }
 
   /**
-   * @notice Redeem interest and/or principal from an ITranchedPool investment
+   * @notice Redeem interest and/or principal from an IJuniorPool investment
    * @param tokenId the ID of an IPoolTokens token to be redeemed
    */
   function redeem(uint256 tokenId) public override whenNotPaused nonReentrant {
     IPoolTokens poolTokens = config.getPoolTokens();
     IPoolTokens.TokenInfo memory tokenInfo = poolTokens.getTokenInfo(tokenId);
 
-    ITranchedPool pool = ITranchedPool(tokenInfo.pool);
+    IJuniorPool pool = IJuniorPool(tokenInfo.pool);
     (uint256 interestRedeemed, uint256 principalRedeemed) = pool.withdrawMax(tokenId);
 
     _collectInterestAndPrincipal(address(pool), interestRedeemed, principalRedeemed);
   }
 
   /**
-   * @notice Write down an ITranchedPool investment. This will adjust the senior pool's share price
+   * @notice Write down an IJuniorPool investment. This will adjust the senior pool's share price
    *  down if we're considering the investment a loss, or up if the borrower has subsequently
    *  made repayments that restore confidence that the full loan will be repaid.
    * @param tokenId the ID of an IPoolTokens token to be considered for writedown
@@ -218,7 +218,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     require(address(this) == poolTokens.ownerOf(tokenId), "Only tokens owned by the senior pool can be written down");
 
     IPoolTokens.TokenInfo memory tokenInfo = poolTokens.getTokenInfo(tokenId);
-    ITranchedPool pool = ITranchedPool(tokenInfo.pool);
+    IJuniorPool pool = IJuniorPool(tokenInfo.pool);
     require(validPool(pool), "Pool must be valid");
 
     uint256 principalRemaining = tokenInfo.principalAmount.sub(tokenInfo.principalRedeemed);
@@ -250,7 +250,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
    */
   function calculateWritedown(uint256 tokenId) public view override returns (uint256) {
     IPoolTokens.TokenInfo memory tokenInfo = config.getPoolTokens().getTokenInfo(tokenId);
-    ITranchedPool pool = ITranchedPool(tokenInfo.pool);
+    IJuniorPool pool = IJuniorPool(tokenInfo.pool);
 
     uint256 principalRemaining = tokenInfo.principalAmount.sub(tokenInfo.principalRedeemed);
 
@@ -275,7 +275,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
    * @param amount USDC amount to convert to FIDU
    */
   function getNumShares(uint256 amount) public view override returns (uint256) {
-    return usdcToFidu(amount).mul(fiduMantissa()).div(sharePrice);
+    return usdcToRWA(amount).mul(fiduMantissa()).div(sharePrice);
   }
 
   /**
@@ -394,7 +394,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
 
   /* Internal Functions */
 
-  function _calculateWritedown(ITranchedPool pool, uint256 principal)
+  function _calculateWritedown(IJuniorPool pool, uint256 principal)
     internal
     view
     returns (uint256 writedownPercent, uint256 writedownAmount)
@@ -432,7 +432,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
     return uint256(10)**usdDecimals;
   }
 
-  function usdcToFidu(uint256 amount) public view returns (uint256) {
+  function usdcToRWA(uint256 amount) public view returns (uint256) {
     return amount.mul(fiduMantissa()).div(usdcMantissa());
   }
 
@@ -447,7 +447,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   function sharesWithinLimit(uint256 _totalShares) internal view returns (bool) {
     return
       _totalShares.mul(sharePrice).div(fiduMantissa()) <=
-      usdcToFidu(config.getNumber(uint256(ConfigOptions.Numbers.TotalFundsLimit)));
+      usdcToRWA(config.getNumber(uint256(ConfigOptions.Numbers.TotalFundsLimit)));
   }
 
   function doUSDCTransfer(
@@ -461,7 +461,7 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   }
 
   function _withdraw(uint256 usdcAmount, uint256 withdrawShares) internal returns (uint256 userAmount) {
-    IFidu fidu = config.getFidu();
+    IRWA fidu = config.getRWA();
     // Determine current shares the address has and the shares requested to withdraw
     uint256 currentShares = fidu.balanceOf(msg.sender);
     // Ensure the address has enough value in the pool
@@ -542,18 +542,18 @@ contract SeniorPool is BaseUpgradeablePausable, ISeniorPool {
   }
 
   function usdcToSharePrice(uint256 usdcAmount) internal view returns (uint256) {
-    return usdcToFidu(usdcAmount).mul(fiduMantissa()).div(totalShares());
+    return usdcToRWA(usdcAmount).mul(fiduMantissa()).div(totalShares());
   }
 
   function totalShares() internal view returns (uint256) {
-    return config.getFidu().totalSupply();
+    return config.getRWA().totalSupply();
   }
 
-  function validPool(ITranchedPool pool) internal view returns (bool) {
+  function validPool(IJuniorPool pool) internal view returns (bool) {
     return config.getPoolTokens().validPool(address(pool));
   }
 
-  function approvePool(ITranchedPool pool, uint256 allowance) internal {
+  function approvePool(IJuniorPool pool, uint256 allowance) internal {
     IERC20withDec usdc = config.getUSDC();
     bool success = usdc.approve(address(pool), allowance);
     require(success, "Failed to approve USDC");
