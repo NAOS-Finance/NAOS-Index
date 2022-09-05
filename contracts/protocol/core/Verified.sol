@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
-import "../../interfaces/IGo.sol";
+import "../../interfaces/IVerified.sol";
 import "../../interfaces/IUniqueIdentity0612.sol";
 
 contract Go is IGo, BaseUpgradeablePausable {

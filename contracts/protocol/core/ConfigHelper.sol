@@ -14,7 +14,7 @@ import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/IPoolTokens.sol";
 import "../../interfaces/IJuniorRewards.sol";
 import "../../interfaces/INAOSFactory.sol";
-import "../../interfaces/IGo.sol";
+import "../../interfaces/IVerified.sol";
 import "../../interfaces/IBoostPool.sol";
 
 /**
