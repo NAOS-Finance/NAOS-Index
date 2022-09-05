@@ -103,16 +103,20 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     _updateExpiration(account, id, 0);
   }
 
-  function _updateExpiration(address to, uint256 id, uint256 expiresAt) internal {
-    expiration[to][id] = expiresAt;
+  function updateExpiration(address to, uint256 id, uint256 expiresAt) external onlyAdmin {
+    _updateExpiration(to, id, expiresAt);
   }
 
-  function setSupportedUIDTypes(address[] calldata tos, uint256[] calldata ids, uint256[] calldata expiresAts) public onlyAdmin {
+  function updateExpirations(address[] calldata tos, uint256[] calldata ids, uint256[] calldata expiresAts) external onlyAdmin {
     require(tos.length == ids.length, "tos and ids length mismatch");
     require(ids.length == expiresAts.length, "expireAts and ids length mismatch");
     for (uint256 i = 0; i < tos.length; ++i) {
       _updateExpiration(tos[i], ids[i], expiresAts[i]);
     }
+  }
+
+  function _updateExpiration(address to, uint256 id, uint256 expiresAt) internal {
+    expiration[to][id] = expiresAt;
   }
 
   function tryRecover(
