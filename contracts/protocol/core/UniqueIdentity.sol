@@ -111,6 +111,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     require(accounts.length == ids.length, "accounts and ids length mismatch");
     require(ids.length == expiresAts.length, "expireAts and ids length mismatch");
     for (uint256 i = 0; i < accounts.length; ++i) {
+      nonces[accounts[i]] += 1;
       _updateExpiration(accounts[i], ids[i], expiresAts[i]);
     }
   }
