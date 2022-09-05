@@ -57,7 +57,7 @@ library ConfigHelper {
   }
 
   function getNAOSFactory(NAOSConfig config) internal view returns (INAOSFactory) {
-    return INAOSFactory(goldfinchFactoryAddress(config));
+    return INAOSFactory(naosFactoryAddress(config));
   }
 
   function getVerified(NAOSConfig config) internal view returns (IVerified) {
@@ -100,7 +100,7 @@ library ConfigHelper {
     return config.getAddress(uint256(ConfigOptions.Addresses.IndexPoolStrategy));
   }
 
-  function goldfinchFactoryAddress(NAOSConfig config) internal view returns (address) {
+  function naosFactoryAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.NAOSFactory));
   }
 
