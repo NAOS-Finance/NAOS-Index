@@ -34,7 +34,7 @@ library ConfigOptions {
     IndexPool,
     IndexPoolStrategy,
     NAOS,
-    Go,
+    Verified,
     JuniorRewards,
     StakingRewards,
     BoostPool,

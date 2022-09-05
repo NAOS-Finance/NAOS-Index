@@ -57,22 +57,6 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     }
   }
 
-  /**
-   * @dev Gets the token name.
-   * @return string representing the token name
-   */
-  function name() public pure returns (string memory) {
-    return "Unique Identity";
-  }
-
-  /**
-   * @dev Gets the token symbol.
-   * @return string representing the token symbol
-   */
-  function symbol() public pure returns (string memory) {
-    return "UID";
-  }
-
   function mint(
     uint256 id,
     uint256 expiresAt,

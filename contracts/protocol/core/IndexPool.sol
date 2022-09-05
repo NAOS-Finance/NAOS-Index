@@ -99,7 +99,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
   /**
    * @notice Deposits `amount` USDC from msg.sender into the IndexPool, and grants you the
-   *  equivalent value of FIDU tokens
+   *  equivalent value of rwa tokens
    * @param amount The amount of USDC to deposit
    */
   function deposit(uint256 amount) public override whenNotPaused nonReentrant returns (uint256 depositShares) {
@@ -137,7 +137,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   /**
-   * @notice Withdraws USDC from the IndexPool to msg.sender, and burns the equivalent value of FIDU tokens
+   * @notice Withdraws USDC from the IndexPool to msg.sender, and burns the equivalent value of rwa tokens
    * @param usdcAmount The amount of USDC to withdraw
    */
   function withdraw(uint256 usdcAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
@@ -148,8 +148,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   /**
-   * @notice Withdraws USDC (denominated in FIDU terms) from the IndexPool to msg.sender
-   * @param rwaAmount The amount of USDC to withdraw in terms of FIDU shares
+   * @notice Withdraws USDC (denominated in rwa terms) from the IndexPool to msg.sender
+   * @param rwaAmount The amount of USDC to withdraw in terms of rwa shares
    */
   function withdrawInRWA(uint256 rwaAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
     require(msg.sender == config.getWithdrawQueue(), "The address is not the withdraw queue");
@@ -270,8 +270,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   /**
-   * @notice Converts and USDC amount to FIDU amount
-   * @param amount USDC amount to convert to FIDU
+   * @notice Converts and USDC amount to rwa amount
+   * @param amount USDC amount to convert to rwa
    */
   function getNumShares(uint256 amount) public view override returns (uint256) {
     return usdcToRWA(amount).mul(rwaMantissa()).div(sharePrice);

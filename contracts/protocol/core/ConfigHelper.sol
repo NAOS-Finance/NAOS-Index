@@ -129,7 +129,7 @@ library ConfigHelper {
   }
 
   function verifiedAddress(NAOSConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.Go));
+    return config.getAddress(uint256(ConfigOptions.Addresses.Verified));
   }
 
   function stakingRewardsAddress(NAOSConfig config) internal view returns (address) {
