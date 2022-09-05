@@ -6,7 +6,6 @@ import "../../interfaces/IUniqueIdentity.sol";
 
 /**
  * @title UniqueIdentity
- * @author Naos Finance
  */
 
 contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {

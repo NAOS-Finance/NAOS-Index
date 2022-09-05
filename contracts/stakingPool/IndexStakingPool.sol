@@ -214,8 +214,8 @@ contract IndexStakingPool is ReentrancyGuard {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        uint256 fiduAmount = _depositToIndexPool(_usdcAmount, _pool);
-        _deposit(_poolId, fiduAmount);
+        uint256 rwaAmount = _depositToIndexPool(_usdcAmount, _pool);
+        _deposit(_poolId, rwaAmount);
     }
 
     /// @notice Identical to `depositAndStake`, except it allows for a signature to be passed that permits
@@ -572,14 +572,14 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _usdcAmount The USDC amount
     /// @param _pool The user pool struct
-    function _depositToIndexPool(uint256 _usdcAmount, Pool.Data storage _pool) internal returns (uint256 fiduAmount) {
+    function _depositToIndexPool(uint256 _usdcAmount, Pool.Data storage _pool) internal returns (uint256 rwaAmount) {
         NAOSConfig config = _pool.config;
-        require(config.getVerified().goIndexPool(msg.sender), "This address has not been go-listed");
+        require(config.getVerified().verifyIndexPool(msg.sender), "This address has not been go-listed");
         IERC20withDec usdc = config.getUSDC();
         usdc.transferFrom(msg.sender, address(this), _usdcAmount);
 
-        IIndexPool seniorPool = config.getIndexPool();
-        usdc.approve(address(seniorPool), _usdcAmount);
-        return seniorPool.deposit(_usdcAmount);
+        IIndexPool indexPool = config.getIndexPool();
+        usdc.approve(address(indexPool), _usdcAmount);
+        return indexPool.deposit(_usdcAmount);
     }
 }

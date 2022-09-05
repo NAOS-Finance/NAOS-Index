@@ -18,7 +18,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
  *  a Borrower. Includes the terms of the loan, as well as the current accounting state, such as interest owed.
  *  A CreditLine belongs to a JuniorPool, and is fully controlled by that JuniorPool. It does not
  *  operate in any standalone capacity. It should generally be considered internal to the JuniorPool.
- * @author Goldfinch
  */
 
 // solhint-disable-next-line max-states-count

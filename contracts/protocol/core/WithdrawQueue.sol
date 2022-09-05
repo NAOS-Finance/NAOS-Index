@@ -75,14 +75,14 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         verifyRequired = false;
         feeTiers.push(FeeTier({veNAOSAmount: 0, fee: MAX_WITHDRAW_FEE}));
 
-        IRWA fidu = config.getRWA();
-        IIndexPool seniorPool = config.getIndexPool();
+        IRWA rwa = config.getRWA();
+        IIndexPool indexPool = config.getIndexPool();
         require(
-            (address(fidu) != address(0)) &&
-                (address(seniorPool) != address(0)),
+            (address(rwa) != address(0)) &&
+                (address(indexPool) != address(0)),
             "config is not set"
         );
-        fidu.approve(address(seniorPool), uint256(-1));
+        rwa.approve(address(indexPool), uint256(-1));
     }
 
     /// @dev Register the index token amount which users want to withdraw.
@@ -91,7 +91,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
     function register(uint256 _amount) external {
         if (verifyRequired) {
             require(
-                config.getVerified().goIndexPool(msg.sender),
+                config.getVerified().verifyIndexPool(msg.sender),
                 "This address has not been go-listed"
             );
         }
@@ -121,9 +121,9 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         );
         totalRegisteredAmount = totalRegisteredAmount.add(_amount);
 
-        IRWA fidu = config.getRWA();
+        IRWA rwa = config.getRWA();
         require(
-            fidu.transferFrom(msg.sender, address(this), _amount),
+            rwa.transferFrom(msg.sender, address(this), _amount),
             "transfer failed"
         );
 
@@ -157,8 +157,8 @@ contract WithdrawQueue is BaseUpgradeablePausable {
             _amount
         );
         totalRegisteredAmount = totalRegisteredAmount.sub(_amount);
-        IRWA fidu = config.getRWA();
-        require(fidu.transfer(msg.sender, _amount), "transfer failed");
+        IRWA rwa = config.getRWA();
+        require(rwa.transfer(msg.sender, _amount), "transfer failed");
 
         emit WithdrawQueueUpdated(
             userData.queueIndex,
@@ -203,17 +203,17 @@ contract WithdrawQueue is BaseUpgradeablePausable {
 
         // retrieve index pool usd amount
         IERC20withDec usdc = config.getUSDC();
-        IIndexPool seniorPool = config.getIndexPool();
-        uint256 indexUSDCAmount = usdc.balanceOf(address(seniorPool));
-        uint256 vaultCount = seniorPool.vaultCount();
+        IIndexPool indexPool = config.getIndexPool();
+        uint256 indexUSDCAmount = usdc.balanceOf(address(indexPool));
+        uint256 vaultCount = indexPool.vaultCount();
         if (vaultCount > 0) {
             indexUSDCAmount = indexUSDCAmount.add(
-                seniorPool.getVaultTotalDeposited(vaultCount.sub(1))
+                indexPool.getVaultTotalDeposited(vaultCount.sub(1))
             );
         }
 
         // calcualte withdrawable index token amount
-        uint256 withdrawIndexAmount = seniorPool.getNumShares(indexUSDCAmount);
+        uint256 withdrawIndexAmount = indexPool.getNumShares(indexUSDCAmount);
         if (withdrawIndexAmount > totalRegisteredAmount) {
             withdrawIndexAmount = totalRegisteredAmount;
         }
@@ -223,8 +223,8 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         totalRegisteredAmount = totalRegisteredAmount.sub(withdrawIndexAmount);
 
         // withdraw index tokens from index pool
-        uint256 seniorTokenPrice = seniorPool.sharePrice();
-        uint256 withdrawUSDAmount = seniorPool.withdrawInRWA(
+        uint256 seniorTokenPrice = indexPool.sharePrice();
+        uint256 withdrawUSDAmount = indexPool.withdrawInRWA(
             withdrawIndexAmount
         );
 

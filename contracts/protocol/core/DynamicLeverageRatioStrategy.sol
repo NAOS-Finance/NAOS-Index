@@ -19,7 +19,7 @@ contract DynamicLeverageRatioStrategy is LeverageRatioStrategy {
     uint256 juniorTrancheLockedUntil;
   }
 
-  // tranchedPoolAddress => leverageRatioInfo
+  // juniorPoolAddress => leverageRatioInfo
   mapping(address => LeverageRatioInfo) public ratios;
 
   event LeverageRatioUpdated(

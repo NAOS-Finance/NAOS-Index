@@ -8,7 +8,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.so
 /**
  * @title Safe ERC20 Transfer
  * @notice Reverts when transfer is not successful
- * @author Goldfinch
  */
 abstract contract SafeERC20Transfer {
   function safeERC20Transfer(

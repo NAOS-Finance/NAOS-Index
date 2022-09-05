@@ -3,7 +3,7 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-abstract contract IGo {
+abstract contract IVerified {
   uint256 public constant ID_TYPE_0 = 0;
   uint256 public constant ID_TYPE_1 = 1;
   uint256 public constant ID_TYPE_2 = 2;
@@ -19,11 +19,11 @@ abstract contract IGo {
   /// @notice Returns the address of the UniqueIdentity contract.
   function uniqueIdentity() external virtual returns (address);
 
-  function go(address account) public view virtual returns (bool);
+  function verify(address account) public view virtual returns (bool);
 
-  function goOnlyIdTypes(address account, uint256[] calldata onlyIdTypes) public view virtual returns (bool);
+  function verifyOnlyIdTypes(address account, uint256[] calldata onlyIdTypes) public view virtual returns (bool);
 
-  function goIndexPool(address account) public view virtual returns (bool);
+  function verifyIndexPool(address account) public view virtual returns (bool);
 
   function updateNAOSConfig() external virtual;
 }

@@ -9,13 +9,12 @@ import "../../interfaces/IJuniorPool.sol";
 import "./ConfigHelper.sol";
 
 /**
- * @title NAOSFactory 
+ * @title NAOSFactory
  * @notice Contract that allows us to create other contracts, such as CreditLines and BorrowerContracts
- *  Note NAOSFactory  is a legacy name. More properly this can be considered simply the NAOSFactory 
- * @author Goldfinch
+ *  Note NAOSFactory is a legacy name. More properly this can be considered simply the NAOSFactory
  */
 
-contract NAOSFactory  is BaseUpgradeablePausable {
+contract NAOSFactory is BaseUpgradeablePausable {
   NAOSConfig public config;
 
   /// Role to allow for pool creation
@@ -87,8 +86,8 @@ contract NAOSFactory  is BaseUpgradeablePausable {
     uint256 _fundableAt,
     uint256[] calldata _allowedUIDTypes
   ) external onlyAdminOrBorrower returns (address pool) {
-    address tranchedPoolImplAddress = config.tranchedPoolAddress();
-    pool = deployMinimal(tranchedPoolImplAddress);
+    address juniorPoolImplAddress = config.juniorPoolAddress();
+    pool = deployMinimal(juniorPoolImplAddress);
     IJuniorPool(pool).initialize(
       address(config),
       _borrower,

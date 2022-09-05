@@ -14,8 +14,8 @@ contract TestIndexPool is IndexPool {
   //   return usdcMantissa();
   // }
 
-  // function _fiduMantissa() public pure returns (uint256) {
-  //   return fiduMantissa();
+  // function _rwaMantissa() public pure returns (uint256) {
+  //   return rwaMantissa();
   // }
 
   function _usdcToRWA(uint256 amount) public view returns (uint256) {

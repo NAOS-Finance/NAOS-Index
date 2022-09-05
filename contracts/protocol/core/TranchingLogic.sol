@@ -13,7 +13,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 /**
  * @title TranchingLogic
  * @notice Library for handling the payments waterfall
- * @author Goldfinch
  */
 
 library TranchingLogic {

@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.
  * @notice Inheriting from OpenZeppelin's Pausable contract, this does small
  *  augmentations to make it work with a PAUSER_ROLE, leveraging the AccessControl contract.
  *  It is meant to be inherited.
- * @author Goldfinch
  */
 
 contract PauserPausable is AccessControlUpgradeSafe, PausableUpgradeSafe {

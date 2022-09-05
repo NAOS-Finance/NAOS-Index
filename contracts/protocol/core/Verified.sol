@@ -10,7 +10,7 @@ import "./ConfigHelper.sol";
 import "../../interfaces/IVerified.sol";
 import "../../interfaces/IUniqueIdentity0612.sol";
 
-contract Go is IGo, BaseUpgradeablePausable {
+contract Verified is IVerified, BaseUpgradeablePausable {
   address public override uniqueIdentity;
 
   using SafeMath for uint256;
@@ -78,7 +78,7 @@ contract Go is IGo, BaseUpgradeablePausable {
    * @param account The account whose go status to obtain
    * @return The account's go status
    */
-  function go(address account) public view override returns (bool) {
+  function verify(address account) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
 
     if (_getLegacyGoList().goList(account) || IUniqueIdentity0612(uniqueIdentity).expiration(account, ID_TYPE_0) > block.timestamp) {
@@ -102,7 +102,7 @@ contract Go is IGo, BaseUpgradeablePausable {
    * @param onlyIdTypes Array of id types to check balances
    * @return The account's go status
    */
-  function goOnlyIdTypes(address account, uint256[] memory onlyIdTypes) public view override returns (bool) {
+  function verifyOnlyIdTypes(address account, uint256[] memory onlyIdTypes) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
     NAOSConfig goListSource = _getLegacyGoList();
     for (uint256 i = 0; i < onlyIdTypes.length; ++i) {
@@ -122,14 +122,14 @@ contract Go is IGo, BaseUpgradeablePausable {
    * @param account The account whose go status to obtain
    * @return The account's go status
    */
-  function goIndexPool(address account) public view override returns (bool) {
+  function verifyIndexPool(address account) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
     if (account == config.stakingRewardsAddress() || _getLegacyGoList().goList(account)) {
       return true;
     }
-    uint256[2] memory seniorPoolIdTypes = [ID_TYPE_0, ID_TYPE_1];
-    for (uint256 i = 0; i < seniorPoolIdTypes.length; ++i) {
-      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, seniorPoolIdTypes[i]);
+    uint256[2] memory indexPoolIdTypes = [ID_TYPE_0, ID_TYPE_1];
+    for (uint256 i = 0; i < indexPoolIdTypes.length; ++i) {
+      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, indexPoolIdTypes[i]);
       if (idTypeExpiration > block.timestamp) {
         return true;
       }

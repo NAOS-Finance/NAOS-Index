@@ -10,7 +10,7 @@ abstract contract IPool {
 
   function withdraw(uint256 usdcAmount) external virtual;
 
-  function withdrawInRWA(uint256 fiduAmount) external virtual;
+  function withdrawInRWA(uint256 rwaAmount) external virtual;
 
   function collectInterestAndPrincipal(
     address from,

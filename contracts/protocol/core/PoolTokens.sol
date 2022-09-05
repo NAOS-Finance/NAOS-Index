@@ -12,7 +12,6 @@ import "../../interfaces/IPoolTokens.sol";
  * @title PoolTokens
  * @notice PoolTokens is an ERC721 compliant contract, which can represent
  *  junior tranche or senior tranche shares of any of the borrower pools.
- * @author Goldfinch
  */
 
 contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
@@ -149,11 +148,11 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
   }
 
   /**
-   * @notice Called by the NAOSFactory  to register the pool as a valid pool. Only valid pools can mint/redeem
+   * @notice Called by the NAOSFactory to register the pool as a valid pool. Only valid pools can mint/redeem
    * tokens
    * @param newPool The address of the newly created pool
    */
-  function onPoolCreated(address newPool) external override onlyNAOSFactory  {
+  function onPoolCreated(address newPool) external override onlyNAOSFactory {
     pools[newPool].created = true;
   }
 
@@ -217,7 +216,7 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
     return hasRole(OWNER_ROLE, _msgSender());
   }
 
-  modifier onlyNAOSFactory () {
+  modifier onlyNAOSFactory() {
     require(_msgSender() == config.goldfinchFactoryAddress(), "Only Goldfinch factory is allowed");
     _;
   }

@@ -20,7 +20,6 @@ import {Vault} from "../../library/Vault.sol";
  * @title Goldfinch's IndexPool contract
  * @notice Main entry point for senior LPs (a.k.a. capital providers)
  *  Automatically invests across borrower pools using an adjustable strategy.
- * @author Goldfinch
  */
 contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   NAOSConfig public config;
@@ -64,9 +63,9 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   event PrincipalCollected(address indexed payer, uint256 amount);
   event ReserveFundsCollected(address indexed user, uint256 amount);
 
-  event PrincipalWrittenDown(address indexed tranchedPool, int256 amount);
-  event InvestmentMadeInSenior(address indexed tranchedPool, uint256 amount);
-  event InvestmentMadeInJunior(address indexed tranchedPool, uint256 amount);
+  event PrincipalWrittenDown(address indexed juniorPool, int256 amount);
+  event InvestmentMadeInSenior(address indexed juniorPool, uint256 amount);
+  event InvestmentMadeInJunior(address indexed juniorPool, uint256 amount);
 
   event NAOSConfigUpdated(address indexed who, address configAddress);
 
@@ -104,7 +103,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
    * @param amount The amount of USDC to deposit
    */
   function deposit(uint256 amount) public override whenNotPaused nonReentrant returns (uint256 depositShares) {
-    require(config.getVerified().goIndexPool(msg.sender), "This address has not been go-listed");
+    require(config.getVerified().verifyIndexPool(msg.sender), "This address has not been go-listed");
     require(amount > 0, "Must deposit more than zero");
     // Check if the amount of new shares to be added is within limits
     depositShares = getNumShares(amount);
@@ -150,13 +149,13 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
   /**
    * @notice Withdraws USDC (denominated in FIDU terms) from the IndexPool to msg.sender
-   * @param fiduAmount The amount of USDC to withdraw in terms of FIDU shares
+   * @param rwaAmount The amount of USDC to withdraw in terms of FIDU shares
    */
-  function withdrawInRWA(uint256 fiduAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
+  function withdrawInRWA(uint256 rwaAmount) external override whenNotPaused nonReentrant returns (uint256 amount) {
     require(msg.sender == config.getWithdrawQueue(), "The address is not the withdraw queue");
-    require(fiduAmount > 0, "Must withdraw more than zero");
-    uint256 usdcAmount = getUSDCAmountFromShares(fiduAmount);
-    uint256 withdrawShares = fiduAmount;
+    require(rwaAmount > 0, "Must withdraw more than zero");
+    uint256 usdcAmount = getUSDCAmountFromShares(rwaAmount);
+    uint256 withdrawShares = rwaAmount;
     return _withdraw(usdcAmount, withdrawShares);
   }
 
@@ -275,7 +274,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
    * @param amount USDC amount to convert to FIDU
    */
   function getNumShares(uint256 amount) public view override returns (uint256) {
-    return usdcToRWA(amount).mul(fiduMantissa()).div(sharePrice);
+    return usdcToRWA(amount).mul(rwaMantissa()).div(sharePrice);
   }
 
   /**
@@ -424,7 +423,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     }
   }
 
-  function fiduMantissa() public pure returns (uint256) {
+  function rwaMantissa() public pure returns (uint256) {
     return uint256(10)**uint256(18);
   }
 
@@ -433,20 +432,20 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   function usdcToRWA(uint256 amount) public view returns (uint256) {
-    return amount.mul(fiduMantissa()).div(usdcMantissa());
+    return amount.mul(rwaMantissa()).div(usdcMantissa());
   }
 
-  function fiduToUSDC(uint256 amount) public view returns (uint256) {
-    return amount.div(fiduMantissa().div(usdcMantissa()));
+  function rwaToUSDC(uint256 amount) public view returns (uint256) {
+    return amount.div(rwaMantissa().div(usdcMantissa()));
   }
 
-  function getUSDCAmountFromShares(uint256 fiduAmount) internal view returns (uint256) {
-    return fiduToUSDC(fiduAmount.mul(sharePrice).div(fiduMantissa()));
+  function getUSDCAmountFromShares(uint256 rwaAmount) internal view returns (uint256) {
+    return rwaToUSDC(rwaAmount.mul(sharePrice).div(rwaMantissa()));
   }
 
   function sharesWithinLimit(uint256 _totalShares) internal view returns (bool) {
     return
-      _totalShares.mul(sharePrice).div(fiduMantissa()) <=
+      _totalShares.mul(sharePrice).div(rwaMantissa()) <=
       usdcToRWA(config.getNumber(uint256(ConfigOptions.Numbers.TotalFundsLimit)));
   }
 
@@ -461,9 +460,9 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   function _withdraw(uint256 usdcAmount, uint256 withdrawShares) internal returns (uint256 userAmount) {
-    IRWA fidu = config.getRWA();
+    IRWA rwa = config.getRWA();
     // Determine current shares the address has and the shares requested to withdraw
-    uint256 currentShares = fidu.balanceOf(msg.sender);
+    uint256 currentShares = rwa.balanceOf(msg.sender);
     // Ensure the address has enough value in the pool
     require(withdrawShares <= currentShares, "Amount requested is greater than what this address owns");
 
@@ -483,7 +482,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     require(success, "Failed to transfer for withdraw");
 
     // Burn the shares
-    fidu.burnFrom(msg.sender, withdrawShares);
+    rwa.burnFrom(msg.sender, withdrawShares);
     return userAmount;
   }
 
@@ -542,7 +541,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   function usdcToSharePrice(uint256 usdcAmount) internal view returns (uint256) {
-    return usdcToRWA(usdcAmount).mul(fiduMantissa()).div(totalShares());
+    return usdcToRWA(usdcAmount).mul(rwaMantissa()).div(totalShares());
   }
 
   function totalShares() internal view returns (uint256) {

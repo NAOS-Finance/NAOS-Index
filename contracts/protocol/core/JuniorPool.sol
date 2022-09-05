@@ -151,7 +151,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     TrancheInfo storage trancheInfo = getTrancheInfo(tranche);
     require(trancheInfo.lockedUntil == 0, "Tranche locked");
     require(amount > 0, "Must deposit > zero");
-    require(config.getVerified().goOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
+    require(config.getVerified().verifyOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
     require(block.timestamp > fundableAt, "Not open for funding");
     // senior tranche ids are always odd numbered
     if (_isSeniorTrancheId(trancheInfo.id)) {
@@ -540,7 +540,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     uint256 amount
   ) internal returns (uint256 interestWithdrawn, uint256 principalWithdrawn) {
     require(config.getPoolTokens().isApprovedOrOwner(msg.sender, tokenId), "Not token owner");
-    require(config.getVerified().goOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
+    require(config.getVerified().verifyOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
     require(amount > 0, "Must withdraw more than zero");
     (uint256 interestRedeemable, uint256 principalRedeemable) = redeemableInterestAndPrincipal(trancheInfo, tokenInfo);
     uint256 netRedeemable = interestRedeemable.add(principalRedeemable);
@@ -700,7 +700,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     uint256 _lateFeeApr,
     uint256 _principalGracePeriodInDays
   ) internal {
-    address _creditLine = config.getNAOSFactory ().createCreditLine();
+    address _creditLine = config.getNAOSFactory().createCreditLine();
     creditLine = IV2CreditLine(_creditLine);
     creditLine.initialize(
       address(config),

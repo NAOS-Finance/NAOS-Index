@@ -22,7 +22,7 @@ abstract contract IIndexPool {
 
   function withdraw(uint256 usdcAmount) external virtual returns (uint256 amount);
 
-  function withdrawInRWA(uint256 fiduAmount) external virtual returns (uint256 amount);
+  function withdrawInRWA(uint256 rwaAmount) external virtual returns (uint256 amount);
 
   function invest(IJuniorPool pool) public virtual;
 

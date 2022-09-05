@@ -21,7 +21,6 @@ import "../../interfaces/IBoostPool.sol";
  * @title ConfigHelper
  * @notice A convenience library for getting easy access to other contracts and constants within the
  *  protocol, through the use of the NAOSConfig contract
- * @author Goldfinch
  */
 
 library ConfigHelper {
@@ -30,11 +29,11 @@ library ConfigHelper {
   }
 
   function getIndexPool(NAOSConfig config) internal view returns (IIndexPool) {
-    return IIndexPool(seniorPoolAddress(config));
+    return IIndexPool(indexPoolAddress(config));
   }
 
   function getIndexPoolStrategy(NAOSConfig config) internal view returns (IIndexPoolStrategy) {
-    return IIndexPoolStrategy(seniorPoolStrategyAddress(config));
+    return IIndexPoolStrategy(indexPoolStrategyAddress(config));
   }
 
   function getUSDC(NAOSConfig config) internal view returns (IERC20withDec) {
@@ -42,7 +41,7 @@ library ConfigHelper {
   }
 
   function getRWA(NAOSConfig config) internal view returns (IRWA) {
-    return IRWA(fiduAddress(config));
+    return IRWA(rwaAddress(config));
   }
 
   function getNAOS(NAOSConfig config) internal view returns (IERC20) {
@@ -54,15 +53,15 @@ library ConfigHelper {
   }
 
   function getJuniorRewards(NAOSConfig config) internal view returns (IJuniorRewards) {
-    return IJuniorRewards(backerRewardsAddress(config));
+    return IJuniorRewards(juniorRewardsAddress(config));
   }
 
-  function getNAOSFactory (NAOSConfig config) internal view returns (INAOSFactory ) {
-    return INAOSFactory (goldfinchFactoryAddress(config));
+  function getNAOSFactory(NAOSConfig config) internal view returns (INAOSFactory) {
+    return INAOSFactory(goldfinchFactoryAddress(config));
   }
 
-  function getVerified(NAOSConfig config) internal view returns (IGo) {
-    return IGo(goAddress(config));
+  function getVerified(NAOSConfig config) internal view returns (IVerified) {
+    return IVerified(verifiedAddress(config));
   }
 
   function getBoostPool(NAOSConfig config) internal view returns (IBoostPool) {
@@ -89,23 +88,23 @@ library ConfigHelper {
     return config.getAddress(uint256(ConfigOptions.Addresses.PoolTokens));
   }
 
-  function backerRewardsAddress(NAOSConfig config) internal view returns (address) {
+  function juniorRewardsAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.JuniorRewards));
   }
 
-  function seniorPoolAddress(NAOSConfig config) internal view returns (address) {
+  function indexPoolAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.IndexPool));
   }
 
-  function seniorPoolStrategyAddress(NAOSConfig config) internal view returns (address) {
+  function indexPoolStrategyAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.IndexPoolStrategy));
   }
 
   function goldfinchFactoryAddress(NAOSConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.NAOSFactory ));
+    return config.getAddress(uint256(ConfigOptions.Addresses.NAOSFactory));
   }
 
-  function fiduAddress(NAOSConfig config) internal view returns (address) {
+  function rwaAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.RWA));
   }
 
@@ -117,7 +116,7 @@ library ConfigHelper {
     return config.getAddress(uint256(ConfigOptions.Addresses.NAOS));
   }
 
-  function tranchedPoolAddress(NAOSConfig config) internal view returns (address) {
+  function juniorPoolAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.JuniorPoolImplementation));
   }
 
@@ -129,7 +128,7 @@ library ConfigHelper {
     return config.getAddress(uint256(ConfigOptions.Addresses.ProtocolAdmin));
   }
 
-  function goAddress(NAOSConfig config) internal view returns (address) {
+  function verifiedAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.Go));
   }
 

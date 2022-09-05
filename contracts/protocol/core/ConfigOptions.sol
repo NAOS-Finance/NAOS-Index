@@ -6,7 +6,6 @@ pragma experimental ABIEncoderV2;
 /**
  * @title ConfigOptions
  * @notice A central place for enumerating the configurable options of our NAOSConfig contract
- * @author Goldfinch
  */
 
 library ConfigOptions {
@@ -24,7 +23,7 @@ library ConfigOptions {
   enum Addresses {
     Pool,
     CreditLineImplementation,
-    NAOSFactory ,
+    NAOSFactory,
     RWA,
     USDC,
     TreasuryReserve,

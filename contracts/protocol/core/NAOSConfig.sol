@@ -14,7 +14,6 @@ import "./ConfigOptions.sol";
  *  are enumerated in the `ConfigOptions` library, and can only be changed by admins of the protocol.
  *  Note: While this inherits from BaseUpgradeablePausable, it is not deployed as an upgradeable contract (this
  *    is mostly to save gas costs of having each call go through a proxy)
- * @author Goldfinch
  */
 
 contract NAOSConfig is BaseUpgradeablePausable {
