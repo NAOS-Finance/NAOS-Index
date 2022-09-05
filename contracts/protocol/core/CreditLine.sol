@@ -106,7 +106,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   }
 
   /**
-   * @notice Migrates to a new goldfinch config address
+   * @notice Migrates to a new naos config address
    */
   function updateNAOSConfig() external onlyAdmin {
     config = NAOSConfig(config.configAddress());
