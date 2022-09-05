@@ -4,7 +4,7 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "../../interfaces/IV2CreditLine.sol";
-import "../../interfaces/ITranchedPool.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "../../interfaces/IPoolTokens.sol";
 import "../../external/FixedPoint.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
@@ -13,7 +13,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 /**
  * @title TranchingLogic
  * @notice Library for handling the payments waterfall
- * @author Goldfinch
  */
 
 library TranchingLogic {
@@ -42,7 +41,7 @@ library TranchingLogic {
   }
 
   function redeemableInterestAndPrincipal(
-    ITranchedPool.TrancheInfo storage trancheInfo,
+    IJuniorPool.TrancheInfo storage trancheInfo,
     IPoolTokens.TokenInfo memory tokenInfo
   ) public view returns (uint256 interestRedeemable, uint256 principalRedeemable) {
     // This supports withdrawing before or after locking because principal share price starts at 1
@@ -59,16 +58,16 @@ library TranchingLogic {
   }
 
   function calculateExpectedSharePrice(
-    ITranchedPool.TrancheInfo memory tranche,
+    IJuniorPool.TrancheInfo memory tranche,
     uint256 amount,
-    ITranchedPool.PoolSlice memory slice
+    IJuniorPool.PoolSlice memory slice
   ) public pure returns (uint256) {
     uint256 sharePrice = usdcToSharePrice(amount, tranche.principalDeposited);
     return scaleByPercentOwnership(tranche, sharePrice, slice);
   }
 
   function scaleForSlice(
-    ITranchedPool.PoolSlice memory slice,
+    IJuniorPool.PoolSlice memory slice,
     uint256 amount,
     uint256 totalDeployed
   ) public pure returns (uint256) {
@@ -77,18 +76,18 @@ library TranchingLogic {
 
   // We need to create this struct so we don't run into a stack too deep error due to too many variables
   function getSliceInfo(
-    ITranchedPool.PoolSlice memory slice,
+    IJuniorPool.PoolSlice memory slice,
     IV2CreditLine creditLine,
     uint256 totalDeployed,
     uint256 reserveFeePercent
-  ) public view returns (ITranchedPool.SliceInfo memory) {
+  ) public view returns (IJuniorPool.SliceInfo memory) {
     (uint256 interestAccrued, uint256 principalAccrued) = getTotalInterestAndPrincipal(
       slice,
       creditLine,
       totalDeployed
     );
     return
-      ITranchedPool.SliceInfo({
+      IJuniorPool.SliceInfo({
         reserveFeePercent: reserveFeePercent,
         interestAccrued: interestAccrued,
         principalAccrued: principalAccrued
@@ -96,7 +95,7 @@ library TranchingLogic {
   }
 
   function getTotalInterestAndPrincipal(
-    ITranchedPool.PoolSlice memory slice,
+    IJuniorPool.PoolSlice memory slice,
     IV2CreditLine creditLine,
     uint256 totalDeployed
   ) public view returns (uint256 interestAccrued, uint256 principalAccrued) {
@@ -126,17 +125,17 @@ library TranchingLogic {
   }
 
   function applyToAllSeniorTranches(
-    ITranchedPool.PoolSlice[] storage poolSlices,
+    IJuniorPool.PoolSlice[] storage poolSlices,
     uint256 interest,
     uint256 principal,
     uint256 reserveFeePercent,
     uint256 totalDeployed,
     IV2CreditLine creditLine,
     uint256 juniorFeePercent
-  ) public returns (ITranchedPool.ApplyResult memory) {
-    ITranchedPool.ApplyResult memory seniorApplyResult;
+  ) public returns (IJuniorPool.ApplyResult memory) {
+    IJuniorPool.ApplyResult memory seniorApplyResult;
     for (uint256 i = 0; i < poolSlices.length; i++) {
-      ITranchedPool.SliceInfo memory sliceInfo = getSliceInfo(
+      IJuniorPool.SliceInfo memory sliceInfo = getSliceInfo(
         poolSlices[i],
         creditLine,
         totalDeployed,
@@ -145,7 +144,7 @@ library TranchingLogic {
 
       // Since slices cannot be created when the loan is late, all interest collected can be assumed to split
       // pro-rata across the slices. So we scale the interest and principal to the slice
-      ITranchedPool.ApplyResult memory applyResult = applyToSeniorTranche(
+      IJuniorPool.ApplyResult memory applyResult = applyToSeniorTranche(
         poolSlices[i],
         scaleForSlice(poolSlices[i], interest, totalDeployed),
         scaleForSlice(poolSlices[i], principal, totalDeployed),
@@ -161,7 +160,7 @@ library TranchingLogic {
   }
 
   function applyToAllJuniorTranches(
-    ITranchedPool.PoolSlice[] storage poolSlices,
+    IJuniorPool.PoolSlice[] storage poolSlices,
     uint256 interest,
     uint256 principal,
     uint256 reserveFeePercent,
@@ -169,14 +168,14 @@ library TranchingLogic {
     IV2CreditLine creditLine
   ) public returns (uint256 totalReserveAmount) {
     for (uint256 i = 0; i < poolSlices.length; i++) {
-      ITranchedPool.SliceInfo memory sliceInfo = getSliceInfo(
+      IJuniorPool.SliceInfo memory sliceInfo = getSliceInfo(
         poolSlices[i],
         creditLine,
         totalDeployed,
         reserveFeePercent
       );
       // Any remaining interest and principal is then shared pro-rata with the junior slices
-      ITranchedPool.ApplyResult memory applyResult = applyToJuniorTranche(
+      IJuniorPool.ApplyResult memory applyResult = applyToJuniorTranche(
         poolSlices[i],
         scaleForSlice(poolSlices[i], interest, totalDeployed),
         scaleForSlice(poolSlices[i], principal, totalDeployed),
@@ -189,8 +188,8 @@ library TranchingLogic {
   }
 
   function emitSharePriceUpdatedEvent(
-    ITranchedPool.TrancheInfo memory tranche,
-    ITranchedPool.ApplyResult memory applyResult
+    IJuniorPool.TrancheInfo memory tranche,
+    IJuniorPool.ApplyResult memory applyResult
   ) internal {
     emit SharePriceUpdated(
       address(this),
@@ -203,12 +202,12 @@ library TranchingLogic {
   }
 
   function applyToSeniorTranche(
-    ITranchedPool.PoolSlice storage slice,
+    IJuniorPool.PoolSlice storage slice,
     uint256 interestRemaining,
     uint256 principalRemaining,
     uint256 juniorFeePercent,
-    ITranchedPool.SliceInfo memory sliceInfo
-  ) public returns (ITranchedPool.ApplyResult memory) {
+    IJuniorPool.SliceInfo memory sliceInfo
+  ) public returns (IJuniorPool.ApplyResult memory) {
     // First determine the expected share price for the senior tranche. This is the gross amount the senior
     // tranche should receive.
     uint256 expectedInterestSharePrice = calculateExpectedSharePrice(
@@ -242,7 +241,7 @@ library TranchingLogic {
       expectedPrincipalSharePrice
     );
     return
-      ITranchedPool.ApplyResult({
+      IJuniorPool.ApplyResult({
         interestRemaining: interestRemaining,
         principalRemaining: principalRemaining,
         reserveDeduction: reserveDeduction,
@@ -252,11 +251,11 @@ library TranchingLogic {
   }
 
   function applyToJuniorTranche(
-    ITranchedPool.PoolSlice storage slice,
+    IJuniorPool.PoolSlice storage slice,
     uint256 interestRemaining,
     uint256 principalRemaining,
-    ITranchedPool.SliceInfo memory sliceInfo
-  ) public returns (ITranchedPool.ApplyResult memory) {
+    IJuniorPool.SliceInfo memory sliceInfo
+  ) public returns (IJuniorPool.ApplyResult memory) {
     // Then fill up the junior tranche with all the interest remaining, upto the principal share price
     uint256 expectedInterestSharePrice = slice.juniorTranche.interestSharePrice.add(
       usdcToSharePrice(interestRemaining, slice.juniorTranche.principalDeposited)
@@ -293,7 +292,7 @@ library TranchingLogic {
       0
     );
     return
-      ITranchedPool.ApplyResult({
+      IJuniorPool.ApplyResult({
         interestRemaining: interestRemaining,
         principalRemaining: principalRemaining,
         reserveDeduction: reserveDeduction,
@@ -303,7 +302,7 @@ library TranchingLogic {
   }
 
   function applyBySharePrice(
-    ITranchedPool.TrancheInfo storage tranche,
+    IJuniorPool.TrancheInfo storage tranche,
     uint256 interestRemaining,
     uint256 principalRemaining,
     uint256 desiredInterestSharePrice,
@@ -323,7 +322,7 @@ library TranchingLogic {
   }
 
   function applyByAmount(
-    ITranchedPool.TrancheInfo storage tranche,
+    IJuniorPool.TrancheInfo storage tranche,
     uint256 interestRemaining,
     uint256 principalRemaining,
     uint256 desiredInterestAmount,
@@ -406,9 +405,9 @@ library TranchingLogic {
   }
 
   function scaleByPercentOwnership(
-    ITranchedPool.TrancheInfo memory tranche,
+    IJuniorPool.TrancheInfo memory tranche,
     uint256 amount,
-    ITranchedPool.PoolSlice memory slice
+    IJuniorPool.PoolSlice memory slice
   ) public pure returns (uint256) {
     uint256 totalDeposited = slice.juniorTranche.principalDeposited.add(slice.seniorTranche.principalDeposited);
     return scaleByFraction(amount, tranche.principalDeposited, totalDeposited);

@@ -11,11 +11,11 @@ import {FixedPointMath} from "../library/FixedPointMath.sol";
 import {Pool} from "../library/indexStakingPool/Pool.sol";
 import {Stake} from "../library/indexStakingPool/Stake.sol";
 import {IBoostPool} from "../interfaces/IBoostPool.sol";
-import {ISeniorPool} from "../interfaces/ISeniorPool.sol";
+import {IIndexPool} from "../interfaces/IIndexPool.sol";
 import {IERC20withDec} from "../interfaces/IERC20withDec.sol";
-import {IGoldfinchConfig} from "../interfaces/IGoldfinchConfig.sol";
+import {INAOSConfig} from "../interfaces/INAOSConfig.sol";
 import {ConfigHelper} from "../protocol/core/ConfigHelper.sol";
-import {GoldfinchConfig} from "../protocol/core/GoldfinchConfig.sol";
+import {NAOSConfig} from "../protocol/core/NAOSConfig.sol";
 
 /// @title IndexStakingPool
 /// @dev A contract which allows users to stake to farm tokens.
@@ -29,7 +29,7 @@ contract IndexStakingPool is ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using Stake for Stake.Data;
-    using ConfigHelper for GoldfinchConfig;
+    using ConfigHelper for NAOSConfig;
 
     event PendingGovernanceUpdated(address pendingGovernance);
 
@@ -133,9 +133,9 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @param _config The config of the pool.
     ///
     /// @return _poolId the identifier for the newly created pool.
-    function createPool(GoldfinchConfig _config) external onlyGovernance returns (uint256) {
+    function createPool(NAOSConfig _config) external onlyGovernance returns (uint256) {
         require(address(_config) != address(0), "config address cannot be 0x0");
-        IERC20withDec _token = _config.getFidu();
+        IERC20withDec _token = _config.getRWA();
         require(tokenPoolIds[_token] == 0, "config already has a pool");
 
         uint256 _poolId = _pools.length();
@@ -206,7 +206,7 @@ contract IndexStakingPool is ReentrancyGuard {
         _deposit(_poolId, _depositAmount);
     }
 
-    /// @notice Deposit to SeniorPool and stake your shares in the same transaction.
+    /// @notice Deposit to IndexPool and stake your shares in the same transaction.
     /// @param _usdcAmount The amount of USDC to deposit into the senior pool. All shares from deposit
     /// @param _poolId The pool id
     ///   will be staked.
@@ -214,8 +214,8 @@ contract IndexStakingPool is ReentrancyGuard {
         Pool.Data storage _pool = _pools.get(_poolId);
         _pool.update(_ctx);
 
-        uint256 fiduAmount = _depositToSeniorPool(_usdcAmount, _pool);
-        _deposit(_poolId, fiduAmount);
+        uint256 rwaAmount = _depositToIndexPool(_usdcAmount, _pool);
+        _deposit(_poolId, rwaAmount);
     }
 
     /// @notice Identical to `depositAndStake`, except it allows for a signature to be passed that permits
@@ -234,7 +234,7 @@ contract IndexStakingPool is ReentrancyGuard {
         bytes32 _s
     ) external {
         Pool.Data storage _pool = _pools.get(_poolId);
-        GoldfinchConfig config = _pool.config;
+        NAOSConfig config = _pool.config;
         IERC20withDec(config.getUSDC()).permit(msg.sender, address(this), _usdcAmount, _deadline, _v, _r, _s);
         depositAndStake(_usdcAmount, _poolId);
     }
@@ -330,7 +330,7 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @return the token.
     function getPoolToken(uint256 _poolId) external view returns (IERC20withDec) {
         Pool.Data storage _pool = _pools.get(_poolId);
-        IERC20withDec token = _pool.config.getFidu();
+        IERC20withDec token = _pool.config.getRWA();
         return token;
     }
 
@@ -503,7 +503,7 @@ contract IndexStakingPool is ReentrancyGuard {
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
-        IERC20withDec token = _pool.config.getFidu();
+        IERC20withDec token = _pool.config.getRWA();
 
         require(token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
 
@@ -520,7 +520,7 @@ contract IndexStakingPool is ReentrancyGuard {
         _stake.totalDeposited = _stake.totalDeposited.sub(_withdrawAmount);
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
-        IERC20withDec token = _pool.config.getFidu();
+        IERC20withDec token = _pool.config.getRWA();
 
         require(token.transfer(msg.sender, _withdrawAmount), "token transfer failed");
 
@@ -572,14 +572,14 @@ contract IndexStakingPool is ReentrancyGuard {
     ///
     /// @param _usdcAmount The USDC amount
     /// @param _pool The user pool struct
-    function _depositToSeniorPool(uint256 _usdcAmount, Pool.Data storage _pool) internal returns (uint256 fiduAmount) {
-        GoldfinchConfig config = _pool.config;
-        require(config.getGo().goSeniorPool(msg.sender), "This address has not been go-listed");
+    function _depositToIndexPool(uint256 _usdcAmount, Pool.Data storage _pool) internal returns (uint256 rwaAmount) {
+        NAOSConfig config = _pool.config;
+        require(config.getVerified().verifyIndexPool(msg.sender), "This address has not been go-listed");
         IERC20withDec usdc = config.getUSDC();
         usdc.transferFrom(msg.sender, address(this), _usdcAmount);
 
-        ISeniorPool seniorPool = config.getSeniorPool();
-        usdc.approve(address(seniorPool), _usdcAmount);
-        return seniorPool.deposit(_usdcAmount);
+        IIndexPool indexPool = config.getIndexPool();
+        usdc.approve(address(indexPool), _usdcAmount);
+        return indexPool.deposit(_usdcAmount);
     }
 }

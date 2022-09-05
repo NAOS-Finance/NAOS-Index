@@ -6,7 +6,6 @@ import "../../interfaces/IUniqueIdentity.sol";
 
 /**
  * @title UniqueIdentity
- * @author Naos Finance
  */
 
 contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
@@ -25,81 +24,11 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
   uint256 public constant ID_TYPE_9 = 9;
   uint256 public constant ID_TYPE_10 = 10;
 
-  // uint256 public constant MINT_COST_PER_TOKEN = 830000 gwei;
-
   /// @dev We include a nonce in every hashed message, and increment the nonce as part of a
   /// state-changing operation, so as to prevent replay attacks, i.e. the reuse of a signature.
   mapping(address => uint256) public nonces;
   mapping(uint256 => bool) public supportedUIDTypes;
   mapping(address => mapping(uint256 => uint256)) public expiration;
-
-  function initialize(address owner, string memory uri) public initializer {
-    require(owner != address(0), "Owner address cannot be empty");
-
-    __BaseUpgradeablePausable__init(owner);
-    __UniqueIdentity_init(owner);
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function __UniqueIdentity_init(address owner) internal initializer {
-    __UniqueIdentity_init_unchained(owner);
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function __UniqueIdentity_init_unchained(address owner) internal initializer {
-    _setupRole(SIGNER_ROLE, owner);
-    _setRoleAdmin(SIGNER_ROLE, OWNER_ROLE);
-  }
-
-  function setSupportedUIDTypes(uint256[] calldata ids, bool[] calldata values) public onlyAdmin {
-    require(ids.length == values.length, "accounts and ids length mismatch");
-    for (uint256 i = 0; i < ids.length; ++i) {
-      supportedUIDTypes[ids[i]] = values[i];
-    }
-  }
-
-  /**
-   * @dev Gets the token name.
-   * @return string representing the token name
-   */
-  function name() public pure returns (string memory) {
-    return "Unique Identity";
-  }
-
-  /**
-   * @dev Gets the token symbol.
-   * @return string representing the token symbol
-   */
-  function symbol() public pure returns (string memory) {
-    return "UID";
-  }
-
-  function mint(
-    uint256 id,
-    uint256 expiresAt,
-    bytes calldata signature
-  ) public override onlySigner(_msgSender(), id, expiresAt, signature) incrementNonce(_msgSender()) {
-    require(supportedUIDTypes[id] == true, "Token id not supported");
-    require(expiration[_msgSender()][id] == 0, "Expiration before must be 0");
-    require(expiresAt > block.timestamp, "Expiration must be bigger than current timestamp");
-
-    _updateExpiration(_msgSender(), id, expiresAt);
-  }
-
-  function _updateExpiration(address to, uint256 id, uint256 expiresAt) internal {
-    expiration[_msgSender()][id] = expiresAt;
-  }
-
-  function burn(
-    address account,
-    uint256 id,
-    uint256 expiresAt,
-    bytes calldata signature
-  ) public override onlySigner(account, id, expiresAt, signature) incrementNonce(account) {
-    require(expiresAt > block.timestamp, "Expiration must be bigger than current time");
-
-    _updateExpiration(_msgSender(), id, 0);
-  }
 
   modifier onlySigner(
     address account,
@@ -124,6 +53,71 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
   modifier incrementNonce(address account) {
     nonces[account] += 1;
     _;
+  }
+
+  function initialize(address owner) public initializer {
+    require(owner != address(0), "Owner address cannot be empty");
+
+    __BaseUpgradeablePausable__init(owner);
+    __UniqueIdentity_init(owner);
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function __UniqueIdentity_init(address owner) internal initializer {
+    __UniqueIdentity_init_unchained(owner);
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function __UniqueIdentity_init_unchained(address owner) internal initializer {
+    _setupRole(SIGNER_ROLE, owner);
+    _setRoleAdmin(SIGNER_ROLE, OWNER_ROLE);
+  }
+
+  function setSupportedUIDTypes(uint256[] calldata ids, bool[] calldata values) public onlyAdmin {
+    require(ids.length == values.length, "accounts and ids length mismatch");
+    for (uint256 i = 0; i < ids.length; ++i) {
+      supportedUIDTypes[ids[i]] = values[i];
+    }
+  }
+
+  function mint(
+    uint256 id,
+    uint256 expiresAt,
+    bytes calldata signature
+  ) public override onlySigner(_msgSender(), id, expiresAt, signature) incrementNonce(_msgSender()) {
+    require(supportedUIDTypes[id] == true, "Token id not supported");
+    require(expiration[_msgSender()][id] == 0, "Expiration before must be 0");
+    require(expiresAt > block.timestamp, "Expiration must be bigger than current timestamp");
+
+    _updateExpiration(_msgSender(), id, expiresAt);
+  }
+
+  function burn(
+    address account,
+    uint256 id,
+    uint256 expiresAt,
+    bytes calldata signature
+  ) public override onlySigner(account, id, expiresAt, signature) incrementNonce(account) {
+    require(expiresAt > block.timestamp, "Expiration must be bigger than current time");
+
+    _updateExpiration(account, id, 0);
+  }
+
+  function updateExpiration(address account, uint256 id, uint256 expiresAt) external onlyAdmin incrementNonce(account) {
+    _updateExpiration(account, id, expiresAt);
+  }
+
+  function updateExpirations(address[] calldata accounts, uint256[] calldata ids, uint256[] calldata expiresAts) external onlyAdmin {
+    require(accounts.length == ids.length, "accounts and ids length mismatch");
+    require(ids.length == expiresAts.length, "expireAts and ids length mismatch");
+    for (uint256 i = 0; i < accounts.length; ++i) {
+      nonces[accounts[i]] += 1;
+      _updateExpiration(accounts[i], ids[i], expiresAts[i]);
+    }
+  }
+
+  function _updateExpiration(address account, uint256 id, uint256 expiresAt) internal {
+    expiration[account][id] = expiresAt;
   }
 
   function tryRecover(

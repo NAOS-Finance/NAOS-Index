@@ -6,22 +6,21 @@ import "@openzeppelin/contracts-ethereum-package/contracts/presets/ERC20PresetMi
 import "./ConfigHelper.sol";
 
 /**
- * @title Fidu
- * @notice Fidu (symbol: FIDU) is Goldfinch's liquidity token, representing shares
- *  in the Pool. When you deposit, we mint a corresponding amount of Fidu, and when you withdraw, we
- *  burn Fidu. The share price of the Pool implicitly represents the "exchange rate" between Fidu
+ * @title RWA
+ * @notice RWA (symbol: rwa) is NAOS's liquidity token, representing shares
+ *  in the Pool. When you deposit, we mint a corresponding amount of RWA, and when you withdraw, we
+ *  burn RWA. The share price of the Pool implicitly represents the "exchange rate" between RWA
  *  and USDC (or whatever currencies the Pool may allow withdraws in during the future)
- * @author Goldfinch
  */
 
-contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
+contract RWA is ERC20PresetMinterPauserUpgradeSafe {
   bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
 
   uint256 public usdDecimals;
 
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
 
   /*
     We are using our own initializer function so we can set the owner by passing it in.
@@ -33,7 +32,7 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     address owner,
     string calldata name,
     string calldata symbol,
-    GoldfinchConfig _config
+    NAOSConfig _config
   ) external initializer {
     __Context_init_unchained();
     __AccessControl_init_unchained();
@@ -92,10 +91,10 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
 
   // canMint assumes that the USDC that backs the new shares has already been sent to the Pool
   function canMint(uint256 newAmount) internal view returns (bool) {
-    ISeniorPool seniorPool = config.getSeniorPool();
-    uint256 liabilities = totalSupply().add(newAmount).mul(seniorPool.sharePrice()).div(fiduMantissa());
-    uint256 liabilitiesInDollars = fiduToUSDC(liabilities);
-    uint256 _assets = seniorPool.assets();
+    IIndexPool indexPool = config.getIndexPool();
+    uint256 liabilities = totalSupply().add(newAmount).mul(indexPool.sharePrice()).div(rwaMantissa());
+    uint256 liabilitiesInDollars = rwaToUSDC(liabilities);
+    uint256 _assets = indexPool.assets();
     if (_assets >= liabilitiesInDollars) {
       return true;
     } else {
@@ -105,10 +104,10 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
 
   // canBurn assumes that the USDC that backed these shares has already been moved out the Pool
   function canBurn(uint256 amountToBurn) internal view returns (bool) {
-    ISeniorPool seniorPool = config.getSeniorPool();
-    uint256 liabilities = totalSupply().sub(amountToBurn).mul(seniorPool.sharePrice()).div(fiduMantissa());
-    uint256 liabilitiesInDollars = fiduToUSDC(liabilities);
-    uint256 _assets = seniorPool.assets();
+    IIndexPool indexPool = config.getIndexPool();
+    uint256 liabilities = totalSupply().sub(amountToBurn).mul(indexPool.sharePrice()).div(rwaMantissa());
+    uint256 liabilitiesInDollars = rwaToUSDC(liabilities);
+    uint256 _assets = indexPool.assets();
     if (_assets >= liabilitiesInDollars) {
       return true;
     } else {
@@ -116,11 +115,11 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     }
   }
 
-  function fiduToUSDC(uint256 amount) internal view returns (uint256) {
-    return amount.div(fiduMantissa().div(usdcMantissa()));
+  function rwaToUSDC(uint256 amount) internal view returns (uint256) {
+    return amount.div(rwaMantissa().div(usdcMantissa()));
   }
 
-  function fiduMantissa() internal pure returns (uint256) {
+  function rwaMantissa() internal pure returns (uint256) {
     return uint256(10)**uint256(18);
   }
 
@@ -128,9 +127,9 @@ contract Fidu is ERC20PresetMinterPauserUpgradeSafe {
     return uint256(10)**usdDecimals;
   }
 
-  function updateGoldfinchConfig() external {
+  function updateNAOSConfig() external {
     require(hasRole(OWNER_ROLE, _msgSender()), "ERC20PresetMinterPauser: Must have minter role to change config");
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 }

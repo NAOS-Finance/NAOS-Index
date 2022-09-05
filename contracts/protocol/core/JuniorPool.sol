@@ -7,19 +7,19 @@ import "@openzeppelin/contracts/drafts/IERC20Permit.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
-import "../../interfaces/ITranchedPool.sol";
+import "../../interfaces/IJuniorPool.sol";
 import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/IV2CreditLine.sol";
 import "../../interfaces/IPoolTokens.sol";
-import "./GoldfinchConfig.sol";
+import "./NAOSConfig.sol";
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
 import "../../library/SafeERC20Transfer.sol";
 import "./TranchingLogic.sol";
 
-contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transfer {
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
   using TranchingLogic for PoolSlice;
   using TranchingLogic for TrancheInfo;
 
@@ -46,8 +46,8 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
     uint256 principalWithdrawn
   );
 
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
-  event TranchedPoolAssessed(address indexed pool);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
+  event JuniorPoolAssessed(address indexed pool);
   event PaymentApplied(
     address indexed payer,
     address indexed pool,
@@ -90,7 +90,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
   ) public override initializer {
     require(address(_config) != address(0) && address(_borrower) != address(0), "Config/borrower invalid");
 
-    config = GoldfinchConfig(_config);
+    config = NAOSConfig(_config);
     address owner = config.protocolAdminAddress();
     require(owner != address(0), "Owner invalid");
     __BaseUpgradeablePausable__init(owner);
@@ -108,7 +108,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
     createdAt = block.timestamp;
     juniorFeePercent = _juniorFeePercent;
     if (_allowedUIDTypes.length == 0) {
-      uint256[1] memory defaultAllowedUIDTypes = [config.getGo().ID_TYPE_0()];
+      uint256[1] memory defaultAllowedUIDTypes = [config.getVerified().ID_TYPE_0()];
       allowedUIDTypes = defaultAllowedUIDTypes;
     } else {
       allowedUIDTypes = _allowedUIDTypes;
@@ -120,7 +120,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
     _setRoleAdmin(SENIOR_ROLE, OWNER_ROLE);
 
     // Give the senior pool the ability to deposit into the senior pool
-    _setupRole(SENIOR_ROLE, address(config.getSeniorPool()));
+    _setupRole(SENIOR_ROLE, address(config.getIndexPool()));
 
     // Unlock self for infinite amount
     bool success = config.getUSDC().approve(address(this), uint256(-1));
@@ -151,7 +151,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
     TrancheInfo storage trancheInfo = getTrancheInfo(tranche);
     require(trancheInfo.lockedUntil == 0, "Tranche locked");
     require(amount > 0, "Must deposit > zero");
-    require(config.getGo().goOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
+    require(config.getVerified().verifyOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
     require(block.timestamp > fundableAt, "Not open for funding");
     // senior tranche ids are always odd numbered
     if (_isSeniorTrancheId(trancheInfo.id)) {
@@ -341,12 +341,12 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
   }
 
   /**
-   * @notice Migrates to a new goldfinch config address
+   * @notice Migrates to a new naos config address
    */
-  function updateGoldfinchConfig() external onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    creditLine.updateGoldfinchConfig();
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+  function updateNAOSConfig() external onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    creditLine.updateNAOSConfig();
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 
   /**
@@ -540,7 +540,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
     uint256 amount
   ) internal returns (uint256 interestWithdrawn, uint256 principalWithdrawn) {
     require(config.getPoolTokens().isApprovedOrOwner(msg.sender, tokenId), "Not token owner");
-    require(config.getGo().goOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
+    require(config.getVerified().verifyOnlyIdTypes(msg.sender, allowedUIDTypes), "Address not go-listed");
     require(amount > 0, "Must withdraw more than zero");
     (uint256 interestRedeemable, uint256 principalRedeemable) = redeemableInterestAndPrincipal(trancheInfo, tokenInfo);
     uint256 netRedeemable = interestRedeemable.add(principalRedeemable);
@@ -700,7 +700,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
     uint256 _lateFeeApr,
     uint256 _principalGracePeriodInDays
   ) internal {
-    address _creditLine = config.getGoldfinchFactory().createCreditLine();
+    address _creditLine = config.getNAOSFactory().createCreditLine();
     creditLine = IV2CreditLine(_creditLine);
     creditLine.initialize(
       address(config),
@@ -784,7 +784,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
         totalDeployed = totalDeployed.sub(principalPaymentsPerSlice[i]);
       }
 
-      config.getBackerRewards().allocateRewards(interestPayment);
+      config.getJuniorRewards().allocateRewards(interestPayment);
 
       emit PaymentApplied(
         creditLine.borrower(),
@@ -795,7 +795,7 @@ contract TranchedPool is BaseUpgradeablePausable, ITranchedPool, SafeERC20Transf
         reserveAmount
       );
     }
-    emit TranchedPoolAssessed(address(this));
+    emit JuniorPoolAssessed(address(this));
   }
 
   modifier onlyLocker() {

@@ -7,24 +7,24 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
-import "../../interfaces/IGo.sol";
+import "../../interfaces/IVerified.sol";
 import "../../interfaces/IUniqueIdentity0612.sol";
 
-contract Go is IGo, BaseUpgradeablePausable {
+contract Verified is IVerified, BaseUpgradeablePausable {
   address public override uniqueIdentity;
 
   using SafeMath for uint256;
 
-  GoldfinchConfig public config;
-  using ConfigHelper for GoldfinchConfig;
+  NAOSConfig public config;
+  using ConfigHelper for NAOSConfig;
 
-  GoldfinchConfig public legacyGoList;
+  NAOSConfig public legacyGoList;
   uint256[11] public allIdTypes;
-  event GoldfinchConfigUpdated(address indexed who, address configAddress);
+  event NAOSConfigUpdated(address indexed who, address configAddress);
 
   function initialize(
     address owner,
-    GoldfinchConfig _config,
+    NAOSConfig _config,
     address _uniqueIdentity
   ) public initializer {
     require(
@@ -37,9 +37,9 @@ contract Go is IGo, BaseUpgradeablePausable {
     uniqueIdentity = _uniqueIdentity;
   }
 
-  function updateGoldfinchConfig() external override onlyAdmin {
-    config = GoldfinchConfig(config.configAddress());
-    emit GoldfinchConfigUpdated(msg.sender, address(config));
+  function updateNAOSConfig() external override onlyAdmin {
+    config = NAOSConfig(config.configAddress());
+    emit NAOSConfigUpdated(msg.sender, address(config));
   }
 
   function performUpgrade() external onlyAdmin {
@@ -65,20 +65,20 @@ contract Go is IGo, BaseUpgradeablePausable {
    * list instead of the config currently associated. To use the associated config for to list, set the override
    * to the null address.
    */
-  function setLegacyGoList(GoldfinchConfig _legacyGoList) external onlyAdmin {
+  function setLegacyGoList(NAOSConfig _legacyGoList) external onlyAdmin {
     legacyGoList = _legacyGoList;
   }
 
   /**
-   * @notice Returns whether the provided account is go-listed for use of the Goldfinch protocol
+   * @notice Returns whether the provided account is go-listed for use of the NAOS protocol
    * for any of the UID token types.
    * This status is defined as: whether `balanceOf(account, id)` on the UniqueIdentity
    * contract is non-zero (where `id` is a supported token id on UniqueIdentity), falling back to the
-   * account's status on the legacy go-list maintained on GoldfinchConfig.
+   * account's status on the legacy go-list maintained on NAOSConfig.
    * @param account The account whose go status to obtain
    * @return The account's go status
    */
-  function go(address account) public view override returns (bool) {
+  function verify(address account) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
 
     if (_getLegacyGoList().goList(account) || IUniqueIdentity0612(uniqueIdentity).expiration(account, ID_TYPE_0) > block.timestamp) {
@@ -96,15 +96,15 @@ contract Go is IGo, BaseUpgradeablePausable {
   }
 
   /**
-   * @notice Returns whether the provided account is go-listed for use of the Goldfinch protocol
+   * @notice Returns whether the provided account is go-listed for use of the NAOS protocol
    * for defined UID token types
    * @param account The account whose go status to obtain
    * @param onlyIdTypes Array of id types to check balances
    * @return The account's go status
    */
-  function goOnlyIdTypes(address account, uint256[] memory onlyIdTypes) public view override returns (bool) {
+  function verifyOnlyIdTypes(address account, uint256[] memory onlyIdTypes) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
-    GoldfinchConfig goListSource = _getLegacyGoList();
+    NAOSConfig goListSource = _getLegacyGoList();
     for (uint256 i = 0; i < onlyIdTypes.length; ++i) {
       if (onlyIdTypes[i] == ID_TYPE_0 && goListSource.goList(account)) {
         return true;
@@ -118,18 +118,18 @@ contract Go is IGo, BaseUpgradeablePausable {
   }
 
   /**
-   * @notice Returns whether the provided account is go-listed for use of the SeniorPool on the Goldfinch protocol.
+   * @notice Returns whether the provided account is go-listed for use of the IndexPool on the NAOS protocol.
    * @param account The account whose go status to obtain
    * @return The account's go status
    */
-  function goSeniorPool(address account) public view override returns (bool) {
+  function verifyIndexPool(address account) public view override returns (bool) {
     require(account != address(0), "Zero address is not go-listed");
     if (account == config.stakingRewardsAddress() || _getLegacyGoList().goList(account)) {
       return true;
     }
-    uint256[2] memory seniorPoolIdTypes = [ID_TYPE_0, ID_TYPE_1];
-    for (uint256 i = 0; i < seniorPoolIdTypes.length; ++i) {
-      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, seniorPoolIdTypes[i]);
+    uint256[2] memory indexPoolIdTypes = [ID_TYPE_0, ID_TYPE_1];
+    for (uint256 i = 0; i < indexPoolIdTypes.length; ++i) {
+      uint256 idTypeExpiration = IUniqueIdentity0612(uniqueIdentity).expiration(account, indexPoolIdTypes[i]);
       if (idTypeExpiration > block.timestamp) {
         return true;
       }
@@ -137,7 +137,7 @@ contract Go is IGo, BaseUpgradeablePausable {
     return false;
   }
 
-  function _getLegacyGoList() internal view returns (GoldfinchConfig) {
+  function _getLegacyGoList() internal view returns (NAOSConfig) {
     return address(legacyGoList) == address(0) ? config : legacyGoList;
   }
 }

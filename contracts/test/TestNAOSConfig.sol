@@ -3,9 +3,9 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "../protocol/core/GoldfinchConfig.sol";
+import "../protocol/core/NAOSConfig.sol";
 
-contract TestGoldfinchConfig is GoldfinchConfig {
+contract TestNAOSConfig is NAOSConfig {
   function setAddressForTest(uint256 addressKey, address newAddress) public {
     addresses[addressKey] = newAddress;
   }

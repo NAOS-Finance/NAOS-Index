@@ -12,7 +12,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 /**
  * @title The Accountant
  * @notice Library for handling key financial calculations, such as interest and principal accrual.
- * @author Goldfinch
  */
 
 library Accountant {
