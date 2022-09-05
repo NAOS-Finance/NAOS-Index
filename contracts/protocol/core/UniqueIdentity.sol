@@ -24,15 +24,38 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
   uint256 public constant ID_TYPE_9 = 9;
   uint256 public constant ID_TYPE_10 = 10;
 
-  // uint256 public constant MINT_COST_PER_TOKEN = 830000 gwei;
-
   /// @dev We include a nonce in every hashed message, and increment the nonce as part of a
   /// state-changing operation, so as to prevent replay attacks, i.e. the reuse of a signature.
   mapping(address => uint256) public nonces;
   mapping(uint256 => bool) public supportedUIDTypes;
   mapping(address => mapping(uint256 => uint256)) public expiration;
 
-  function initialize(address owner, string memory uri) public initializer {
+  modifier onlySigner(
+    address account,
+    uint256 id,
+    uint256 expiresAt,
+    bytes calldata signature
+  ) {
+    require(block.timestamp < expiresAt, "Signature has expired");
+
+    uint256 chainId;
+    assembly {
+      chainId := chainid()
+    }
+
+    bytes32 hash = keccak256(abi.encodePacked(account, id, expiresAt, address(this), nonces[account], chainId));
+    bytes32 ethSignedMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    address recovered = tryRecover(hash, signature);
+    require(hasRole(SIGNER_ROLE, recovered), "Invalid signer");
+    _;
+  }
+
+  modifier incrementNonce(address account) {
+    nonces[account] += 1;
+    _;
+  }
+
+  function initialize(address owner) public initializer {
     require(owner != address(0), "Owner address cannot be empty");
 
     __BaseUpgradeablePausable__init(owner);
@@ -69,10 +92,6 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     _updateExpiration(_msgSender(), id, expiresAt);
   }
 
-  function _updateExpiration(address to, uint256 id, uint256 expiresAt) internal {
-    expiration[_msgSender()][id] = expiresAt;
-  }
-
   function burn(
     address account,
     uint256 id,
@@ -81,32 +100,19 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
   ) public override onlySigner(account, id, expiresAt, signature) incrementNonce(account) {
     require(expiresAt > block.timestamp, "Expiration must be bigger than current time");
 
-    _updateExpiration(_msgSender(), id, 0);
+    _updateExpiration(account, id, 0);
   }
 
-  modifier onlySigner(
-    address account,
-    uint256 id,
-    uint256 expiresAt,
-    bytes calldata signature
-  ) {
-    require(block.timestamp < expiresAt, "Signature has expired");
+  function _updateExpiration(address to, uint256 id, uint256 expiresAt) internal {
+    expiration[to][id] = expiresAt;
+  }
 
-    uint256 chainId;
-    assembly {
-      chainId := chainid()
+  function setSupportedUIDTypes(address[] calldata tos, uint256[] calldata ids, uint256[] calldata expiresAts) public onlyAdmin {
+    require(tos.length == ids.length, "tos and ids length mismatch");
+    require(ids.length == expiresAts.length, "expireAts and ids length mismatch");
+    for (uint256 i = 0; i < tos.length; ++i) {
+      _updateExpiration(tos[i], ids[i], expiresAts[i]);
     }
-
-    bytes32 hash = keccak256(abi.encodePacked(account, id, expiresAt, address(this), nonces[account], chainId));
-    bytes32 ethSignedMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
-    address recovered = tryRecover(hash, signature);
-    require(hasRole(SIGNER_ROLE, recovered), "Invalid signer");
-    _;
-  }
-
-  modifier incrementNonce(address account) {
-    nonces[account] += 1;
-    _;
   }
 
   function tryRecover(
