@@ -28,15 +28,15 @@ contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Tran
   using SafeMath for uint256;
 
   struct JuniorRewardsInfo {
-    uint256 accRewardsPerPrincipalDollar; // accumulator gfi per interest dollar
+    uint256 accRewardsPerPrincipalDollar; // accumulator naos per interest dollar
   }
 
   struct JuniorRewardsTokenInfo {
-    uint256 rewardsClaimed; // gfi claimed
+    uint256 rewardsClaimed; // naos claimed
     uint256 accRewardsPerPrincipalDollarAtMint; // Pool's accRewardsPerPrincipalDollar at PoolToken mint()
   }
 
-  uint256 public maxInterestDollarsEligible; // interest $ eligible for gfi rewards, times 1e18
+  uint256 public maxInterestDollarsEligible; // interest $ eligible for naos rewards, times 1e18
   uint256 public totalInterestReceived; // counter of total interest repayments, times 1e6
   uint256 public rewardRate;
   uint256 public usdDecimals;
@@ -68,8 +68,8 @@ contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Tran
   }
 
   /**
-   * @notice Set the max dollars across the entire protocol that are eligible for GFI rewards
-   * @param _maxInterestDollarsEligible The amount of interest dollars eligible for GFI rewards, expects 10^18 value
+   * @notice Set the max dollars across the entire protocol that are eligible for NAOS rewards
+   * @param _maxInterestDollarsEligible The amount of interest dollars eligible for NAOS rewards, expects 10^18 value
    */
   function setMaxInterestDollarsEligible(uint256 _maxInterestDollarsEligible) public onlyAdmin {
     maxInterestDollarsEligible = _maxInterestDollarsEligible;
@@ -101,9 +101,9 @@ contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Tran
   }
 
   /**
-   * @notice Calculate the gross available gfi rewards for a PoolToken
+   * @notice Calculate the gross available naos rewards for a PoolToken
    * @param tokenId Pool token id
-   * @return The amount of GFI claimable
+   * @return The amount of NAOS claimable
    */
   function poolTokenClaimableRewards(uint256 tokenId) public view returns (uint256) {
     IPoolTokens poolTokens = config.getPoolTokens();

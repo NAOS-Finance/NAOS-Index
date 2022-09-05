@@ -17,7 +17,7 @@ import {IVaultAdapter} from "../../interfaces/IVaultAdapter.sol";
 import {Vault} from "../../library/Vault.sol";
 
 /**
- * @title Goldfinch's IndexPool contract
+ * @title NAOS's IndexPool contract
  * @notice Main entry point for senior LPs (a.k.a. capital providers)
  *  Automatically invests across borrower pools using an adjustable strategy.
  */

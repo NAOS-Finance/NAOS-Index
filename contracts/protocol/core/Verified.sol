@@ -70,7 +70,7 @@ contract Verified is IVerified, BaseUpgradeablePausable {
   }
 
   /**
-   * @notice Returns whether the provided account is go-listed for use of the Goldfinch protocol
+   * @notice Returns whether the provided account is go-listed for use of the NAOS protocol
    * for any of the UID token types.
    * This status is defined as: whether `balanceOf(account, id)` on the UniqueIdentity
    * contract is non-zero (where `id` is a supported token id on UniqueIdentity), falling back to the
@@ -96,7 +96,7 @@ contract Verified is IVerified, BaseUpgradeablePausable {
   }
 
   /**
-   * @notice Returns whether the provided account is go-listed for use of the Goldfinch protocol
+   * @notice Returns whether the provided account is go-listed for use of the NAOS protocol
    * for defined UID token types
    * @param account The account whose go status to obtain
    * @param onlyIdTypes Array of id types to check balances
@@ -118,7 +118,7 @@ contract Verified is IVerified, BaseUpgradeablePausable {
   }
 
   /**
-   * @notice Returns whether the provided account is go-listed for use of the IndexPool on the Goldfinch protocol.
+   * @notice Returns whether the provided account is go-listed for use of the IndexPool on the NAOS protocol.
    * @param account The account whose go status to obtain
    * @return The account's go status
    */

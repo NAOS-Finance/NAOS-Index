@@ -217,7 +217,7 @@ contract PoolTokens is IPoolTokens, ERC721PresetMinterPauserAutoIdUpgradeSafe {
   }
 
   modifier onlyNAOSFactory() {
-    require(_msgSender() == config.naosFactoryAddress(), "Only Goldfinch factory is allowed");
+    require(_msgSender() == config.naosFactoryAddress(), "Only NAOS factory is allowed");
     _;
   }
 

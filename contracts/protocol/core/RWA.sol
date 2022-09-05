@@ -7,7 +7,7 @@ import "./ConfigHelper.sol";
 
 /**
  * @title RWA
- * @notice RWA (symbol: FIDU) is Goldfinch's liquidity token, representing shares
+ * @notice RWA (symbol: FIDU) is NAOS's liquidity token, representing shares
  *  in the Pool. When you deposit, we mint a corresponding amount of RWA, and when you withdraw, we
  *  burn RWA. The share price of the Pool implicitly represents the "exchange rate" between RWA
  *  and USDC (or whatever currencies the Pool may allow withdraws in during the future)
