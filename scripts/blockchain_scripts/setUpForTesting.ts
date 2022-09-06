@@ -35,11 +35,11 @@ import {Logger} from "../blockchain_scripts/types"
 import {time} from "@openzeppelin/test-helpers"
 import {
   CreditLine,
-  Go,
-  GoldfinchConfig,
-  GoldfinchFactory,
-  SeniorPool,
-  TranchedPool,
+  Verified,
+  NAOSConfig,
+  NAOSFactory,
+  IndexPool,
+  JuniorPool,
   UniqueIdentity,
 } from "../../types/contracts/protocol/core"
 import {
@@ -119,9 +119,9 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
   // If you uncomment this, make sure to also uncomment the line in the MainnetForking section,
   // which sets this var to the upgraded version of fidu
   // let fidu = await getDeployedAsEthersContract(getOrNull, "Fidu")
-  let config = await getDeployedAsEthersContract<GoldfinchConfig>(getOrNull, "GoldfinchConfig")
+  let config = await getDeployedAsEthersContract<NAOSConfig>(getOrNull, "NAOSConfig")
   assertNonNullable(config)
-  const goldfinchFactory = await getDeployedAsEthersContract<GoldfinchFactory>(getOrNull, "GoldfinchFactory")
+  const naosFactory = await getDeployedAsEthersContract<NAOSFactory>(getOrNull, "NAOSFactory")
   const borrower = overrideAddress || process.env.TEST_USER || protocol_owner
   const requestFromClient = !!overrideAddress
 
@@ -177,15 +177,15 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
   // await impersonateAccount(hre, protocol_owner)
   // TODO: update and test gsn?
   // await setupTestForwarder(deployer, config, getOrNull, protocol_owner)
-  let seniorPool: SeniorPool = await getDeployedAsEthersContract<SeniorPool>(getOrNull, "SeniorPool")
-  let go = await getDeployedAsEthersContract<Go>(getOrNull, "Go")
-  const goldfinchConfig = await getEthersContract<NAOSConfig>("NAOSConfig")
+  let indexPool: IndexPool = await getDeployedAsEthersContract<IndexPool>(getOrNull, "IndexPool")
+  let verified = await getDeployedAsEthersContract<Verified>(getOrNull, "Verified")
+  const naosConfig = await getEthersContract<NAOSConfig>("NAOSConfig")
   if (!isMainnetForking()) {
-    go = go.connect(protocolOwnerSigner)
-    await go.setLegacyGoList(goldfinchConfig.address)
+    verified = verified.connect(protocolOwnerSigner)
+    await verified.setLegacyGoList(naosConfig.address)
   }
-  const legacyGoldfinchConfig = await getEthersContract<NAOSConfig>("NAOSConfig", {
-    at: await go.legacyGoList(),
+  const legacyNAOSConfig = await getEthersContract<NAOSConfig>("NAOSConfig", {
+    at: await verified.legacyGoList(),
   })
 
   config = config.connect(protocolOwnerSigner)
@@ -193,92 +193,78 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
   await updateConfig(config, "number", CONFIG_KEYS.TotalFundsLimit, String(usdcVal(100_000_000)))
   await updateConfig(config, "number", CONFIG_KEYS.DrawdownPeriodInSeconds, 300, {logger})
 
-  await addUsersToGoList(legacyGoldfinchConfig, [borrower])
+  await addUsersToGoList(legacyNAOSConfig, [borrower])
 
-  if (requestFromClient) {
-    await createBorrowerContractAndPools({
-      erc20,
-      address: borrower,
-      getOrNull,
-      seniorPool,
-      goldfinchFactory,
-      // NOTE: We make the borrower a depositor in their own pool here, for the sake of convenience
-      // in manual testing: this enables the test user to use the borrow page UI to drawdown and repay
-      // the loan, and then, because they're a depositor (i.e. backer) in that pool, they can also use the
-      // GFI page UI to receive backer rewards for the pool upon repayments.
-      depositor: borrower,
-    })
-  } else {
-    await addUsersToGoList(legacyGoldfinchConfig, [underwriter])
+  await addUsersToGoList(legacyNAOSConfig, [underwriter])
 
-    // if (chainId === LOCAL_CHAIN_ID && !isMainnetForking()) {
-    //   await setUpRewards(erc20, getOrNull, protocol_owner)
-    // }
+  // if (chainId === LOCAL_CHAIN_ID && !isMainnetForking()) {
+  //   await setUpRewards(erc20, getOrNull, protocol_owner)
+  // }
 
-    const result = await (await goldfinchFactory.createBorrower(protocol_owner)).wait()
-    const lastEventArgs = getLastEventArgs(result)
-    const protocolBorrowerCon = lastEventArgs[0]
-    logger(`Created borrower contract: ${protocolBorrowerCon} for ${protocol_owner}`)
+  // const result = await (await naosFactory.createBorrower(protocol_owner)).wait()
+  // const lastEventArgs = getLastEventArgs(result)
+  // const protocolBorrowerCon = lastEventArgs[0]
+  const protocolBorrowerCon = protocol_owner
+  logger(`Created borrower contract: ${protocolBorrowerCon} for ${protocol_owner}`)
 
-    const commonPool = await createPoolForBorrower({
-      getOrNull,
-      underwriter,
-      goldfinchFactory,
-      borrower: protocolBorrowerCon,
-      erc20,
-      allowedUIDTypes: [...NON_US_UID_TYPES],
-    })
-    // await writePoolMetadata({pool: commonPool, borrower: "NON-US Pool GFI"})
+  const commonPool = await createPoolForBorrower({
+    getOrNull,
+    underwriter,
+    naosFactory,
+    borrower: protocolBorrowerCon,
+    erc20,
+    allowedUIDTypes: [...NON_US_UID_TYPES],
+  })
+  // await writePoolMetadata({pool: commonPool, borrower: "NON-US Pool GFI"})
 
-    const empty = await createPoolForBorrower({
-      getOrNull,
-      underwriter,
-      goldfinchFactory,
-      borrower: protocolBorrowerCon,
-      erc20,
-      allowedUIDTypes: [...NON_US_UID_TYPES, ...US_UID_TYPES],
-    })
-    // await writePoolMetadata({pool: empty, borrower: "US Pool Empty"})
+  const empty = await createPoolForBorrower({
+    getOrNull,
+    underwriter,
+    naosFactory,
+    borrower: protocolBorrowerCon,
+    erc20,
+    allowedUIDTypes: [...NON_US_UID_TYPES, ...US_UID_TYPES],
+  })
+  // await writePoolMetadata({pool: empty, borrower: "US Pool Empty"})
 
-    await fundAddressAndDepositToCommonPool({erc20, depositorAddress: borrower, commonPool, seniorPool})
-    
+  await fundAddressAndDepositToCommonPool({erc20, depositorAddress: borrower, commonPool, indexPool})
+  
 
-    // Have the senior fund invest
-    seniorPool = seniorPool.connect(protocolOwnerSigner)
-    const txn = await commonPool.lockJuniorCapital()
-    await txn.wait()
-    await seniorPool.invest(commonPool.address)
-    const filter = commonPool.filters.DepositMade(seniorPool.address)
-    const depositLog = (await ethers.provider.getLogs(filter))[0]
-    // assertNonNullable(depositLog)
-    const depositEvent = commonPool.interface.parseLog(depositLog)
-    const tokenId = depositEvent.args.tokenId
+  // Have the senior fund invest
+  indexPool = indexPool.connect(protocolOwnerSigner)
+  const txn = await commonPool.lockJuniorCapital()
+  await txn.wait()
+  await indexPool.invest(commonPool.address)
+  const filter = commonPool.filters.DepositMade(indexPool.address)
+  const depositLog = (await ethers.provider.getLogs(filter))[0]
+  // assertNonNullable(depositLog)
+  const depositEvent = commonPool.interface.parseLog(depositLog)
+  const tokenId = depositEvent.args.tokenId
 
-    await commonPool.lockPool()
-    let creditLine = await getDeployedAsEthersContract<CreditLine>(getOrNull, "CreditLine")
-    creditLine = creditLine.attach(await commonPool.creditLine())
+  await commonPool.lockPool()
+  let creditLine = await getDeployedAsEthersContract<CreditLine>(getOrNull, "CreditLine")
+  creditLine = creditLine.attach(await commonPool.creditLine())
 
-    const amount = (await creditLine.limit()).div(2)
-    await commonPool.drawdown(amount)
+  const amount = (await creditLine.limit()).div(2)
+  await commonPool.drawdown(amount)
 
-    await advanceTime({days: 32})
-    
+  await advanceTime({days: 32})
+  
 
-    // Have the borrower repay a portion of their loan
-    // await impersonateAccount(hre, protocol_owner)
-    const borrowerSigner = ethers.provider.getSigner(protocol_owner)
-    // assertNonNullable(borrowerSigner)
-    const bwrCon = (await ethers.getContractAt("Borrower", protocolBorrowerCon)).connect(borrowerSigner) as Borrower
-    const payAmount = new BN(100).mul(USDC_DECIMALS)
-    await (erc20 as TestUSDC).connect(borrowerSigner).approve(bwrCon.address, payAmount.mul(new BN(2)).toString())
-    await bwrCon.pay(commonPool.address, payAmount.toString())
+  // Have the borrower repay a portion of their loan
+  // await impersonateAccount(hre, protocol_owner)
+  const borrowerSigner = ethers.provider.getSigner(protocol_owner)
+  // assertNonNullable(borrowerSigner)
+  const bwrCon = (await ethers.getContractAt("Borrower", protocolBorrowerCon)).connect(borrowerSigner) as Borrower
+  const payAmount = new BN(100).mul(USDC_DECIMALS)
+  await (erc20 as TestUSDC).connect(borrowerSigner).approve(bwrCon.address, payAmount.mul(new BN(2)).toString())
+  await bwrCon.pay(commonPool.address, payAmount.toString())
 
-    await advanceTime({days: 32})
+  await advanceTime({days: 32})
 
-    await bwrCon.pay(commonPool.address, payAmount.toString())
+  await bwrCon.pay(commonPool.address, payAmount.toString())
 
-    await seniorPool.redeem(tokenId)
-  }
+  await indexPool.redeem(tokenId)
 }
 
 // async function setUpRewards(
@@ -378,12 +364,12 @@ async function fundAddressAndDepositToCommonPool({
   erc20,
   depositorAddress,
   commonPool,
-  seniorPool,
+  indexPool,
 }: {
   erc20: Contract
   depositorAddress: string
-  commonPool: TranchedPool
-  seniorPool: SeniorPool
+  commonPool: JuniorPool
+  indexPool: IndexPool
 }): Promise<void> {
   logger(`Deposit into senior fund address:${depositorAddress}`)
   // fund with address into sr fund
@@ -391,8 +377,8 @@ async function fundAddressAndDepositToCommonPool({
   const signer = ethers.provider.getSigner(depositorAddress)
   const depositAmount = new BN(10000).mul(USDC_DECIMALS)
   
-  await (erc20 as TestUSDC).connect(signer).approve(seniorPool.address, depositAmount.mul(new BN(5)).toString())
-  await seniorPool.connect(signer).deposit(depositAmount.mul(new BN(5)).toString())
+  await (erc20 as TestUSDC).connect(signer).approve(indexPool.address, depositAmount.mul(new BN(5)).toString())
+  await indexPool.connect(signer).deposit(depositAmount.mul(new BN(5)).toString())
   
 
   // Deposit funds into Common Pool
@@ -403,64 +389,12 @@ async function fundAddressAndDepositToCommonPool({
   logger(`Deposited ${depositAmount} into the common pool`)
 }
 
-// Create a borrower contract
-async function createBorrowerContractAndPools({
-  erc20,
-  address,
-  getOrNull,
-  seniorPool,
-  goldfinchFactory,
-  depositor,
-}: {
-  erc20: Contract
-  address: string
-  getOrNull: any
-  seniorPool: SeniorPool
-  goldfinchFactory: GoldfinchFactory
-  depositor: string | undefined
-}): Promise<void> {
-  const protocol_owner = await getProtocolOwner()
-  const underwriter = await getProtocolOwner()
-  logger(`Setting up for borrower: ${address}`)
-
-  // Create Borrower Contract
-  const result = await (await goldfinchFactory.createBorrower(address)).wait()
-  const lastEventArgs = getLastEventArgs(result)
-  const bwrConAddr = lastEventArgs[0]
-  logger(`📜 Created borrower contract: ${bwrConAddr} for ${address}`)
-
-  const filledPool = await createPoolForBorrower({
-    getOrNull,
-    underwriter,
-    goldfinchFactory,
-    borrower: bwrConAddr,
-    erc20,
-    depositor: depositor || protocol_owner,
-    allowedUIDTypes: [...NON_US_UID_TYPES, ...US_UID_TYPES],
-  })
-
-  let filledPoolTxn = await filledPool.lockJuniorCapital()
-  await filledPoolTxn.wait()
-  const ownerSigner = ethers.provider.getSigner(protocol_owner)
-  await seniorPool.connect(ownerSigner).invest(filledPool.address)
-
-  filledPoolTxn = await filledPool.lockPool()
-  await filledPoolTxn.wait()
-
-  // await writePoolMetadata({pool: filledPool, borrower: address})
-
-  await createFullPool(address, bwrConAddr, erc20, getOrNull, goldfinchFactory, ownerSigner, underwriter)
-  await createFullPool(address, bwrConAddr, erc20, getOrNull, goldfinchFactory, ownerSigner, underwriter)
-
-  logger(`Pools ready for ${address}`)
-}
-
 async function createFullPool(
   address: string,
   bwrConAddr: string,
   erc20: Contract,
   getOrNull: any,
-  goldfinchFactory: GoldfinchFactory,
+  naosFactory: NAOSFactory,
   // ownerSigner: JsonRpcSigner,
   ownerSigner: any,
   underwriter: string
@@ -471,7 +405,7 @@ async function createFullPool(
   const pool = await createPoolForBorrower({
     getOrNull,
     underwriter,
-    goldfinchFactory,
+    naosFactory,
     borrower: bwrConAddr,
     erc20,
     allowedUIDTypes: [...NON_US_UID_TYPES],
@@ -496,14 +430,14 @@ async function createFullPool(
 }
 
 /**
- * Write fake TranchedPool metadata for local development
+ * Write fake JuniorPool metadata for local development
  */
 async function writePoolMetadata({
   pool,
   borrower,
   backerLimit = "0.025",
 }: {
-  pool: TranchedPool
+  pool: JuniorPool
   borrower: string
   backerLimit?: string
 }) {
@@ -557,9 +491,9 @@ function getLastEventArgs(result: ContractReceipt): Result {
   return lastEvent.args
 }
 
-async function addUsersToGoList(legacyGoldfinchConfig: GoldfinchConfig, users: string[]) {
-  logger("Adding", users, "to the go-list... on config with address", legacyGoldfinchConfig.address)
-  await (await legacyGoldfinchConfig.bulkAddToGoList(users)).wait()
+async function addUsersToGoList(legacyNAOSConfig: NAOSConfig, users: string[]) {
+  logger("Adding", users, "to the go-list... on config with address", legacyNAOSConfig.address)
+  await (await legacyNAOSConfig.bulkAddToGoList(users)).wait()
 }
 
 export async function fundFromLocalWhale(userToFund: string, erc20s: any, {logger}: {logger: typeof console.log}) {
@@ -620,7 +554,7 @@ async function getDeployedAsEthersContract<T>(
 async function createPoolForBorrower({
   getOrNull,
   underwriter,
-  goldfinchFactory,
+  naosFactory,
   borrower,
   depositor,
   erc20,
@@ -628,12 +562,12 @@ async function createPoolForBorrower({
 }: {
   getOrNull: any
   underwriter: string
-  goldfinchFactory: GoldfinchFactory
+  naosFactory: NAOSFactory
   borrower: string
   depositor?: string
   erc20: Contract
   allowedUIDTypes: Array<number>
-}): Promise<TranchedPool> {
+}): Promise<JuniorPool> {
   const juniorFeePercent = String(new BN(20))
   const limit = String(new BN(10000).mul(USDC_DECIMALS))
   const interestApr = String(interestAprAsBN("5.00"))
@@ -644,7 +578,7 @@ async function createPoolForBorrower({
   const fundableAt = String(new BN(0))
   const underwriterSigner = ethers.provider.getSigner(underwriter)
   const result = await (
-    await goldfinchFactory
+    await naosFactory
       .connect(underwriterSigner)
       .createPool(
         borrower,
@@ -661,7 +595,7 @@ async function createPoolForBorrower({
   ).wait()
   const lastEventArgs = getLastEventArgs(result)
   const poolAddress = lastEventArgs[0]
-  const poolContract = await getDeployedAsEthersContract<TranchedPool>(getOrNull, "TranchedPool")
+  const poolContract = await getDeployedAsEthersContract<JuniorPool>(getOrNull, "JuniorPool")
   assertNonNullable(poolContract)
   const pool = poolContract.attach(poolAddress).connect(underwriterSigner)
 
@@ -684,7 +618,7 @@ async function createPoolForBorrower({
 
 // async function setupTestForwarder(
 //   deployer: ContractDeployer,
-//   config: GoldfinchConfig,
+//   config: NAOSConfig,
 //   getOrNull: any,
 //   protocol_owner: string
 // ) {
@@ -703,3 +637,73 @@ async function createPoolForBorrower({
 
 //   await updateConfig(config, "address", CONFIG_KEYS.TrustedForwarder, forwarder.address, {logger})
 // }
+
+export async function createTestPool(hre: HardhatRuntimeEnvironment, {overrideAddress, logger}: OverrideOptions = {}) {
+  const {
+    getNamedAccounts,
+    deployments: {getOrNull, log},
+    getChainId,
+  } = hre
+  if (!logger) {
+    logger = log
+  }
+  const {gf_deployer} = await getNamedAccounts()
+  const protocol_owner = await getProtocolOwner()
+  const deployer = new ContractDeployer(logger, hre)
+  assertIsString(protocol_owner)
+  assertIsString(gf_deployer)
+  const protocolOwnerSigner = ethers.provider.getSigner(protocol_owner)
+  
+  const chainId = await getChainId()
+  assertIsChainId(chainId)
+  
+  let underwriter = protocol_owner
+  let config = await getDeployedAsEthersContract<NAOSConfig>(getOrNull, "NAOSConfig")
+  assertNonNullable(config)
+  const naosFactory = await getDeployedAsEthersContract<NAOSFactory>(getOrNull, "NAOSFactory")
+  const borrower = overrideAddress || process.env.TEST_USER || protocol_owner
+
+  const {erc20, erc20s} = await getERC20s({hre, chainId})
+  if (chainId === LOCAL_CHAIN_ID && !isMainnetForking()) {
+    logger("🐳 Funding from local whales")
+    await fundFromLocalWhale(gf_deployer, erc20s, {logger})
+    await fundFromLocalWhale(borrower, erc20s, {logger})
+    logger("🐳 Finished funding from local whales")
+  }
+
+  const allowedUIDTypes = [...NON_US_UID_TYPES, ...US_UID_TYPES]
+  const juniorFeePercent = String(new BN(20))
+  const limit = String(new BN(10000).mul(USDC_DECIMALS))
+  const interestApr = String(interestAprAsBN("5.00"))
+  const paymentPeriodInDays = String(new BN(30))
+  const termInDays = String(new BN(360))
+  const lateFeeApr = String(new BN(0))
+  const principalGracePeriodInDays = String(new BN(185))
+  const fundableAt = String(new BN(0))
+  const underwriterSigner = ethers.provider.getSigner(underwriter)
+  const result = await (
+    await naosFactory
+      .connect(underwriterSigner)
+      .createPool(
+        borrower,
+        juniorFeePercent,
+        limit,
+        interestApr,
+        paymentPeriodInDays,
+        termInDays,
+        lateFeeApr,
+        principalGracePeriodInDays,
+        fundableAt,
+        allowedUIDTypes
+      )
+  ).wait()
+  const lastEventArgs = getLastEventArgs(result)
+  const poolAddress = lastEventArgs[0]
+  const poolContract = await getDeployedAsEthersContract<JuniorPool>(getOrNull, "JuniorPool")
+  assertNonNullable(poolContract)
+  const pool = poolContract.attach(poolAddress).connect(underwriterSigner)
+
+  logger(`Created a Pool ${poolAddress} for the borrower ${borrower}`)
+  let txn = await erc20.connect(underwriterSigner).approve(pool.address, String(limit))
+  await txn.wait()
+}
