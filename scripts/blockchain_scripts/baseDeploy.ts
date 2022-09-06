@@ -17,6 +17,9 @@ import {deployJuniorPool} from "./baseDeploy/deployJuniorPool"
 // import {deployBackerRewards} from "./baseDeploy/deployBackerRewards"
 import {deployConfig} from "./baseDeploy/deployConfig"
 import {deployVerified} from "./baseDeploy/deployVerified"
+import {deployWithdrawQueue} from "./baseDeploy/deployWithdrawQueue"
+import {deployBoostPool} from "./baseDeploy/deployBoostPool"
+import {deployLoanManager} from "./baseDeploy/deployLoanManager"
 import {deployUniqueIdentity} from "./baseDeploy/deployUniqueIdentity"
 
 const logger: Logger = console.log
@@ -64,6 +67,9 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   const uniqueIdentity = await deployUniqueIdentity({deployer, trustedSigner, deployEffects})
 
   await deployVerified(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
+  await deployWithdrawQueue(deployer, {config})
+  await deployBoostPool(deployer, {config})
+  // await deployLoanManager(deployer, {config})
   // await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
 
   await deployEffects.executeDeferred()
