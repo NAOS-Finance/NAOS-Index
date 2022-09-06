@@ -27,7 +27,7 @@ export async function deployLoanManager(deployer: ContractDeployer, {config}: De
       execute: {
         init: {
           methodName: "initialize",
-          args: [config.address],
+          args: [protocol_owner, config.address],
         },
       },
     },
