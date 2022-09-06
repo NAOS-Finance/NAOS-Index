@@ -69,7 +69,7 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   await deployVerified(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
   await deployWithdrawQueue(deployer, {config})
   await deployBoostPool(deployer, {config})
-  // await deployLoanManager(deployer, {config})
+  await deployLoanManager(deployer, {config})
   // await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
 
   await deployEffects.executeDeferred()
