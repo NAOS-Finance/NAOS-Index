@@ -1,10 +1,10 @@
 import hre from 'hardhat'
 import {HardhatRuntimeEnvironment} from "hardhat/types"
 import {MAINNET_CHAIN_ID} from "./blockchain_scripts/deployHelpers"
-import {setUpForTesting} from "./blockchain_scripts/setUpForTesting"
+import {createTestPool} from "./blockchain_scripts/setUpForTesting"
 
 async function main() {
-  await setUpForTesting(hre)
+  await createTestPool(hre)
 }
 
 if (require.main === module) {
@@ -15,7 +15,7 @@ if (require.main === module) {
 
 module.exports = main
 module.exports.dependencies = ["base_deploy"]
-module.exports.tags = ["setup_for_testing"]
+module.exports.tags = ["deploy_junior_pool"]
 module.exports.skip = async ({getChainId}: HardhatRuntimeEnvironment) => {
   const chainId = await getChainId()
   return String(chainId) === MAINNET_CHAIN_ID
