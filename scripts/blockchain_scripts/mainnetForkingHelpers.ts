@@ -236,7 +236,7 @@ export async function migrateToNewConfig(upgradedContracts: any, contractsToUpgr
     await (await newConfig.initialize(safeAddress)).wait()
   }
   await newConfig.initializeFromOtherConfig(existingConfig.address)
-  await updateConfig(existingConfig, "address", CONFIG_KEYS.GoldfinchConfig, newConfig.address)
+  await updateConfig(existingConfig, "address", CONFIG_KEYS.NAOSConfig, newConfig.address)
 
   await Promise.all(
     contractsToUpgrade.map(async (contract) => {

@@ -179,12 +179,12 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
   // await setupTestForwarder(deployer, config, getOrNull, protocol_owner)
   let seniorPool: SeniorPool = await getDeployedAsEthersContract<SeniorPool>(getOrNull, "SeniorPool")
   let go = await getDeployedAsEthersContract<Go>(getOrNull, "Go")
-  const goldfinchConfig = await getEthersContract<GoldfinchConfig>("GoldfinchConfig")
+  const goldfinchConfig = await getEthersContract<NAOSConfig>("NAOSConfig")
   if (!isMainnetForking()) {
     go = go.connect(protocolOwnerSigner)
     await go.setLegacyGoList(goldfinchConfig.address)
   }
-  const legacyGoldfinchConfig = await getEthersContract<GoldfinchConfig>("GoldfinchConfig", {
+  const legacyGoldfinchConfig = await getEthersContract<NAOSConfig>("NAOSConfig", {
     at: await go.legacyGoList(),
   })
 

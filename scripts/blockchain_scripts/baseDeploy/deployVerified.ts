@@ -1,4 +1,4 @@
-import {Go, GoldfinchConfig, UniqueIdentity} from "../../../types/contracts/protocol/core"
+import {Verified, NAOSConfig, UniqueIdentity} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {Deployed} from "../baseDeploy"
 import {CONFIG_KEYS} from "../configKeys"
@@ -13,7 +13,7 @@ import {DeployEffects} from "../migrations/deployEffects"
 
 const logger = console.log
 
-export async function deployGo(
+export async function deployVerified(
   deployer: ContractDeployer,
   {
     configAddress,
@@ -24,8 +24,8 @@ export async function deployGo(
     uniqueIdentity: Deployed<UniqueIdentity>
     deployEffects: DeployEffects
   }
-): Promise<Deployed<Go>> {
-  const contractName = "Go"
+): Promise<Deployed<Verified>> {
+  const contractName = "Verified"
   logger(`About to deploy ${contractName}...`)
   const {gf_deployer} = await deployer.getNamedAccounts()
   assertIsString(gf_deployer)
@@ -43,16 +43,16 @@ export async function deployGo(
       },
     },
   })
-  const contract = await getContract<Go, Go>(contractName, ETHERS_CONTRACT_PROVIDER, {
+  const contract = await getContract<Verified, Verified>(contractName, ETHERS_CONTRACT_PROVIDER, {
     at: go.address,
   })
 
-  const goldfinchConfig = (await getEthersContract<GoldfinchConfig>("GoldfinchConfig", {at: configAddress})).connect(
+  const goldfinchConfig = (await getEthersContract<NAOSConfig>("NAOSConfig", {at: configAddress})).connect(
     await getProtocolOwner()
   )
 
   await deployEffects.add({
-    deferred: [await goldfinchConfig.populateTransaction.setAddress(CONFIG_KEYS.Go, contract.address)],
+    deferred: [await goldfinchConfig.populateTransaction.setAddress(CONFIG_KEYS.Verified, contract.address)],
   })
 
   return {

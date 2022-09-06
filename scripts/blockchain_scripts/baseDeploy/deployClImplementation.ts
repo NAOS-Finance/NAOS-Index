@@ -1,15 +1,14 @@
-import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
+import {NAOSConfig} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, updateConfig} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
-import {DeployOpts} from "../types"
 
 const logger = console.log
 
 export async function deployClImplementation(
   deployer: ContractDeployer,
-  {config, deployEffects}: {config: GoldfinchConfig; deployEffects?: DeployEffects}
+  {config, deployEffects}: {config: NAOSConfig; deployEffects?: DeployEffects}
 ) {
   const {gf_deployer} = await deployer.getNamedAccounts()
 
