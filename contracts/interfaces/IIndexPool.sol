@@ -10,6 +10,8 @@ abstract contract IIndexPool {
   uint256 public totalLoansOutstanding;
   uint256 public totalWritedowns;
 
+  mapping(IJuniorPool => uint256[]) public juniorPoolTokens;
+
   function deposit(uint256 amount) external virtual returns (uint256 depositShares);
 
   function depositWithPermit(
@@ -30,7 +32,7 @@ abstract contract IIndexPool {
 
   function redeem(uint256 tokenId) public virtual;
 
-  function writedown(uint256 tokenId) public virtual;
+  function writedown(IJuniorPool pool) public virtual;
 
   function calculateWritedown(uint256 tokenId) public view virtual returns (uint256 writedownAmount);
 
@@ -41,4 +43,6 @@ abstract contract IIndexPool {
   function vaultCount() public view virtual returns (uint256);
 
   function getVaultTotalDeposited(uint256 _vaultId) external view virtual returns (uint256);
+
+  function juniorPoolTokensCount(IJuniorPool pool) external view virtual returns (uint256);
 }

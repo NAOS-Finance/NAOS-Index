@@ -38,6 +38,7 @@ library ConfigOptions {
     JuniorRewards,
     StakingRewards,
     BoostPool,
-    WithdrawQueue
+    WithdrawQueue,
+    LoanManager
   }
 }

@@ -98,7 +98,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       setTermEndTime(timestamp.add(SECONDS_PER_DAY.mul(termInDays)));
     }
 
-    (uint256 _interestOwed, uint256 _principalOwed) = updateAndGetInterestAndPrincipalOwedAsOf(timestamp);
+    (uint256 _interestOwed, uint256 _principalOwed) = updateAndGetInterestAndPrincipalOwedAsOf(timestamp, IJuniorPool.LiquidationProcess.NotInProcess);
     balance = balance.add(amount);
 
     updateCreditLineAccounting(balance, _interestOwed, _principalOwed);
@@ -253,7 +253,9 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
 
   /**
    * @notice Applies `amount` of payment for a given credit line. This moves already collected money into the Pool.
-   *  It also updates all the accounting variables. Note that interest is always paid back first, then principal.
+   *  It also updates all the accounting variables.
+   *  Note In the normal case, the interest is paid back first, then principal.
+   *  But in the liquidation process, the principal is paid back first, then interest.
    *  Any extra after paying the minimum will go towards existing principal (reducing the
    *  effective interest rate). Any extra after the full loan has been paid off will remain in the
    *  USDC Balance of the creditLine, where it will be automatically used for the next drawdown.
@@ -269,12 +271,14 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       uint256
     )
   {
-    (uint256 newInterestOwed, uint256 newPrincipalOwed) = updateAndGetInterestAndPrincipalOwedAsOf(timestamp);
+    IJuniorPool.LiquidationProcess liquidated = config.getJuniorPool().liquidated();
+    (uint256 newInterestOwed, uint256 newPrincipalOwed) = updateAndGetInterestAndPrincipalOwedAsOf(timestamp, liquidated);
     Accountant.PaymentAllocation memory pa = Accountant.allocatePayment(
       paymentAmount,
       balance,
       newInterestOwed,
-      newPrincipalOwed
+      newPrincipalOwed,
+      liquidated
     );
 
     uint256 newBalance = balance.sub(pa.principalPayment);
@@ -294,11 +298,12 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
     return (paymentRemaining, pa.interestPayment, totalPrincipalPayment);
   }
 
-  function updateAndGetInterestAndPrincipalOwedAsOf(uint256 timestamp) internal returns (uint256, uint256) {
+  function updateAndGetInterestAndPrincipalOwedAsOf(uint256 timestamp, IJuniorPool.LiquidationProcess liquidated) internal returns (uint256, uint256) {
     (uint256 interestAccrued, uint256 principalAccrued) = Accountant.calculateInterestAndPrincipalAccrued(
       this,
       timestamp,
-      config.getLatenessGracePeriodInDays()
+      config.getLatenessGracePeriodInDays(),
+      liquidated
     );
     if (interestAccrued > 0) {
       // If we've accrued any interest, update interestAccruedAsOf to the time that we've

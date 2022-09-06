@@ -21,7 +21,7 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, IIndexPoolSt
    * it takes into account what is already committed to the senior tranche, the value returned by this
    * function can be used "idempotently" to achieve the investment target amount without exceeding that target.
    * @param pool The tranched pool to invest into (as the senior)
-   * @return The amount of money to invest into the tranched pool's senior tranche, from the senior pool
+   * @return The amount of money to invest into the tranched pool's senior tranche, from the index pool
    */
   function invest(IJuniorPool pool) public view override returns (uint256) {
     IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));
@@ -40,7 +40,7 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, IIndexPoolSt
    * value to invest into the senior tranche, if the junior tranche were locked and the senior tranche
    * were not locked.
    * @param pool The tranched pool to invest into (as the senior)
-   * @return The amount of money to invest into the tranched pool's senior tranche, from the senior pool
+   * @return The amount of money to invest into the tranched pool's senior tranche, from the index pool
    */
   function estimateInvestment(IJuniorPool pool) public view override returns (uint256) {
     IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));

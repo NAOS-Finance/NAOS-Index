@@ -32,6 +32,10 @@ library ConfigHelper {
     return IIndexPool(indexPoolAddress(config));
   }
 
+  function getJuniorPool(NAOSConfig config) internal view returns (IJuniorPool) {
+    return IJuniorPool(juniorPoolAddress(config));
+  }
+
   function getIndexPoolStrategy(NAOSConfig config) internal view returns (IIndexPoolStrategy) {
     return IIndexPoolStrategy(indexPoolStrategyAddress(config));
   }
@@ -122,6 +126,10 @@ library ConfigHelper {
 
   function reserveAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.TreasuryReserve));
+  }
+
+  function loanManagerAddress(NAOSConfig config) internal view returns (address) {
+    return config.getAddress(uint256(ConfigOptions.Addresses.LoanManager));
   }
 
   function protocolAdminAddress(NAOSConfig config) internal view returns (address) {

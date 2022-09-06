@@ -207,7 +207,7 @@ contract IndexStakingPool is ReentrancyGuard {
     }
 
     /// @notice Deposit to IndexPool and stake your shares in the same transaction.
-    /// @param _usdcAmount The amount of USDC to deposit into the senior pool. All shares from deposit
+    /// @param _usdcAmount The amount of USDC to deposit into the index pool. All shares from deposit
     /// @param _poolId The pool id
     ///   will be staked.
     function depositAndStake(uint256 _usdcAmount, uint256 _poolId) public nonReentrant {
