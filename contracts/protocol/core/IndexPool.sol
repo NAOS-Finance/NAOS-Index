@@ -211,9 +211,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   /**
-   * @notice Write down an IJuniorPool investment. This will adjust the index pool's share price
-   *  down if we're considering the investment a loss, or up if the borrower has subsequently
-   *  made repayments that restore confidence that the full loan will be repaid.
+   * @notice Write down an IJuniorPool investment. If the loan exceeds the threshold, it will reduce the share price according the remaining investment.
+   * Only loan manager contract has the permission to call this function.
    * @param pool the junior pool address
    */
   function writedown(IJuniorPool pool) public override whenNotPaused nonReentrant {

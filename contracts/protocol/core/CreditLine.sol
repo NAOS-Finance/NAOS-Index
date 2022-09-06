@@ -253,7 +253,9 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
 
   /**
    * @notice Applies `amount` of payment for a given credit line. This moves already collected money into the Pool.
-   *  It also updates all the accounting variables. Note that interest is always paid back first, then principal.
+   *  It also updates all the accounting variables.
+   *  Note In the normal case, the interest is paid back first, then principal.
+   *  But in the liquidation process, the principal is paid back first, then interest.
    *  Any extra after paying the minimum will go towards existing principal (reducing the
    *  effective interest rate). Any extra after the full loan has been paid off will remain in the
    *  USDC Balance of the creditLine, where it will be automatically used for the next drawdown.

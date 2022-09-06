@@ -73,6 +73,8 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
   event TrancheLocked(address indexed pool, uint256 trancheId, uint256 lockedUntil);
   event SliceCreated(address indexed pool, uint256 sliceId);
 
+  event liquidationStatusUpdated(LiquidationProcess status);
+
   function initialize(
     address _config,
     address _borrower,
@@ -340,9 +342,16 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     _assess();
   }
 
+  /**
+   * @notice Update the liquidation process status, only loan manager contract can call this function
+   * @param status The liquidation process status
+   */
   function setLiquidated(LiquidationProcess status) external override {
     require(msg.sender == config.loanManagerAddress(), "invalid sender");
+    require(uint256(status) > uint256(liquidated), "invalid status");
     liquidated = status;
+
+    emit liquidationStatusUpdated(status);
   }
 
   /**

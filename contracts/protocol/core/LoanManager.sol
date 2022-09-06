@@ -47,6 +47,14 @@ contract LoanManager is OwnableUpgradeSafe {
         _;
     }
 
+    event operatorUpdated(uint256 poolId, address indexed operator);
+    event poolCreated(address indexed juniorPoolAddress, address indexed token, uint256 poolId);
+    event poolLiquidated(uint256 poolId);
+    event loanLocked(uint256 poolId, uint256 tokenId);
+    event loanUnlocked(uint256 poolId, uint256 tokenId);
+    event loanPrcieSet(uint256 poolId, uint256[] tokenId, uint256[] price);
+    event loanLiquidated(uint256 poolId, uint256 tokenId);
+
     function initialize(NAOSConfig _config) public initializer {
         __Ownable_init();
 
@@ -56,7 +64,7 @@ contract LoanManager is OwnableUpgradeSafe {
 
     /**
     * @dev Add new tranche pool into the setting
-    * @param _juniorPoolAddress The tranche pool address
+    * @param _juniorPoolAddress The junior pool address
     * @param _token The collateral NFT address
     */
     function addPool(address _juniorPoolAddress, IERC721 _token)
@@ -75,12 +83,14 @@ contract LoanManager is OwnableUpgradeSafe {
         pool.token = _token;
         poolList.push(_juniorPoolAddress);
 
+        emit poolCreated(_juniorPoolAddress, address(_token), poolList.length - 1);
+
         return poolList.length - 1;
     }
 
     /**
     * @dev Update pool's operator
-    * @param _poolId The tranche pool id
+    * @param _poolId The junior pool id
     * @param _operator The new operator address
     */
     function updateOperator(uint256 _poolId, address _operator)
@@ -91,11 +101,13 @@ contract LoanManager is OwnableUpgradeSafe {
         require(_operator != address(0), "invalid operator address");
 
         operator[_poolId] = _operator;
+
+        emit operatorUpdated(_poolId, _operator);
     }
 
     /**
     * @dev Set the token price for the liquidation
-    * @param _poolId The tranche pool id
+    * @param _poolId The junior pool id
     * @param _tokenId The token id
     * @param _price The price of each token
     */
@@ -112,11 +124,13 @@ contract LoanManager is OwnableUpgradeSafe {
             pool.tokenInfo[_tokenId[index]].priceIsSet = true;
             pool.tokenInfo[_tokenId[index]].price = _price[index];
         }
+
+        emit loanPrcieSet(_poolId, _tokenId, _price);
     }
 
     /**
     * @dev Lock the tokenized loan into the corresponding pool 
-    * @param _poolId The tranche pool id
+    * @param _poolId The junior pool id
     * @param _tokenId The token id
     */
     function lockLoan(uint256 _poolId, uint256 _tokenId) external onlyOperator(_poolId) {
@@ -129,11 +143,13 @@ contract LoanManager is OwnableUpgradeSafe {
 
         pool.tokenInfo[_tokenId].tokenLocked = true;
         pool.token.transferFrom(msg.sender, address(this), _tokenId);
+
+        emit loanLocked(_poolId, _tokenId);
     }
 
     /**
     * @dev Unlock the tokenized loan from the corresponding pool if the debt has been paid off
-    * @param _poolId The tranche pool id
+    * @param _poolId The junior pool id
     * @param _tokenId The token id
     */
     function unlockLoan(uint256 _poolId, uint256 _tokenId) external onlyOperator(_poolId) {
@@ -145,8 +161,14 @@ contract LoanManager is OwnableUpgradeSafe {
 
         pool.tokenInfo[_tokenId].tokenLocked = false;
         pool.token.transferFrom(address(this), msg.sender, _tokenId);
+
+        emit loanUnlocked(_poolId, _tokenId);
     }
 
+    /**
+    * @dev Initiate liquidation of the loan
+    * @param _poolId The junior pool id
+    */
     function liquidate(uint256 _poolId) external onlyOwner {
         PoolInfo storage pool = pools[poolList[_poolId]];
         require(pool.poolExist, "pool doesn't exist");
@@ -158,11 +180,13 @@ contract LoanManager is OwnableUpgradeSafe {
         juniorPool.assess();
         config.getIndexPool().writedown(juniorPool);
         juniorPool.setLiquidated(IJuniorPool.LiquidationProcess.Processing);
+
+        emit poolLiquidated(_poolId);
     }
 
     /**
     * @dev Pay the token and get the tokenized liquidated loan
-    * @param _poolId The tranche pool id
+    * @param _poolId The junior pool id
     * @param _tokenId The token id
     */
     function liquidateLoan(uint256 _poolId, uint256 _tokenId) external onlyLiquidator(_poolId) {
@@ -193,5 +217,7 @@ contract LoanManager is OwnableUpgradeSafe {
             uint256 juniorPoolTokenId = indexPool.juniorPoolTokens(juniorPool, i);
             indexPool.redeem(juniorPoolTokenId);
         }
+
+        emit loanLiquidated(_poolId, _tokenId);
     }
 }
