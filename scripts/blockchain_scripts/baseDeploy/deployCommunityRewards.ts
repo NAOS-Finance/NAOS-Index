@@ -1,4 +1,4 @@
-import {GoldfinchConfig, CommunityRewards} from "@goldfinch-eng/protocol/typechain/ethers"
+import {NAOSConfig, CommunityRewards} from "@goldfinch-eng/protocol/typechain/ethers"
 import {CommunityRewardsInstance} from "@goldfinch-eng/protocol/typechain/truffle"
 import {assertIsString} from "@goldfinch-eng/utils"
 import {Deployed, TOKEN_LAUNCH_TIME_IN_SECONDS} from "../baseDeploy"

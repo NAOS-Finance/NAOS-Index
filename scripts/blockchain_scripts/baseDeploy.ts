@@ -1,22 +1,22 @@
 import {OWNER_ROLE, MINTER_ROLE, isMainnetForking, assertIsChainId, ContractDeployer} from "./deployHelpers"
 import {HardhatRuntimeEnvironment} from "hardhat/types"
 import {DeployFunction} from "hardhat-deploy/types"
-import {Fidu} from "../../types/contracts/protocol/core"
+import {RWA} from "../../types/contracts/protocol/core"
 import {Logger} from "./types"
 import {getDeployEffects} from "./migrations/deployEffects"
 import {getOrDeployUSDC} from "./baseDeploy/getOrDeployUSDC"
 import {getOrDeployNAOS} from "./baseDeploy/getOrDeployNAOS"
 import {deployBorrower} from "./baseDeploy/deployBorrower"
 import {deployClImplementation} from "./baseDeploy/deployClImplementation"
-import {deployFidu} from "./baseDeploy/deployFidu"
-import {deployGoldfinchFactory} from "./baseDeploy/deployGoldfinchFactory"
+import {deployRWA} from "./baseDeploy/deployRWA"
+import {deployNAOSFactory} from "./baseDeploy/deployNAOSFactory"
 import {deployPoolTokens} from "./baseDeploy/deployPoolTokens"
-import {deploySeniorPool} from "./baseDeploy/deploySeniorPool"
-import {deploySeniorPoolStrategies} from "./baseDeploy/deploySeniorPoolStrategies"
-import {deployTranchedPool} from "./baseDeploy/deployTranchedPool"
-import {deployBackerRewards} from "./baseDeploy/deployBackerRewards"
+import {deployIndexPool} from "./baseDeploy/deployIndexPool"
+import {deployIndexPoolStrategies} from "./baseDeploy/deployIndexPoolStrategies"
+import {deployJuniorPool} from "./baseDeploy/deployJuniorPool"
+// import {deployBackerRewards} from "./baseDeploy/deployBackerRewards"
 import {deployConfig} from "./baseDeploy/deployConfig"
-import {deployGo} from "./baseDeploy/deployGo"
+import {deployVerified} from "./baseDeploy/deployVerified"
 import {deployUniqueIdentity} from "./baseDeploy/deployUniqueIdentity"
 
 const logger: Logger = console.log
@@ -48,31 +48,31 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   const config = await deployConfig(deployer)
   await getOrDeployUSDC(deployer, config)
   await getOrDeployNAOS(deployer, config)
-  const fidu = await deployFidu(deployer, config)
+  const rwa = await deployRWA(deployer, config)
   await deployPoolTokens(deployer, {config})
-  await deployTranchedPool(deployer, {config, deployEffects})
+  await deployJuniorPool(deployer, {config, deployEffects})
 
-  await deploySeniorPool(deployer, {config, fidu})
-  await deployBorrower(deployer, {config})
-  await deploySeniorPoolStrategies(deployer, {config})
-  logger("Deploying GoldfinchFactory")
+  await deployIndexPool(deployer, {config, rwa})
+  // // await deployBorrower(deployer, {config})
+  await deployIndexPoolStrategies(deployer, {config})
+  logger("Deploying NAOSFactory")
 
-  await deployGoldfinchFactory(deployer, {config})
+  await deployNAOSFactory(deployer, {config})
   await deployClImplementation(deployer, {config})
 
   const {protocol_owner: trustedSigner} = await deployer.getNamedAccounts()
   const uniqueIdentity = await deployUniqueIdentity({deployer, trustedSigner, deployEffects})
 
-  await deployGo(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
-  await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
+  await deployVerified(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
+  // await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
 
   await deployEffects.executeDeferred()
 }
 
-export async function grantMinterRoleToPool(fidu: Fidu, pool: any) {
-  if (!(await fidu.hasRole(MINTER_ROLE, pool.address))) {
-    await fidu.grantRole(MINTER_ROLE, pool.address)
+export async function grantMinterRoleToPool(rwa: RWA, pool: any) {
+  if (!(await rwa.hasRole(MINTER_ROLE, pool.address))) {
+    await rwa.grantRole(MINTER_ROLE, pool.address)
   }
 }
 
-export {baseDeploy, deployBackerRewards}
+export {baseDeploy}

@@ -1,4 +1,4 @@
-import {GoldfinchConfig} from "@goldfinch-eng/protocol/typechain/ethers"
+import {NAOSConfig} from "@goldfinch-eng/protocol/typechain/ethers"
 import {assertNonNullable} from "@goldfinch-eng/utils"
 import {ContractDeployer, getProtocolOwner} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"

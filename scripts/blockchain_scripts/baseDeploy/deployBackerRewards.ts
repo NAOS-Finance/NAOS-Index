@@ -1,4 +1,4 @@
-import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
+import {NAOSConfig} from "../../../types/contracts/protocol/core"
 import {BackerRewards} from "../../../types/contracts/rewards"
 import {assertIsString} from "../utils"
 import {CONFIG_KEYS} from "../configKeys"
@@ -38,7 +38,7 @@ export async function deployBackerRewards(
 
   const contract = await getEthersContract<BackerRewards>("BackerRewards", {at: backerRewards.address})
 
-  const goldfinchConfig = await getEthersContract<GoldfinchConfig>("GoldfinchConfig", {at: configAddress})
+  const goldfinchConfig = await getEthersContract<NAOSConfig>("NAOSConfig", {at: configAddress})
 
   logger("Updating config...")
   await deployEffects.add({

@@ -10,7 +10,6 @@ import {
   isTestEnv
 } from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
-import {UNIQUE_IDENTITY_METADATA_URI} from "../uniqueIdentity/constants"
 
 const logger = console.log
 
@@ -41,7 +40,7 @@ export async function deployUniqueIdentity({
       execute: {
         init: {
           methodName: "initialize",
-          args: [protocol_owner, UNIQUE_IDENTITY_METADATA_URI],
+          args: [protocol_owner],
         },
       },
     },

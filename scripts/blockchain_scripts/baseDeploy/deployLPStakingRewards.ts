@@ -1,4 +1,4 @@
-import {GoldfinchConfig, StakingRewards} from "@goldfinch-eng/protocol/typechain/ethers"
+import {NAOSConfig, StakingRewards} from "@goldfinch-eng/protocol/typechain/ethers"
 import {assertIsString} from "@goldfinch-eng/utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, getProtocolOwner, isTestEnv} from "../deployHelpers"
