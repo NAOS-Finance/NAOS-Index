@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
-import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
 import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/IIndexPool.sol";
 import "../../interfaces/IJuniorPool.sol";
 
-contract LoanManager is OwnableUpgradeSafe {
+contract LoanManager is BaseUpgradeablePausable {
     NAOSConfig public config;
     using ConfigHelper for NAOSConfig;
 
@@ -55,10 +55,9 @@ contract LoanManager is OwnableUpgradeSafe {
     event loanPrcieSet(uint256 poolId, uint256[] tokenId, uint256[] price);
     event loanLiquidated(uint256 poolId, uint256 tokenId);
 
-    function initialize(NAOSConfig _config) public initializer {
-        __Ownable_init();
-
-        require(address(_config) != address(0), "config address cannot be zero address");
+    function initialize(address owner, NAOSConfig _config) public initializer {
+        require(owner != address(0) && address(_config) != address(0), "Owner and config addresses cannot be empty");
+        __BaseUpgradeablePausable__init(owner);
         config = _config;
     }
 
@@ -69,7 +68,7 @@ contract LoanManager is OwnableUpgradeSafe {
     */
     function addPool(address _juniorPoolAddress, IERC721 _token)
         external
-        onlyOwner
+        onlyAdmin
         returns (uint256 _poolId)
     {
         PoolInfo storage pool = pools[_juniorPoolAddress];
@@ -95,7 +94,7 @@ contract LoanManager is OwnableUpgradeSafe {
     */
     function updateOperator(uint256 _poolId, address _operator)
         external
-        onlyOwner
+        onlyAdmin
     {
         require(_poolId < poolList.length, "poolId out of range");
         require(_operator != address(0), "invalid operator address");
@@ -111,7 +110,7 @@ contract LoanManager is OwnableUpgradeSafe {
     * @param _tokenId The token id
     * @param _price The price of each token
     */
-    function setTokenPrice(uint256 _poolId, uint256[] memory _tokenId, uint256[] memory _price) external onlyOwner {
+    function setTokenPrice(uint256 _poolId, uint256[] memory _tokenId, uint256[] memory _price) external onlyAdmin {
         PoolInfo storage pool = pools[poolList[_poolId]];
         require(pool.poolExist, "pool doesn't exist");
         require(_tokenId.length == _price.length, "inconsist input length");
@@ -169,7 +168,7 @@ contract LoanManager is OwnableUpgradeSafe {
     * @dev Initiate liquidation of the loan
     * @param _poolId The junior pool id
     */
-    function liquidate(uint256 _poolId) external onlyOwner {
+    function liquidate(uint256 _poolId) external onlyAdmin {
         PoolInfo storage pool = pools[poolList[_poolId]];
         require(pool.poolExist, "pool doesn't exist");
 
