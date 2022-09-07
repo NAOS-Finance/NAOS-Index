@@ -53,10 +53,10 @@ const LOCAL = "localhost"
 const ROPSTEN = "ropsten"
 const RINKEBY = "rinkeby"
 const MAINNET = "mainnet"
-const GORLI = "gorli"
+const GOERLI = "gorli"
 const BSC = "bsc"
 
-export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GORLI | typeof BSC
+export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GOERLI | typeof BSC
 
 const MAX_UINT = new BN("115792089237316195423570985008687907853269984665640564039457584007913129639935")
 
@@ -66,8 +66,8 @@ const MAINNET_CHAIN_ID = "1"
 type MainnetChainId = typeof MAINNET_CHAIN_ID
 const RINKEBY_CHAIN_ID = "4"
 type RinkebyChainId = typeof RINKEBY_CHAIN_ID
-const GORLI_CHAIN_ID = "5"
-type GorliChainId = typeof GORLI_CHAIN_ID
+const GOERLI_CHAIN_ID = "5"
+type GoerliChainId = typeof GOERLI_CHAIN_ID
 const BSC_CHAIN_ID = "56"
 type BscChainId = typeof BSC_CHAIN_ID
 
@@ -127,8 +127,8 @@ const ERC20_ADDRESSES: any = {
   [NAOS]: NAOS_ADDRESSES,
 }
 
-type SafeConfigChainId = MainnetChainId | RinkebyChainId
-const SAFE_CONFIG_CHAIN_IDS = [MAINNET_CHAIN_ID, RINKEBY_CHAIN_ID]
+type SafeConfigChainId = MainnetChainId | RinkebyChainId | GoerliChainId
+const SAFE_CONFIG_CHAIN_IDS = [MAINNET_CHAIN_ID, RINKEBY_CHAIN_ID, GOERLI_CHAIN_ID]
 export const isSafeConfigChainId = (val: unknown): val is SafeConfigChainId =>
   (SAFE_CONFIG_CHAIN_IDS as unknown[]).includes(val)
 
@@ -140,6 +140,10 @@ const SAFE_CONFIG: Record<SafeConfigChainId, {safeAddress: AddressString; execut
   [RINKEBY_CHAIN_ID]: {
     safeAddress: "0xAA96CA940736e937A8571b132992418c7d220976",
     executor: "0xeF3fAA47e1b0515f640c588a0bc3D268d5aa29B9",
+  },
+  [GOERLI_CHAIN_ID]: {
+    safeAddress: "0xBA1827Efe12593dBFf5e67b67A7Ab2888EF94765",
+    executor: "0x9A84E62244CA4f45A8dd87b9f6B97C812EDeF653",
   },
 }
 
