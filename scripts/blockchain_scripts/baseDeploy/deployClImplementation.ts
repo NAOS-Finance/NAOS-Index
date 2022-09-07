@@ -21,9 +21,10 @@ export async function deployClImplementation(
     libraries: {["Accountant"]: accountant.address},
   })
   if (deployEffects !== undefined) {
-    await deployEffects.add({
-      deferred: [await config.populateTransaction.setCreditLineImplementation(clDeployResult.address)],
-    })
+    await config.setCreditLineImplementation(clDeployResult.address)
+    // await deployEffects.add({
+    //   deferred: [await config.populateTransaction.setCreditLineImplementation(clDeployResult.address)],
+    // })
   } else {
     await updateConfig(config, "address", CONFIG_KEYS.CreditLineImplementation, clDeployResult.address, {logger})
   }

@@ -28,9 +28,10 @@ export async function deployFixedLeverageRatioStrategy(
   }
 
   if (deployEffects !== undefined) {
-    deployEffects.add({
-      deferred: [await config.populateTransaction.setIndexPoolStrategy(strategy.address)],
-    })
+    await config.setIndexPoolStrategy(strategy.address)
+    // deployEffects.add({
+    //   deferred: [await config.populateTransaction.setIndexPoolStrategy(strategy.address)],
+    // })
   } else {
     await config.setIndexPoolStrategy(strategy.address)
   }

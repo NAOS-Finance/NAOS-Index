@@ -8,6 +8,7 @@ import {
   getContract,
   ETHERS_CONTRACT_PROVIDER,
   getEthersContract,
+  updateConfig
 } from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
 
@@ -16,11 +17,11 @@ const logger = console.log
 export async function deployVerified(
   deployer: ContractDeployer,
   {
-    configAddress,
+    config,
     uniqueIdentity,
     deployEffects,
   }: {
-    configAddress: string
+    config: NAOSConfig
     uniqueIdentity: Deployed<UniqueIdentity>
     deployEffects: DeployEffects
   }
@@ -38,7 +39,7 @@ export async function deployVerified(
       execute: {
         init: {
           methodName: "initialize",
-          args: [protocol_owner, configAddress, uniqueIdentity.contract.address],
+          args: [protocol_owner, config.address, uniqueIdentity.contract.address],
         },
       },
     },
@@ -47,13 +48,15 @@ export async function deployVerified(
     at: go.address,
   })
 
-  const goldfinchConfig = (await getEthersContract<NAOSConfig>("NAOSConfig", {at: configAddress})).connect(
-    await getProtocolOwner()
-  )
+  // const naosConfig = (await getEthersContract<NAOSConfig>("NAOSConfig", {at: configAddress})).connect(
+  //   await getProtocolOwner()
+  // )
 
-  await deployEffects.add({
-    deferred: [await goldfinchConfig.populateTransaction.setAddress(CONFIG_KEYS.Verified, contract.address)],
-  })
+  await updateConfig(config, "address", CONFIG_KEYS.Verified, contract.address, {logger})
+  // await naosConfig.setAddress(CONFIG_KEYS.Verified, contract.address)
+  // await deployEffects.add({
+  //   deferred: [await naosConfig.populateTransaction.setAddress(CONFIG_KEYS.Verified, contract.address)],
+  // })
 
   return {
     name: contractName,

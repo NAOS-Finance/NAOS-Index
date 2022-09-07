@@ -1,3 +1,4 @@
+import {ethers} from 'hardhat'
 import {UniqueIdentity} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {Deployed} from "../baseDeploy"
@@ -49,11 +50,16 @@ export async function deployUniqueIdentity({
     UniqueIdentity,
     any
   >(contractName, ETHERS_CONTRACT_PROVIDER, {at: uniqueIdentity.address})
-  const ethersContract = contract.connect(await getProtocolOwner())
+  const protocolOwner = await getProtocolOwner()
+  const signer = await ethers.getSigner(protocolOwner)
+  const ethersContract = contract.connect(signer)
 
-  await deployEffects.add({
-    deferred: [await ethersContract.populateTransaction.grantRole(SIGNER_ROLE, trustedSigner)],
-  })
+  if (trustedSigner) {
+    await ethersContract.grantRole(SIGNER_ROLE, trustedSigner)
+  }
+  // await deployEffects.add({
+  //   deferred: [await ethersContract.populateTransaction.grantRole(SIGNER_ROLE, trustedSigner)],
+  // })
 
   return {
     name: contractName,

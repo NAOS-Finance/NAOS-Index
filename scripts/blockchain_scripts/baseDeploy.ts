@@ -6,7 +6,7 @@ import {Logger} from "./types"
 import {getDeployEffects} from "./migrations/deployEffects"
 import {getOrDeployUSDC} from "./baseDeploy/getOrDeployUSDC"
 import {getOrDeployNAOS} from "./baseDeploy/getOrDeployNAOS"
-import {deployBorrower} from "./baseDeploy/deployBorrower"
+// import {deployBorrower} from "./baseDeploy/deployBorrower"
 import {deployClImplementation} from "./baseDeploy/deployClImplementation"
 import {deployRWA} from "./baseDeploy/deployRWA"
 import {deployNAOSFactory} from "./baseDeploy/deployNAOSFactory"
@@ -14,13 +14,14 @@ import {deployPoolTokens} from "./baseDeploy/deployPoolTokens"
 import {deployIndexPool} from "./baseDeploy/deployIndexPool"
 import {deployIndexPoolStrategies} from "./baseDeploy/deployIndexPoolStrategies"
 import {deployJuniorPool} from "./baseDeploy/deployJuniorPool"
-// import {deployBackerRewards} from "./baseDeploy/deployBackerRewards"
+import {deployJuniorRewards} from "./baseDeploy/deployJuniorRewards"
 import {deployConfig} from "./baseDeploy/deployConfig"
 import {deployVerified} from "./baseDeploy/deployVerified"
 import {deployWithdrawQueue} from "./baseDeploy/deployWithdrawQueue"
 import {deployBoostPool} from "./baseDeploy/deployBoostPool"
 import {deployLoanManager} from "./baseDeploy/deployLoanManager"
 import {deployUniqueIdentity} from "./baseDeploy/deployUniqueIdentity"
+import {deployIndexStakingPool} from "./baseDeploy/deployIndexStakingPool"
 
 const logger: Logger = console.log
 
@@ -66,13 +67,14 @@ const baseDeploy: DeployFunction = async function (hre: HardhatRuntimeEnvironmen
   const {protocol_owner: trustedSigner} = await deployer.getNamedAccounts()
   const uniqueIdentity = await deployUniqueIdentity({deployer, trustedSigner, deployEffects})
 
-  await deployVerified(deployer, {configAddress: config.address, uniqueIdentity, deployEffects})
+  await deployVerified(deployer, {config: config, uniqueIdentity, deployEffects})
   await deployWithdrawQueue(deployer, {config})
   await deployBoostPool(deployer, {config})
   await deployLoanManager(deployer, {config})
-  // await deployBackerRewards(deployer, {configAddress: config.address, deployEffects})
+  await deployJuniorRewards(deployer, {config: config, deployEffects})
+  await deployIndexStakingPool(deployer, {config: config, deployEffects})
 
-  await deployEffects.executeDeferred()
+  // await deployEffects.executeDeferred()
 }
 
 export async function grantMinterRoleToPool(rwa: RWA, pool: any) {

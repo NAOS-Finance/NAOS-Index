@@ -103,7 +103,7 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
     getChainId,
   } = hre
   if (!logger) {
-    logger = log
+    logger = console.log
   }
   const {gf_deployer} = await getNamedAccounts()
   const protocol_owner = await getProtocolOwner()
@@ -645,7 +645,7 @@ export async function createTestPool(hre: HardhatRuntimeEnvironment, {overrideAd
     getChainId,
   } = hre
   if (!logger) {
-    logger = log
+    logger = console.log
   }
   const {gf_deployer} = await getNamedAccounts()
   const protocol_owner = await getProtocolOwner()

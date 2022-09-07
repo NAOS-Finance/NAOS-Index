@@ -19,5 +19,6 @@ export async function deployBoostPool(deployer: ContractDeployer, {config}: Depl
   const boostPool = await deployer.deploy(contractName, {
     from: gf_deployer
   })
+  await updateConfig(config, "address", CONFIG_KEYS.BoostPool, boostPool.address, {logger})
   return boostPool
 }
