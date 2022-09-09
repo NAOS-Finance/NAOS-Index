@@ -19,16 +19,15 @@ export async function deployJuniorPool(
 
   assertIsString(gf_deployer)
   const tranchingLogic = await deployer.deployLibrary("TranchingLogic", {from: gf_deployer, args: []})
-  logger("About to deploy JuniorPool implementation...")
-  const juniorPoolImpl = await deployer.deploy(contractName, {
+  logger("About to deploy TranchedPool implementation...")
+  const tranchedPoolImpl = await deployer.deploy(contractName, {
     from: gf_deployer,
     libraries: {["TranchingLogic"]: tranchingLogic.address},
   })
   logger("Updating config...")
-  await config.setJuniorPoolImplementation(juniorPoolImpl.address)
-  // await deployEffects.add({
-  //   deferred: [await config.populateTransaction.setJuniorPoolImplementation(juniorPoolImpl.address)],
-  // })
-  logger("Updated juniorPoolImplementation config address to:", juniorPoolImpl.address)
-  return juniorPoolImpl
+  await deployEffects.add({
+    deferred: [await config.populateTransaction.setJuniorPoolImplementation(tranchedPoolImpl.address)],
+  })
+  logger("Updated TranchedPoolImplementation config address to:", tranchedPoolImpl.address)
+  return tranchedPoolImpl
 }
