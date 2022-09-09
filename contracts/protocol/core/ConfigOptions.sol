@@ -21,7 +21,6 @@ library ConfigOptions {
     LeverageRatio
   }
   enum Addresses {
-    Pool,
     CreditLineImplementation,
     NAOSFactory,
     RWA,

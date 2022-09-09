@@ -11,7 +11,7 @@ export async function deployNAOSFactory(
   deployer: ContractDeployer,
   {config}: DeployOpts
 ): Promise<NAOSFactory> {
-  logger("Deploying NAOS factory")
+  // logger("Deploying NAOS factory")
   const {gf_deployer} = await getNamedAccounts()
   assertIsString(gf_deployer)
   const accountant = await deployer.deployLibrary("Accountant", {from: gf_deployer, args: []})

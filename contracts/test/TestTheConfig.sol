@@ -23,7 +23,6 @@ contract TestTheConfig {
     NAOSConfig(configAddress).setNumber(uint256(ConfigOptions.Numbers.LeverageRatio), 10);
 
     NAOSConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.RWA), rwaAddress);
-    NAOSConfig(configAddress).setAddress(uint256(ConfigOptions.Addresses.Pool), poolAddress);
     NAOSConfig(configAddress).setAddress(
       uint256(ConfigOptions.Addresses.NAOSFactory),
       naosFactoryAddress

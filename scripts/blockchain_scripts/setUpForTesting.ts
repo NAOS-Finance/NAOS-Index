@@ -638,7 +638,11 @@ async function createPoolForBorrower({
 //   await updateConfig(config, "address", CONFIG_KEYS.TrustedForwarder, forwarder.address, {logger})
 // }
 
-export async function createTestPool(hre: HardhatRuntimeEnvironment, {overrideAddress, logger}: OverrideOptions = {}) {
+export async function createTestPool(
+  hre: HardhatRuntimeEnvironment,
+  {
+    overrideAddress, logger
+  }: OverrideOptions = {}) {
   const {
     getNamedAccounts,
     deployments: {getOrNull, log},
@@ -672,14 +676,14 @@ export async function createTestPool(hre: HardhatRuntimeEnvironment, {overrideAd
   }
 
   const allowedUIDTypes = [...NON_US_UID_TYPES, ...US_UID_TYPES]
-  const juniorFeePercent = String(new BN(20))
-  const limit = String(new BN(10000).mul(USDC_DECIMALS))
-  const interestApr = String(interestAprAsBN("5.00"))
-  const paymentPeriodInDays = String(new BN(30))
-  const termInDays = String(new BN(360))
-  const lateFeeApr = String(new BN(0))
-  const principalGracePeriodInDays = String(new BN(185))
-  const fundableAt = String(new BN(0))
+  const juniorFeePercent = String(new BN(process.env.JUNIOR_FEE_PERCENT || 20))
+  const limit = String(new BN(process.env.LIMIT || 10000).mul(USDC_DECIMALS))
+  const interestApr = String(interestAprAsBN(process.env.INTEREST_APR || "5.00"))
+  const paymentPeriodInDays = String(new BN(process.env.PAYMENT_PERIOD_IN_DAYS || 30))
+  const termInDays = String(new BN(process.env.TERM_IN_DAYS || 360))
+  const lateFeeApr = String(new BN(process.env.LATE_FEE_APR || 0))
+  const principalGracePeriodInDays = String(new BN(process.env.PRINCIPAL_GRACE_PERIOD_IN_DAYS || 185))
+  const fundableAt = String(new BN(process.env.FUNDABLE_AT || 0))
   const underwriterSigner = ethers.provider.getSigner(underwriter)
   const result = await (
     await naosFactory
