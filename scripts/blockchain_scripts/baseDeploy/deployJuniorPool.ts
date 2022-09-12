@@ -25,9 +25,10 @@ export async function deployJuniorPool(
     libraries: {["TranchingLogic"]: tranchingLogic.address},
   })
   logger("Updating config...")
-  await deployEffects.add({
-    deferred: [await config.populateTransaction.setJuniorPoolImplementation(tranchedPoolImpl.address)],
-  })
+  await config.populateTransaction.setJuniorPoolImplementation(tranchedPoolImpl.address)
+  // await deployEffects.add({
+  //   deferred: [await config.populateTransaction.setJuniorPoolImplementation(tranchedPoolImpl.address)],
+  // })
   logger("Updated TranchedPoolImplementation config address to:", tranchedPoolImpl.address)
   return tranchedPoolImpl
 }
