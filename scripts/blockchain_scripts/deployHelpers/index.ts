@@ -134,16 +134,16 @@ export const isSafeConfigChainId = (val: unknown): val is SafeConfigChainId =>
 
 const SAFE_CONFIG: Record<SafeConfigChainId, {safeAddress: AddressString; executor: AddressString}> = {
   [MAINNET_CHAIN_ID]: {
-    safeAddress: "0xBEb28978B2c755155f20fd3d09Cb37e300A6981f",
-    executor: "0xf13eFa505444D09E176d83A4dfd50d10E399cFd5",
+    safeAddress: process.env.SAFE_ADDRESS || "0xBEb28978B2c755155f20fd3d09Cb37e300A6981f",
+    executor: process.env.EXECUTOR_ADDRESS || "0xf13eFa505444D09E176d83A4dfd50d10E399cFd5",
   },
   [RINKEBY_CHAIN_ID]: {
-    safeAddress: "0xAA96CA940736e937A8571b132992418c7d220976",
-    executor: "0xeF3fAA47e1b0515f640c588a0bc3D268d5aa29B9",
+    safeAddress: process.env.SAFE_ADDRESS || "0xAA96CA940736e937A8571b132992418c7d220976",
+    executor: process.env.EXECUTOR_ADDRESS || "0xeF3fAA47e1b0515f640c588a0bc3D268d5aa29B9",
   },
   [GOERLI_CHAIN_ID]: {
-    safeAddress: "0xBA1827Efe12593dBFf5e67b67A7Ab2888EF94765",
-    executor: "0x9A84E62244CA4f45A8dd87b9f6B97C812EDeF653",
+    safeAddress: process.env.SAFE_ADDRESS || "0xBA1827Efe12593dBFf5e67b67A7Ab2888EF94765",
+    executor: process.env.EXECUTOR_ADDRESS || "0x9A84E62244CA4f45A8dd87b9f6B97C812EDeF653",
   },
 }
 

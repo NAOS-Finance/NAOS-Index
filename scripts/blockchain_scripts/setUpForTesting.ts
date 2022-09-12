@@ -41,12 +41,7 @@ import {
   IndexPool,
   JuniorPool,
   UniqueIdentity,
-} from "../../types/contracts/protocol/core"
-import {
-  Borrower,
-} from "../../types/contracts/protocol/periphery"
-import {
-  TestUSDC,
+  TestUSDC
 } from "../../types"
 import {fundWithWhales} from "./helpers/fundWithWhales"
 import {impersonateAccount} from "./helpers/impersonateAccount"
@@ -255,14 +250,14 @@ export async function setUpForTesting(hre: HardhatRuntimeEnvironment, {overrideA
   // await impersonateAccount(hre, protocol_owner)
   const borrowerSigner = ethers.provider.getSigner(protocol_owner)
   // assertNonNullable(borrowerSigner)
-  const bwrCon = (await ethers.getContractAt("Borrower", protocolBorrowerCon)).connect(borrowerSigner) as Borrower
+  // const bwrCon = (await ethers.getContractAt("Borrower", protocolBorrowerCon)).connect(borrowerSigner) as Borrower
   const payAmount = new BN(100).mul(USDC_DECIMALS)
-  await (erc20 as TestUSDC).connect(borrowerSigner).approve(bwrCon.address, payAmount.mul(new BN(2)).toString())
-  await bwrCon.pay(commonPool.address, payAmount.toString())
+  await (erc20 as TestUSDC).connect(borrowerSigner).approve(commonPool.address, payAmount.mul(new BN(2)).toString())
+  await commonPool.connect(borrowerSigner).pay(payAmount.toString())
 
   await advanceTime({days: 32})
 
-  await bwrCon.pay(commonPool.address, payAmount.toString())
+  await commonPool.connect(borrowerSigner).pay(payAmount.toString())
 
   await indexPool.redeem(tokenId)
 }
