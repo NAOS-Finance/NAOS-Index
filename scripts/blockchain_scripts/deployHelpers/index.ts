@@ -53,7 +53,7 @@ const LOCAL = "localhost"
 const ROPSTEN = "ropsten"
 const RINKEBY = "rinkeby"
 const MAINNET = "mainnet"
-const GOERLI = "gorli"
+const GOERLI = "goerli"
 const BSC = "bsc"
 
 export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GOERLI | typeof BSC

@@ -12,64 +12,24 @@ import {
   NAOS_DECIMALS,
   interestAprAsBN,
   ZERO_ADDRESS,
-  DISTRIBUTOR_ROLE,
   getContract,
   ETHERS_CONTRACT_PROVIDER,
   OWNER_ROLE,
   getEthersContract,
-  // getTruffleContract,
 } from "../scripts/blockchain_scripts/deployHelpers"
 import {DeploymentsExtension} from "hardhat-deploy/types"
-// import {
-//   CreditDesk,
-//   ERC20,
-//   Fidu,
-//   FixedLeverageRatioStrategy,
-//   GoldfinchConfig,
-//   GoldfinchFactory,
-//   Pool,
-//   PoolTokens,
-//   SeniorPool,
-//   CreditLine,
-//   TestForwarder,
-//   TranchedPool,
-//   GFI,
-//   CommunityRewards,
-//   MerkleDistributor,
-//   Go,
-//   TestUniqueIdentity,
-//   MerkleDirectDistributor,
-//   BackerRewards,
-//   Zapper,
-//   TestFiduUSDCCurveLP,
-//   TestStakingRewards,
-// } from "../typechain/truffle"
-// import {DynamicLeverageRatioStrategy} from "../typechain/truffle/DynamicLeverageRatioStrategy"
 import {
-  // CreditDesk,
   ERC20,
-  Fidu,
+  RWA,
   FixedLeverageRatioStrategy,
-  GoldfinchConfig,
-  GoldfinchFactory,
-  // Pool,
+  NAOSConfig,
+  NAOSFactory,
   PoolTokens,
-  SeniorPool,
+  IndexPool,
   CreditLine,
-  // TestForwarder,
-  TranchedPool,
+  JuniorPool,
   TestNAOS,
-  // GFI,
-  // CommunityRewards,
-  // MerkleDistributor,
-  // Go,
-  // TestUniqueIdentity,
-  // MerkleDirectDistributor,
-  // BackerRewards,
-  // Zapper,
-  // TestFiduUSDCCurveLP,
-  // TestStakingRewards,
-  Go,
+  Verified,
   TestUniqueIdentity,
   UniqueIdentity,
   DynamicLeverageRatioStrategy
@@ -78,7 +38,7 @@ import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
 import "./types"
 const decimals = new BN(String(1e18))
 // const USDC_DECIMALS = new BN(String(1e6))
-const FIDU_DECIMALS = new BN(String(1e18))
+const RWA_DECIMALS = new BN(String(1e18))
 // const NAOS_DECIMALS = new BN(String(1e18))
 const SECONDS_PER_DAY = new BN(86400)
 const SECONDS_PER_YEAR = SECONDS_PER_DAY.mul(new BN(365))
@@ -89,7 +49,7 @@ import {Contract, BaseContract, BigNumber, ContractReceipt, ContractTransaction,
 chai.use(ChaiBN(BN))
 
 const MAX_UINT = new BN("115792089237316195423570985008687907853269984665640564039457584007913129639935")
-const fiduTolerance = decimals.div(USDC_DECIMALS)
+const rwaTolerance = decimals.div(USDC_DECIMALS)
 const EMPTY_DATA = "0x"
 const BLOCKS_PER_DAY = 5760
 const ZERO = new BN(0)
@@ -105,14 +65,14 @@ function usdcVal(number) {
   return new BN(number).mul(USDC_DECIMALS)
 }
 
-function usdcToFidu(number: BN | number) {
+function usdcToRWA(number: BN | number) {
   if (!(number instanceof BN)) {
     number = new BN(number)
   }
   return number.mul(decimals.div(NAOS_DECIMALS))
 }
 
-function fiduToUSDC(number: BN | number) {
+function rwaToUSDC(number: BN | number) {
   if (!(number instanceof BN)) {
     number = new BN(number)
   }
@@ -124,7 +84,7 @@ const getDeployedContract = async <T extends BaseContract | Contract>(
   contractName: string
 ): Promise<T> => {
   let deployment = await deployments.getOrNull(contractName)
-  if (!deployment && contractName === "GoldfinchFactory") {
+  if (!deployment && contractName === "NAOSFactory") {
     deployment = await deployments.getOrNull("CreditLineFactory")
   }
   if (!deployment && isTestEnv()) {
@@ -142,10 +102,10 @@ async function getTruffleContractAtAddress<T extends BaseContract | Contract>(
   return (await artifacts.require(name).at(address)) as T
 }
 
-// async function setupBackerRewards(gfi: GFI, backerRewards: BackerRewards, owner: string) {
-//   const gfiAmount = bigVal(100_000_000) // 100M
-//   await gfi.setCap(gfiAmount)
-//   await gfi.mint(owner, gfiAmount)
+// async function setupBackerRewards(naos: GFI, backerRewards: BackerRewards, owner: string) {
+//   const naosAmount = bigVal(100_000_000) // 100M
+//   await naos.setCap(naosAmount)
+//   await naos.mint(owner, naosAmount)
 //   await backerRewards.setMaxInterestDollarsEligible(bigVal(1_000_000_000)) // 1B
 //   await backerRewards.setTotalRewards(bigVal(3_000_000)) // 3% of 100M, 3M
 // }
@@ -290,48 +250,48 @@ async function deployAllContracts(
   options: DeployAllContractsOptions = {}
 ): Promise<{
   // pool: Pool
-  seniorPool: SeniorPool
-  seniorPoolFixedStrategy: FixedLeverageRatioStrategy
-  seniorPoolDynamicStrategy: DynamicLeverageRatioStrategy
+  indexPool: IndexPool
+  indexPoolFixedStrategy: FixedLeverageRatioStrategy
+  indexPoolDynamicStrategy: DynamicLeverageRatioStrategy
   usdc: ERC20
   // creditDesk: CreditDesk
-  fidu: Fidu
-  // fiduUSDCCurveLP: TestFiduUSDCCurveLP
-  goldfinchConfig: GoldfinchConfig
-  goldfinchFactory: GoldfinchFactory
+  rwa: RWA
+  // rwaUSDCCurveLP: TestRWAUSDCCurveLP
+  naosConfig: NAOSConfig
+  naosFactory: NAOSFactory
   // forwarder: TestForwarder | null
   poolTokens: PoolTokens
-  tranchedPool: TranchedPool
-  gfi: TestNAOS
+  juniorPool: JuniorPool
+  naos: TestNAOS
   // stakingRewards: TestStakingRewards
   // backerRewards: TestBackerRewards
   // communityRewards: CommunityRewards
   // merkleDistributor: MerkleDistributor | null
   // merkleDirectDistributor: MerkleDirectDistributor | null
   uniqueIdentity: TestUniqueIdentity
-  go: Go
+  verified: Verified
   // zapper: Zapper
 }> {
   // await deployments.fixture("base_deploy")
   // const pool = await getDeployedContract<Pool>(deployments, "Pool")
-  const seniorPool = await getDeployedContract<SeniorPool>(deployments, "SeniorPool")
-  const seniorPoolFixedStrategy = await getDeployedContract<FixedLeverageRatioStrategy>(
+  const indexPool = await getDeployedContract<IndexPool>(deployments, "IndexPool")
+  const indexPoolFixedStrategy = await getDeployedContract<FixedLeverageRatioStrategy>(
     deployments,
     "FixedLeverageRatioStrategy"
   )
-  const seniorPoolDynamicStrategy = await getDeployedContract<DynamicLeverageRatioStrategy>(
+  const indexPoolDynamicStrategy = await getDeployedContract<DynamicLeverageRatioStrategy>(
     deployments,
     "DynamicLeverageRatioStrategy"
   )
   const usdc = await getDeployedContract<ERC20>(deployments, "USDC")
   // const creditDesk = await getDeployedContract<CreditDesk>(deployments, "CreditDesk")
-  const fidu = await getDeployedContract<Fidu>(deployments, "Fidu")
-  // const fiduUSDCCurveLP = await getDeployedContract<TestFiduUSDCCurveLP>(
+  const rwa = await getDeployedContract<RWA>(deployments, "RWA")
+  // const rwaUSDCCurveLP = await getDeployedContract<TestRWAUSDCCurveLP>(
   //   deployments,
-  //   "FiduUSDCCurveLP"
+  //   "RWAUSDCCurveLP"
   // )
-  const goldfinchConfig = await getDeployedContract<GoldfinchConfig>(deployments, "GoldfinchConfig")
-  const goldfinchFactory = await getDeployedContract<GoldfinchFactory>(deployments, "GoldfinchFactory")
+  const naosConfig = await getDeployedContract<NAOSConfig>(deployments, "NAOSConfig")
+  const naosFactory = await getDeployedContract<NAOSFactory>(deployments, "NAOSFactory")
   const poolTokens = await getDeployedContract<PoolTokens>(deployments, "PoolTokens")
   // let forwarder: TestForwarder | null = null
   // if (options.deployForwarder) {
@@ -340,8 +300,8 @@ async function deployAllContracts(
   //   assertNonNullable(forwarder)
   //   await forwarder.registerDomainSeparator("Defender", "1")
   // }
-  const tranchedPool = await getDeployedContract<TranchedPool>(deployments, "TranchedPool")
-  const gfi = await getDeployedContract<TestNAOS>(deployments, "NAOS")
+  const juniorPool = await getDeployedContract<JuniorPool>(deployments, "JuniorPool")
+  const naos = await getDeployedContract<TestNAOS>(deployments, "NAOS")
   // const stakingRewards = await getDeployedContract<TestStakingRewards>(deployments, "StakingRewards")
   // const backerRewards = await getDeployedContract<TestBackerRewards>(deployments, "BackerRewards")
 
@@ -375,7 +335,7 @@ async function deployAllContracts(
   //       execute: {
   //         init: {
   //           methodName: "initialize",
-  //           args: [protocol_owner, gfi.address, options.deployMerkleDirectDistributor.root],
+  //           args: [protocol_owner, naos.address, options.deployMerkleDirectDistributor.root],
   //         },
   //       },
   //     },
@@ -390,25 +350,25 @@ async function deployAllContracts(
     "TestUniqueIdentity",
     ETHERS_CONTRACT_PROVIDER
   )
-  const go = await getContract<Go, Go>("Go", ETHERS_CONTRACT_PROVIDER)
+  const verified = await getContract<Verified, Verified>("Verified", ETHERS_CONTRACT_PROVIDER)
 
   // const zapper = await getTruffleContract<Zapper>("Zapper")
 
   return {
-    seniorPool,
-    seniorPoolFixedStrategy,
-    seniorPoolDynamicStrategy,
+    indexPool,
+    indexPoolFixedStrategy,
+    indexPoolDynamicStrategy,
     usdc,
-    fidu,
-    goldfinchConfig,
-    goldfinchFactory,
+    rwa,
+    naosConfig,
+    naosFactory,
     // forwarder,
     poolTokens,
-    tranchedPool,
-    gfi,
+    juniorPool,
+    naos,
     // stakingRewards,
     uniqueIdentity,
-    go,
+    verified,
     // backerRewards,
   }
 }
@@ -452,7 +412,7 @@ async function advanceTime({days, seconds, toSecond}: {days?: Numberish; seconds
   } else if (toSecond) {
     newTimestamp = new BN(toSecond)
   }
-  // Cannot go backward
+  // Cannot verified backward
   expect(newTimestamp).to.bignumber.gt(currentTimestamp)
 
   await ethers.provider.send("evm_setNextBlockTimestamp", [newTimestamp.toNumber()])
@@ -475,7 +435,7 @@ async function getBalance(address, erc20) {
 
 const createPoolWithCreditLine = async ({
   people,
-  goldfinchFactory,
+  naosFactory,
   usdc,
   juniorFeePercent = bnToHex(new BN("20")),
   interestApr = bnToHex(interestAprAsBN("15.0")),
@@ -489,7 +449,7 @@ const createPoolWithCreditLine = async ({
 }: {
   people: {owner: string; borrower: string}
   usdc: ERC20
-  goldfinchFactory: GoldfinchFactory
+  naosFactory: NAOSFactory
   juniorFeePercent?: Numberish
   interestApr?: Numberish
   paymentPeriodInDays?: Numberish
@@ -499,7 +459,7 @@ const createPoolWithCreditLine = async ({
   principalGracePeriodInDays?: Numberish
   fundableAt?: Numberish
   allowedUIDTypes?: Numberish[]
-}): Promise<{tranchedPool: TranchedPool; creditLine: CreditLine}> => {
+}): Promise<{juniorPool: JuniorPool; creditLine: CreditLine}> => {
   const thisOwner = people.owner
   const thisBorrower = people.borrower
 
@@ -511,7 +471,7 @@ const createPoolWithCreditLine = async ({
     throw new Error("No owner is set. Please set one in a beforeEach or pass it in explicitly")
   }
 
-  const tx: any = await goldfinchFactory.createPool(
+  const tx: any = await naosFactory.createPool(
     thisBorrower,
     juniorFeePercent as BigNumberish,
     limit as BigNumberish,
@@ -527,7 +487,7 @@ const createPoolWithCreditLine = async ({
   const result = await tx.wait()
 
   const event = result.logs[result.logs.length - 1] as $TSFixMe
-  const pool = await getTruffleContractAtAddress<TranchedPool>("TranchedPool", '0x' + event.topics[1].substr(26))
+  const pool = await getTruffleContractAtAddress<JuniorPool>("JuniorPool", '0x' + event.topics[1].substr(26))
   const creditLine = await getTruffleContractAtAddress<CreditLine>("CreditLine", await pool.creditLine())
 
   await erc20Approve(usdc, pool.address, usdcVal(100000), [thisOwner])
@@ -537,8 +497,8 @@ const createPoolWithCreditLine = async ({
     await erc20Approve(usdc, pool.address, usdcVal(100000), [thisBorrower])
   }
 
-  const tranchedPool = await getTruffleContractAtAddress<TranchedPool>("TestTranchedPool", pool.address)
-  return {tranchedPool, creditLine}
+  const juniorPool = await getTruffleContractAtAddress<JuniorPool>("TestJuniorPool", pool.address)
+  return {juniorPool, creditLine}
 }
 
 // async function toTruffle<T extends Truffle.Contract = Truffle.Contract>(
@@ -689,12 +649,12 @@ export {
   expect,
   decimals,
   USDC_DECIMALS,
-  FIDU_DECIMALS,
+  RWA_DECIMALS,
   NAOS_DECIMALS,
   BN,
   MAX_UINT,
   tolerance,
-  fiduTolerance,
+  rwaTolerance,
   ZERO_ADDRESS,
   SECONDS_PER_DAY,
   SECONDS_PER_YEAR,
@@ -708,8 +668,8 @@ export {
   getBalance,
   getDeployedContract,
   // getTruffleContractAtAddress,
-  fiduToUSDC,
-  usdcToFidu,
+  rwaToUSDC,
+  usdcToRWA,
   expectAction,
   deployAllContracts,
   erc721Approve,

@@ -7,12 +7,11 @@ import {
 } from "../../scripts/blockchain_scripts/deployHelpers"
 import {
   Accountant,
-  Borrower,
   CreditLine,
   ERC20,
-  GoldfinchFactory,
+  NAOSFactory,
   TestAccountant,
-  TranchedPool,
+  JuniorPool,
 } from "../../types"
 import hre, {deployments, getNamedAccounts} from "hardhat"
 import {FixtureFunc} from "hardhat-deploy/types"
@@ -147,7 +146,7 @@ export const deployInitializedCreditLineFixture = createFixtureWithRequiredOptio
   }
 )
 
-interface TranchedPoolOptions {
+interface JuniorPoolOptions {
   borrower: string
   juniorFeePercent?: string | BN
   limit?: string | BN
@@ -186,7 +185,7 @@ interface TranchedPoolOptions {
  *
  * @returns a newly created tranched pool and credit line
  */
-export const deployTranchedPoolWithGoldfinchFactoryFixture = createFixtureWithRequiredOptions(
+export const deployJuniorPoolWithNAOSFactoryFixture = createFixtureWithRequiredOptions(
   async (
     hre,
     {
@@ -201,15 +200,15 @@ export const deployTranchedPoolWithGoldfinchFactoryFixture = createFixtureWithRe
       fundableAt = new BN(0),
       allowedUIDTypes = [0],
       usdcAddress,
-    }: TranchedPoolOptions & {usdcAddress: string}
+    }: JuniorPoolOptions & {usdcAddress: string}
   ) => {
     const {protocol_owner: owner} = await hre.getNamedAccounts()
     const usdc = await getEthersContract("ERC20", {at: usdcAddress})
-    const goldfinchFactoryDeployment = await deployments.get("GoldfinchFactory")
-    const goldfinchFactory = await getEthersContract<GoldfinchFactory>("GoldfinchFactory", {
-      at: goldfinchFactoryDeployment.address,
+    const naosFactoryDeployment = await deployments.get("NAOSFactory")
+    const naosFactory = await getEthersContract<NAOSFactory>("NAOSFactory", {
+      at: naosFactoryDeployment.address,
     })
-    const tx: any = await goldfinchFactory.createPool(
+    const tx: any = await naosFactory.createPool(
       borrower,
       bnToHex(juniorFeePercent as BN),
       bnToHex(limit as BN),
@@ -226,20 +225,20 @@ export const deployTranchedPoolWithGoldfinchFactoryFixture = createFixtureWithRe
 
     const event = result.logs[result.logs.length - 1] as $TSFixMe
     assertNonNullable(event.topics)
-    const pool = await getEthersContract<TranchedPool>("TranchedPool", {at: '0x' + event.topics[1].substr(26)})
+    const pool = await getEthersContract<JuniorPool>("JuniorPool", {at: '0x' + event.topics[1].substr(26)})
     const creditLine = await getEthersContract<CreditLine>("CreditLine", {at: await pool.creditLine()})
-    const tranchedPool = await getEthersContract<TranchedPool>("TestTranchedPool", {at: pool.address})
+    const juniorPool = await getEthersContract<JuniorPool>("TestJuniorPool", {at: pool.address})
 
     expect(await pool.creditLine()).to.be.eq(creditLine.address)
 
-    await erc20Approve(usdc, tranchedPool.address, MAX_UINT, [owner])
+    await erc20Approve(usdc, juniorPool.address, MAX_UINT, [owner])
 
     // Only approve if borrower is an EOA (could be a borrower contract)
     // if ((await web3.eth.getCode(borrower)) === "0x") {
-    //   await erc20Approve(usdc, tranchedPool.address, MAX_UINT, [borrower])
+    //   await erc20Approve(usdc, juniorPool.address, MAX_UINT, [borrower])
     // }
 
-    return {tranchedPool, creditLine}
+    return {juniorPool, creditLine}
   }
 )
 
@@ -269,7 +268,7 @@ export const deployTranchedPoolWithGoldfinchFactoryFixture = createFixtureWithRe
  *
  * @returns a newly created tranched pool, credit line, and borrower contract
  */
-export const deployTranchedPoolAndBorrowerWithGoldfinchFactoryFixture = createFixtureWithRequiredOptions(
+export const deployJuniorPoolAndBorrowerWithNAOSFactoryFixture = createFixtureWithRequiredOptions(
   async (
     hre,
     {
@@ -285,22 +284,13 @@ export const deployTranchedPoolAndBorrowerWithGoldfinchFactoryFixture = createFi
       fundableAt = new BN(0),
       allowedUIDTypes = [0],
       id,
-    }: TranchedPoolOptions & {usdcAddress: string}
+    }: JuniorPoolOptions & {usdcAddress: string}
   ) => {
     const {protocol_owner: owner} = await hre.getNamedAccounts()
 
-    const goldfinchFactoryDeploy = await hre.deployments.get("GoldfinchFactory")
-    const goldfinchFactory = await getEthersContract<GoldfinchFactory>("GoldfinchFactory", {
-      at: goldfinchFactoryDeploy.address,
-    })
-
-    // const result: any = await goldfinchFactory.createBorrower(borrower, {from: owner})
-    // const event = result.logs[result.logs.length - 1] as $TSFixMe
-    // const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: event.args.borrower})
-
-    const otherDeploys = await deployTranchedPoolWithGoldfinchFactoryFixture({
+    const otherDeploys = await deployJuniorPoolWithNAOSFactoryFixture({
       usdcAddress: usdcAddress,
-      // borrower: borrowerContract.address,
+      borrower: owner,
       juniorFeePercent,
       limit,
       interestApr,
@@ -314,7 +304,6 @@ export const deployTranchedPoolAndBorrowerWithGoldfinchFactoryFixture = createFi
     })
 
     return {
-      borrowerContract,
       ...otherDeploys,
     }
   }
@@ -323,26 +312,26 @@ export const deployTranchedPoolAndBorrowerWithGoldfinchFactoryFixture = createFi
 /**
  * Deploy an tranched pool without calling `initialize` on it. This can also be thought of as an "invalid pool"
  */
-export const deployUninitializedTranchedPoolFixture = deployments.createFixture(async (hre) => {
+export const deployUninitializedJuniorPoolFixture = deployments.createFixture(async (hre) => {
   const {protocol_owner: owner} = await hre.getNamedAccounts()
   assertNonNullable(owner)
 
   const accountant = await hre.deployments.get("Accountant")
   const tranchingLogic = await hre.deployments.get("TranchingLogic")
-  const tranchedPoolResult = await hre.deployments.deploy("TranchedPool", {
+  const juniorPoolResult = await hre.deployments.deploy("JuniorPool", {
     from: owner,
     libraries: {
       ["TranchingLogic"]: tranchingLogic.address,
       ["Accountant"]: accountant.address,
     },
   })
-  const pool = await getEthersContract<TranchedPool>("TranchedPool", {at: tranchedPoolResult.address})
-  const tranchedPool = await getEthersContract<TranchedPool>("TestTranchedPool", {
+  const pool = await getEthersContract<JuniorPool>("JuniorPool", {at: juniorPoolResult.address})
+  const juniorPool = await getEthersContract<JuniorPool>("TestJuniorPool", {
     at: pool.address,
   })
 
   return {
-    tranchedPool,
+    juniorPool,
   }
 })
 
@@ -366,17 +355,17 @@ export const deployUninitializedTranchedPoolFixture = deployments.createFixture(
  *            need to create two fixtures with the same parameters in the same
  *            test block, make sure they have different id fields.
  */
-export const deployBorrowerWithGoldfinchFactoryFixture = createFixtureWithRequiredOptions(
+export const deployBorrowerWithNAOSFactoryFixture = createFixtureWithRequiredOptions(
   async (hre, {borrower, usdcAddress}: {borrower: string; usdcAddress: string; id: string}) => {
     const {protocol_owner: owner} = await hre.getNamedAccounts()
     assertNonNullable(owner)
-    const goldfinchFactoryDeployment = await hre.deployments.get("GoldfinchFactory")
-    const goldfinchFactory = await getEthersContract<GoldfinchFactory>("GoldfinchFactory", {
-      at: goldfinchFactoryDeployment.address,
+    const naosFactoryDeployment = await hre.deployments.get("NAOSFactory")
+    const naosFactory = await getEthersContract<NAOSFactory>("NAOSFactory", {
+      at: naosFactoryDeployment.address,
     })
     const usdc = await getEthersContract<ERC20>("ERC20", {at: asNonNullable(usdcAddress)})
 
-    // const result: any = await goldfinchFactory.createBorrower(borrower, {from: owner})
+    // const result: any = await naosFactory.createBorrower(borrower, {from: owner})
     // const event = result.logs[result.logs.length - 1] as $TSFixMe
     // const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: event.args.borrower})
     // await usdc.approve(borrowerContract.address, MAX_UINT as any, {from: borrower})
@@ -411,7 +400,7 @@ export const deployBorrowerWithGoldfinchFactoryFixture = createFixtureWithRequir
  *
  * @returns a funded tranched pool and credit line
  */
-export const deployFundedTranchedPool = createFixtureWithRequiredOptions(
+export const deployFundedJuniorPool = createFixtureWithRequiredOptions(
   async (
     hre,
     {
@@ -432,27 +421,27 @@ export const deployFundedTranchedPool = createFixtureWithRequiredOptions(
   ) => {
     const {protocol_owner: owner} = await hre.getNamedAccounts()
     assertNonNullable(owner)
-    const {tranchedPool, creditLine} = await deployTranchedPoolWithGoldfinchFactoryFixture({
+    const {juniorPool, creditLine} = await deployJuniorPoolWithNAOSFactoryFixture({
       borrower: borrowerContractAddress,
       usdcAddress,
       id,
     })
 
-    const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: borrowerContractAddress})
+    // const borrowerContract = await getEthersContract<Borrower>("Borrower", {at: borrowerContractAddress})
     const usdc = await getEthersContract<ERC20>("ERC20", {at: usdcAddress})
 
-    await erc20Approve(usdc, tranchedPool.address, MAX_UINT, [owner])
+    await erc20Approve(usdc, juniorPool.address, MAX_UINT, [owner])
 
-    const seniorRole = await tranchedPool.SENIOR_ROLE()
-    await tranchedPool.grantRole(seniorRole, owner)
-    await tranchedPool.deposit(TRANCHES.Junior, juniorTrancheAmount as any)
-    await borrowerContract.lockJuniorCapital(tranchedPool.address, {from: borrower})
-    await tranchedPool.deposit(TRANCHES.Senior, seniorTrancheAmount as any)
-    await borrowerContract.lockPool(tranchedPool.address, {from: borrower})
-    await tranchedPool.revokeRole(seniorRole, owner) // clean up
+    const seniorRole = await juniorPool.SENIOR_ROLE()
+    await juniorPool.grantRole(seniorRole, owner)
+    await juniorPool.deposit(TRANCHES.Junior, juniorTrancheAmount as any)
+    await juniorPool.lockJuniorCapital({from: owner})
+    await juniorPool.deposit(TRANCHES.Senior, seniorTrancheAmount as any)
+    await juniorPool.lockPool({from: owner})
+    await juniorPool.revokeRole(seniorRole, owner) // clean up
 
     return {
-      tranchedPool,
+      juniorPool,
       creditLine,
     }
   }
