@@ -24,10 +24,6 @@ import "../../interfaces/IBoostPool.sol";
  */
 
 library ConfigHelper {
-  function getPool(NAOSConfig config) internal view returns (IPool) {
-    return IPool(poolAddress(config));
-  }
-
   function getIndexPool(NAOSConfig config) internal view returns (IIndexPool) {
     return IIndexPool(indexPoolAddress(config));
   }
@@ -82,10 +78,6 @@ library ConfigHelper {
 
   function configAddress(NAOSConfig config) internal view returns (address) {
     return config.getAddress(uint256(ConfigOptions.Addresses.NAOSConfig));
-  }
-
-  function poolAddress(NAOSConfig config) internal view returns (address) {
-    return config.getAddress(uint256(ConfigOptions.Addresses.Pool));
   }
 
   function poolTokensAddress(NAOSConfig config) internal view returns (address) {

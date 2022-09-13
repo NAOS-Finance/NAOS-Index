@@ -1,3 +1,4 @@
+require('dotenv').config()
 import "@nomiclabs/hardhat-ethers"
 // import "@nomiclabs/hardhat-waffle"
 import "@nomiclabs/hardhat-web3"
@@ -19,17 +20,20 @@ module.exports = {
       default: 0,
       1: "0xc840B3e21FF0EBA77468AD450d868D4362cF67fE",
       4: "0x12B82166fd044aC854D3Fc15C48B5719Ca8Dfb94",
+      5: "0xBA1827Efe12593dBFf5e67b67A7Ab2888EF94765",
       31337: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     },
     gf_deployer: {
       default: 1,
       1: "0xa083880F7a5df37Bf00a25380C3eB9AF9cD92D8f",
       4: "0x12B82166fd044aC854D3Fc15C48B5719Ca8Dfb94",
+      5: "0x9A84E62244CA4f45A8dd87b9f6B97C812EDeF653",
       31337: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
     },
     temp_multisig: {
       1: "0x60d2be34bce277f5f5889adfd4991baefa17461c",
       4: "0x80B9823A6D12Cc00d70E184b2b310d360220E792",
+      5: "0xBA1827Efe12593dBFf5e67b67A7Ab2888EF94765",
       31337: "0x60d2be34bce277f5f5889adfd4991baefa17461c",
     },
   },
@@ -121,6 +125,13 @@ module.exports = {
     //       }
     //     : undefined,
     },
+    goerli: {
+      url: 'https://eth-goerli.g.alchemy.com/v2/EuYRPrN3oUqZ2eKQ-5xL4k6d4v3d2vLj',
+      accounts: [
+        process.env.PRIVATE_KEY_1,
+        process.env.PRIVATE_KEY_2
+      ]
+    }
   },
   mocha: {
     // timeout: 0,

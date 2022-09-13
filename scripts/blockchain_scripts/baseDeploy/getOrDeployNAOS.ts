@@ -11,8 +11,7 @@ import {
   NAOS_DECIMALS,
   getContract,
   ETHERS_CONTRACT_PROVIDER,
-  updateConfig,
-  isTestEnv,
+  updateConfig
 } from "../deployHelpers"
 
 const logger = console.log

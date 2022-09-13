@@ -1,7 +1,7 @@
 import {getDeployedContract, updateConfig, SAFE_CONFIG, OWNER_ROLE, PAUSER_ROLE, MINTER_ROLE} from "./deployHelpers"
 import {CONFIG_KEYS} from "./configKeys"
 import hre from "hardhat"
-import {GoldfinchConfig} from "../typechain/ethers"
+import {NAOSConfig} from "../typechain/ethers"
 
 /*
 This script ensures the permissions on the contracts are correct. Run this after the first deploy

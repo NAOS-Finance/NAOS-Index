@@ -1,4 +1,4 @@
-import {Go, GoldfinchConfig, UniqueIdentity} from "../../../types/contracts/protocol/core"
+import {Verified, NAOSConfig, UniqueIdentity} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {Deployed} from "../baseDeploy"
 import {CONFIG_KEYS} from "../configKeys"
@@ -8,24 +8,25 @@ import {
   getContract,
   ETHERS_CONTRACT_PROVIDER,
   getEthersContract,
+  updateConfig
 } from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
 
 const logger = console.log
 
-export async function deployGo(
+export async function deployVerified(
   deployer: ContractDeployer,
   {
-    configAddress,
+    config,
     uniqueIdentity,
     deployEffects,
   }: {
-    configAddress: string
+    config: NAOSConfig
     uniqueIdentity: Deployed<UniqueIdentity>
     deployEffects: DeployEffects
   }
-): Promise<Deployed<Go>> {
-  const contractName = "Go"
+): Promise<Deployed<Verified>> {
+  const contractName = "Verified"
   logger(`About to deploy ${contractName}...`)
   const {gf_deployer} = await deployer.getNamedAccounts()
   assertIsString(gf_deployer)
@@ -38,22 +39,24 @@ export async function deployGo(
       execute: {
         init: {
           methodName: "initialize",
-          args: [protocol_owner, configAddress, uniqueIdentity.contract.address],
+          args: [protocol_owner, config.address, uniqueIdentity.contract.address],
         },
       },
     },
   })
-  const contract = await getContract<Go, Go>(contractName, ETHERS_CONTRACT_PROVIDER, {
+  const contract = await getContract<Verified, Verified>(contractName, ETHERS_CONTRACT_PROVIDER, {
     at: go.address,
   })
 
-  const goldfinchConfig = (await getEthersContract<GoldfinchConfig>("GoldfinchConfig", {at: configAddress})).connect(
-    await getProtocolOwner()
-  )
+  // const naosConfig = (await getEthersContract<NAOSConfig>("NAOSConfig", {at: configAddress})).connect(
+  //   await getProtocolOwner()
+  // )
 
-  await deployEffects.add({
-    deferred: [await goldfinchConfig.populateTransaction.setAddress(CONFIG_KEYS.Go, contract.address)],
-  })
+  await updateConfig(config, "address", CONFIG_KEYS.Verified, contract.address, {logger})
+  // await naosConfig.setAddress(CONFIG_KEYS.Verified, contract.address)
+  // await deployEffects.add({
+  //   deferred: [await naosConfig.populateTransaction.setAddress(CONFIG_KEYS.Verified, contract.address)],
+  // })
 
   return {
     name: contractName,

@@ -68,7 +68,7 @@ class DefenderUpgrader {
           {internalType: "address", name: "newAddress", type: "address"},
         ],
       },
-      functionInputs: [CONFIG_KEYS.GoldfinchConfig.toString(), newConfigAddress],
+      functionInputs: [CONFIG_KEYS.NAOSConfig.toString(), newConfigAddress],
       via: this.safeAddress,
       viaType: "Gnosis Safe", // Either Gnosis Safe or Gnosis Multisig
     })

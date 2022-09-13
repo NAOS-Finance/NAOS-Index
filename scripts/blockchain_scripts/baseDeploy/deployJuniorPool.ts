@@ -1,17 +1,17 @@
-import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
+import {NAOSConfig} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {ContractDeployer, isTestEnv} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
 
-export async function deployTranchedPool(
+export async function deployJuniorPool(
   deployer: ContractDeployer,
-  {config, deployEffects}: {config: GoldfinchConfig; deployEffects: DeployEffects}
+  {config, deployEffects}: {config: NAOSConfig; deployEffects: DeployEffects}
 ) {
   const logger = console.log
   const {gf_deployer} = await deployer.getNamedAccounts()
 
-  logger("About to deploy TranchedPool...")
-  let contractName = "TranchedPool"
+  logger("About to deploy JuniorPool...")
+  let contractName = "JuniorPool"
   // TODO: contract too large error
   if (isTestEnv()) {
     contractName = `Test${contractName}`
@@ -25,9 +25,11 @@ export async function deployTranchedPool(
     libraries: {["TranchingLogic"]: tranchingLogic.address},
   })
   logger("Updating config...")
-  await deployEffects.add({
-    deferred: [await config.populateTransaction.setTranchedPoolImplementation(tranchedPoolImpl.address)],
-  })
+  // await config.populateTransaction.setJuniorPoolImplementation(tranchedPoolImpl.address)
+  await config.setJuniorPoolImplementation(tranchedPoolImpl.address)
+  // await deployEffects.add({
+  //   deferred: [await config.populateTransaction.setJuniorPoolImplementation(tranchedPoolImpl.address)],
+  // })
   logger("Updated TranchedPoolImplementation config address to:", tranchedPoolImpl.address)
   return tranchedPoolImpl
 }

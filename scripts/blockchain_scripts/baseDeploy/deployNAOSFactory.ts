@@ -1,4 +1,4 @@
-import {GoldfinchFactory} from "../../../types/contracts/protocol/core"
+import {NAOSFactory} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {getNamedAccounts} from "hardhat"
 import {CONFIG_KEYS} from "../configKeys"
@@ -7,17 +7,17 @@ import {DeployOpts} from "../types"
 
 const logger = console.log
 
-export async function deployGoldfinchFactory(
+export async function deployNAOSFactory(
   deployer: ContractDeployer,
   {config}: DeployOpts
-): Promise<GoldfinchFactory> {
-  logger("Deploying goldfinch factory")
+): Promise<NAOSFactory> {
+  // logger("Deploying NAOS factory")
   const {gf_deployer} = await getNamedAccounts()
   assertIsString(gf_deployer)
   const accountant = await deployer.deployLibrary("Accountant", {from: gf_deployer, args: []})
   const protocol_owner = await getProtocolOwner()
 
-  const goldfinchFactory = await deployer.deploy<GoldfinchFactory>("GoldfinchFactory", {
+  const naosFactory = await deployer.deploy<NAOSFactory>("NAOSFactory", {
     from: gf_deployer,
     proxy: {
       owner: gf_deployer,
@@ -32,8 +32,8 @@ export async function deployGoldfinchFactory(
       ["Accountant"]: accountant.address,
     },
   })
-  const goldfinchFactoryAddress = goldfinchFactory.address
+  const naosFactoryAddress = naosFactory.address
 
-  await updateConfig(config, "address", CONFIG_KEYS.GoldfinchFactory, goldfinchFactoryAddress, {logger})
-  return goldfinchFactory
+  await updateConfig(config, "address", CONFIG_KEYS.NAOSFactory, naosFactoryAddress, {logger})
+  return naosFactory
 }

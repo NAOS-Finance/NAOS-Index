@@ -1,15 +1,14 @@
-import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
+import {NAOSConfig} from "../../../types/contracts/protocol/core"
 import {assertIsString} from "../utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, updateConfig} from "../deployHelpers"
 import {DeployEffects} from "../migrations/deployEffects"
-import {DeployOpts} from "../types"
 
 const logger = console.log
 
 export async function deployClImplementation(
   deployer: ContractDeployer,
-  {config, deployEffects}: {config: GoldfinchConfig; deployEffects?: DeployEffects}
+  {config, deployEffects}: {config: NAOSConfig; deployEffects?: DeployEffects}
 ) {
   const {gf_deployer} = await deployer.getNamedAccounts()
 
@@ -22,9 +21,10 @@ export async function deployClImplementation(
     libraries: {["Accountant"]: accountant.address},
   })
   if (deployEffects !== undefined) {
-    await deployEffects.add({
-      deferred: [await config.populateTransaction.setCreditLineImplementation(clDeployResult.address)],
-    })
+    await config.setCreditLineImplementation(clDeployResult.address)
+    // await deployEffects.add({
+    //   deferred: [await config.populateTransaction.setCreditLineImplementation(clDeployResult.address)],
+    // })
   } else {
     await updateConfig(config, "address", CONFIG_KEYS.CreditLineImplementation, clDeployResult.address, {logger})
   }

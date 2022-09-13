@@ -24,7 +24,7 @@ const DEFENDER_API_SECRET = process.env.DEFENDER_API_SECRET
 import {AdminClient} from "defender-admin-client"
 import PROTOCOL_CONFIG from "../../protocol_config.json"
 import {CONFIG_KEYS} from "../configKeys"
-import {GoldfinchConfig} from "../../../types/contracts/protocol/core"
+import {NAOSConfig} from "../../../types/contracts/protocol/core"
 import {DeploymentsExtension} from "hardhat-deploy/types"
 // @ts-ignore
 import {Contract, BaseContract, Signer} from "ethers"
@@ -53,10 +53,10 @@ const LOCAL = "localhost"
 const ROPSTEN = "ropsten"
 const RINKEBY = "rinkeby"
 const MAINNET = "mainnet"
-const GORLI = "gorli"
+const GOERLI = "gorli"
 const BSC = "bsc"
 
-export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GORLI | typeof BSC
+export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GOERLI | typeof BSC
 
 const MAX_UINT = new BN("115792089237316195423570985008687907853269984665640564039457584007913129639935")
 
@@ -66,8 +66,8 @@ const MAINNET_CHAIN_ID = "1"
 type MainnetChainId = typeof MAINNET_CHAIN_ID
 const RINKEBY_CHAIN_ID = "4"
 type RinkebyChainId = typeof RINKEBY_CHAIN_ID
-const GORLI_CHAIN_ID = "5"
-type GorliChainId = typeof GORLI_CHAIN_ID
+const GOERLI_CHAIN_ID = "5"
+type GoerliChainId = typeof GOERLI_CHAIN_ID
 const BSC_CHAIN_ID = "56"
 type BscChainId = typeof BSC_CHAIN_ID
 
@@ -127,19 +127,23 @@ const ERC20_ADDRESSES: any = {
   [NAOS]: NAOS_ADDRESSES,
 }
 
-type SafeConfigChainId = MainnetChainId | RinkebyChainId
-const SAFE_CONFIG_CHAIN_IDS = [MAINNET_CHAIN_ID, RINKEBY_CHAIN_ID]
+type SafeConfigChainId = MainnetChainId | RinkebyChainId | GoerliChainId
+const SAFE_CONFIG_CHAIN_IDS = [MAINNET_CHAIN_ID, RINKEBY_CHAIN_ID, GOERLI_CHAIN_ID]
 export const isSafeConfigChainId = (val: unknown): val is SafeConfigChainId =>
   (SAFE_CONFIG_CHAIN_IDS as unknown[]).includes(val)
 
 const SAFE_CONFIG: Record<SafeConfigChainId, {safeAddress: AddressString; executor: AddressString}> = {
   [MAINNET_CHAIN_ID]: {
-    safeAddress: "0xBEb28978B2c755155f20fd3d09Cb37e300A6981f",
-    executor: "0xf13eFa505444D09E176d83A4dfd50d10E399cFd5",
+    safeAddress: process.env.SAFE_ADDRESS || "0xBEb28978B2c755155f20fd3d09Cb37e300A6981f",
+    executor: process.env.EXECUTOR_ADDRESS || "0xf13eFa505444D09E176d83A4dfd50d10E399cFd5",
   },
   [RINKEBY_CHAIN_ID]: {
-    safeAddress: "0xAA96CA940736e937A8571b132992418c7d220976",
-    executor: "0xeF3fAA47e1b0515f640c588a0bc3D268d5aa29B9",
+    safeAddress: process.env.SAFE_ADDRESS || "0xAA96CA940736e937A8571b132992418c7d220976",
+    executor: process.env.EXECUTOR_ADDRESS || "0xeF3fAA47e1b0515f640c588a0bc3D268d5aa29B9",
+  },
+  [GOERLI_CHAIN_ID]: {
+    safeAddress: process.env.SAFE_ADDRESS || "0xBA1827Efe12593dBFf5e67b67A7Ab2888EF94765",
+    executor: process.env.EXECUTOR_ADDRESS || "0x9A84E62244CA4f45A8dd87b9f6B97C812EDeF653",
   },
 }
 
@@ -285,7 +289,7 @@ async function deployContractUpgrade(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-async function setInitialConfigVals(config: GoldfinchConfig, logger = function (_: any) {}) {
+async function setInitialConfigVals(config: NAOSConfig, logger = function (_: any) {}) {
   let chainId = await hre.getChainId()
   assertIsChainId(chainId)
   if (isMainnetForking()) {
@@ -306,9 +310,7 @@ async function setInitialConfigVals(config: GoldfinchConfig, logger = function (
   const leverageRatio = new BN(PROTOCOL_CONFIG.leverageRatio)
 
   logger("Updating the config vals...")
-  await updateConfig(config, "number", CONFIG_KEYS.TransactionLimit, String(transactionLimit), {logger})
   await updateConfig(config, "number", CONFIG_KEYS.TotalFundsLimit, String(totalFundsLimit), {logger})
-  await updateConfig(config, "number", CONFIG_KEYS.MaxUnderwriterLimit, String(maxUnderwriterLimit), {logger})
   await updateConfig(config, "number", CONFIG_KEYS.ReserveDenominator, String(reserveDenominator), {logger})
   await updateConfig(config, "number", CONFIG_KEYS.WithdrawFeeDenominator, String(withdrawFeeDenominator), {logger})
   await updateConfig(config, "number", CONFIG_KEYS.LatenessGracePeriodInDays, String(latenessGracePeriodIndays), {
@@ -316,13 +318,6 @@ async function setInitialConfigVals(config: GoldfinchConfig, logger = function (
   })
   await updateConfig(config, "number", CONFIG_KEYS.LatenessMaxDays, String(latenessMaxDays), {logger})
   await updateConfig(config, "number", CONFIG_KEYS.DrawdownPeriodInSeconds, String(drawdownPeriodInSeconds), {logger})
-  await updateConfig(
-    config,
-    "number",
-    CONFIG_KEYS.TransferPeriodRestrictionInDays,
-    String(transferPeriodRestrictionInDays),
-    {logger}
-  )
   await updateConfig(config, "number", CONFIG_KEYS.LeverageRatio, String(leverageRatio), {logger})
   // If we have a multisig safe, set that as the protocol admin, otherwise use the named account (local and test envs)
   // @ts-ignore
@@ -330,15 +325,10 @@ async function setInitialConfigVals(config: GoldfinchConfig, logger = function (
     ? SAFE_CONFIG[chainId].safeAddress
     : protocol_owner
   await updateConfig(config, "address", CONFIG_KEYS.ProtocolAdmin, multisigAddress, {logger})
-  await updateConfig(config, "address", CONFIG_KEYS.OneInch, MAINNET_ONE_SPLIT_ADDRESS, {logger})
-  // await updateConfig(config, "address", CONFIG_KEYS.CUSDCContract, MAINNET_CUSDC_ADDRESS, {logger})
-  if (TRUSTED_FORWARDER_CONFIG[chainId]) {
-    await updateConfig(config, "address", CONFIG_KEYS.TrustedForwarder, TRUSTED_FORWARDER_CONFIG[chainId], {logger})
-  }
   await (await config.setTreasuryReserve(multisigAddress)).wait()
 }
 
-async function updateConfig(config: GoldfinchConfig, type: any, key: any, newValue: any, opts?: any) {
+async function updateConfig(config: NAOSConfig, type: any, key: any, newValue: any, opts?: any) {
   opts = opts || {}
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const logger = opts.logger || function () {}

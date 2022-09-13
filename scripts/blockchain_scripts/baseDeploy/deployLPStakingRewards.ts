@@ -1,4 +1,4 @@
-import {GoldfinchConfig, StakingRewards} from "@goldfinch-eng/protocol/typechain/ethers"
+import {NAOSConfig, StakingRewards} from "@goldfinch-eng/protocol/typechain/ethers"
 import {assertIsString} from "@goldfinch-eng/utils"
 import {CONFIG_KEYS} from "../configKeys"
 import {ContractDeployer, getProtocolOwner, isTestEnv} from "../deployHelpers"
@@ -30,9 +30,10 @@ export async function deployLPStakingRewards(
     },
   })
 
-  await deployEffects.add({
-    deferred: [await config.populateTransaction.setAddress(CONFIG_KEYS.StakingRewards, stakingRewards.address)],
-  })
+  await config.setAddress(CONFIG_KEYS.StakingRewards, stakingRewards.address)
+  // await deployEffects.add({
+  //   deferred: [await config.populateTransaction.setAddress(CONFIG_KEYS.StakingRewards, stakingRewards.address)],
+  // })
 
   return stakingRewards
 }
