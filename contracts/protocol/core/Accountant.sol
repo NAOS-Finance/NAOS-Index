@@ -160,13 +160,14 @@ library Accountant {
     uint256 balance,
     uint256 interestOwed,
     uint256 principalOwed,
-    IJuniorPool.LiquidationProcess liquidated
+    uint256 liquidated
   ) public pure returns (PaymentAllocation memory) {
     uint256 paymentRemaining = paymentAmount;
     uint256 interestPayment;
     uint256 principalPayment;
+    IJuniorPool.LiquidationProcess liquidate = IJuniorPool.LiquidationProcess(liquidated);
 
-    if (liquidated == IJuniorPool.LiquidationProcess.NotInProcess) {
+    if (liquidate == IJuniorPool.LiquidationProcess.NotInProcess) {
       interestPayment = Math.min(interestOwed, paymentRemaining);
       paymentRemaining = paymentRemaining.sub(interestPayment);
 

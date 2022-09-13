@@ -278,7 +278,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       balance,
       newInterestOwed,
       newPrincipalOwed,
-      liquidated
+      uint256(liquidated)
     );
 
     uint256 newBalance = balance.sub(pa.principalPayment);

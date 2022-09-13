@@ -346,12 +346,12 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
    * @notice Update the liquidation process status, only loan manager contract can call this function
    * @param status The liquidation process status
    */
-  function setLiquidated(LiquidationProcess status) external override {
+  function setLiquidated(uint256 status) external override {
     require(msg.sender == config.loanManagerAddress(), "invalid sender");
-    require(uint256(status) > uint256(liquidated), "invalid status");
-    liquidated = status;
+    require(status > uint256(liquidated), "invalid status");
+    liquidated = LiquidationProcess(status);
 
-    emit liquidationStatusUpdated(status);
+    emit liquidationStatusUpdated(liquidated);
   }
 
   /**

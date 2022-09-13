@@ -113,5 +113,5 @@ abstract contract IJuniorPool {
 
   function withdrawMultiple(uint256[] calldata tokenIds, uint256[] calldata amounts) external virtual;
 
-  function setLiquidated(LiquidationProcess status) external virtual;
+  function setLiquidated(uint256 status) external virtual;
 }
