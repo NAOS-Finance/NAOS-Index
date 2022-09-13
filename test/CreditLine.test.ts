@@ -19,7 +19,7 @@ import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import {time} from "@openzeppelin/test-helpers"
 import {deployBaseFixture} from "./util/fixtures"
 
-let accounts, owner, person2, person3, goldfinchConfig
+let accounts, owner, person2, person3, naosConfig
 
 describe("CreditLine", () => {
   let borrower
@@ -76,7 +76,7 @@ describe("CreditLine", () => {
     })
     const creditLine = await artifacts.require("TestCreditLine").at(creditLineDeployment.address)
     await creditLine.initialize(
-      goldfinchConfig.address,
+      naosConfig.address,
       thisOwner,
       thisBorrower,
       limit,
@@ -101,19 +101,19 @@ describe("CreditLine", () => {
   }
 
   const setupTest = deployments.createFixture(async ({deployments}) => {
-    const {usdc, fidu, goldfinchConfig} = await deployBaseFixture()
+    const {usdc, rwa, naosConfig} = await deployBaseFixture()
 
     await erc20Transfer(usdc, [person2], usdcVal(1000), owner)
-    expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
-    await goldfinchConfig.bulkAddToGoList(accounts)
+    expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+    await naosConfig.bulkAddToGoList(accounts)
 
-    return {usdc, fidu, goldfinchConfig}
+    return {usdc, rwa, naosConfig}
   })
 
   beforeEach(async () => {
     accounts = await web3.eth.getAccounts()
     ;[owner, person2, person3] = accounts
-    ;({usdc, goldfinchConfig} = await setupTest())
+    ;({usdc, naosConfig} = await setupTest())
 
     borrower = person3
 
@@ -157,27 +157,27 @@ describe("CreditLine", () => {
     })
   })
 
-  describe("updateGoldfinchConfig", () => {
+  describe("updateNAOSConfig", () => {
     describe("setting it", async () => {
       it("should allow the owner to set it", async () => {
-        await goldfinchConfig.setAddress(CONFIG_KEYS.GoldfinchConfig, person2)
-        return expectAction(() => creditLine.updateGoldfinchConfig({from: owner})).toChange([
+        await naosConfig.setAddress(CONFIG_KEYS.NAOSConfig, person2)
+        return expectAction(() => creditLine.updateNAOSConfig({from: owner})).toChange([
           [() => creditLine.config(), {to: person2, bignumber: false}],
         ])
       })
 
       it("should disallow non-owner to set", async () => {
-        return expect(creditLine.updateGoldfinchConfig({from: person2})).to.be.rejectedWith(/Must have admin/)
+        return expect(creditLine.updateNAOSConfig({from: person2})).to.be.rejectedWith(/Must have admin/)
       })
 
       it("emits an event", async () => {
-        const newConfig = await deployments.deploy("GoldfinchConfig", {from: owner})
+        const newConfig = await deployments.deploy("NAOSConfig", {from: owner})
 
-        await goldfinchConfig.setAddress(CONFIG_KEYS.GoldfinchConfig, newConfig.address)
-        const tx = await creditLine.updateGoldfinchConfig()
-        // const logs = decodeLogs(tx.receipt.rawLogs, creditLine, "GoldfinchConfigUpdated")
+        await naosConfig.setAddress(CONFIG_KEYS.NAOSConfig, newConfig.address)
+        const tx = await creditLine.updateNAOSConfig()
+        // const logs = decodeLogs(tx.receipt.rawLogs, creditLine, "NAOSConfigUpdated")
         // const firstLog = getFirstLog(logs)
-        // expect(firstLog.event).to.equal("GoldfinchConfigUpdated")
+        // expect(firstLog.event).to.equal("NAOSConfigUpdated")
         // expect(firstLog.args.who).to.match(new RegExp(tx.receipt.from, "i"))
         // expect(firstLog.args.configAddress).to.match(new RegExp(newConfig.address, "i"))
       })
@@ -375,12 +375,12 @@ describe("CreditLine", () => {
     })
   })
 
-  describe("updateGoldfinchConfig", () => {
+  describe("updateNAOSConfig", () => {
     it("emits an event", async () => {
-      const newConfig = await deployments.deploy("GoldfinchConfig", {from: owner})
-      await goldfinchConfig.setGoldfinchConfig(newConfig.address)
-      const tx = await creditLine.updateGoldfinchConfig({from: owner})
-      expectEvent(tx, "GoldfinchConfigUpdated", {
+      const newConfig = await deployments.deploy("NAOSConfig", {from: owner})
+      await naosConfig.setNAOSConfig(newConfig.address)
+      const tx = await creditLine.updateNAOSConfig({from: owner})
+      expectEvent(tx, "NAOSConfigUpdated", {
         who: owner,
         configAddress: newConfig.address,
       })
