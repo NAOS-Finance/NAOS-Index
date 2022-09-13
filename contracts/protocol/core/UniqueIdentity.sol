@@ -45,7 +45,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
 
     bytes32 hash = keccak256(abi.encodePacked(account, id, expiresAt, address(this), nonces[account], chainId));
     bytes32 ethSignedMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
-    address recovered = tryRecover(hash, signature);
+    address recovered = tryRecover(ethSignedMessage, signature);
     require(hasRole(SIGNER_ROLE, recovered), "Invalid signer");
     _;
   }
