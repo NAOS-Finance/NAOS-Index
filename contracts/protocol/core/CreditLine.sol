@@ -303,7 +303,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       this,
       timestamp,
       config.getLatenessGracePeriodInDays(),
-      liquidated
+      uint256(liquidated)
     );
     if (interestAccrued > 0) {
       // If we've accrued any interest, update interestAccruedAsOf to the time that we've

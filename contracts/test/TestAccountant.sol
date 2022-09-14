@@ -13,7 +13,7 @@ contract TestAccountant {
     uint256 lateFeeGracePeriod
   ) public view returns (uint256, uint256) {
     CreditLine cl = CreditLine(creditLineAddress);
-    return Accountant.calculateInterestAndPrincipalAccrued(cl, timestamp, lateFeeGracePeriod, IJuniorPool.LiquidationProcess.NotInProcess);
+    return Accountant.calculateInterestAndPrincipalAccrued(cl, timestamp, lateFeeGracePeriod, uint256(IJuniorPool.LiquidationProcess.NotInProcess));
   }
 
   function calculateWritedownFor(

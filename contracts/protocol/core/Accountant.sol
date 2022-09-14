@@ -38,11 +38,12 @@ library Accountant {
     CreditLine cl,
     uint256 timestamp,
     uint256 lateFeeGracePeriod,
-    IJuniorPool.LiquidationProcess liquidated
+    uint256 liquidated
   ) public view returns (uint256, uint256) {
     uint256 balance = cl.balance(); // gas optimization
     uint256 interestAccrued = 0;
-    if (liquidated != IJuniorPool.LiquidationProcess.Processing) {
+    IJuniorPool.LiquidationProcess liquidate = IJuniorPool.LiquidationProcess(liquidated);
+    if (liquidate != IJuniorPool.LiquidationProcess.Processing) {
       interestAccrued = calculateInterestAccrued(cl, balance, timestamp, lateFeeGracePeriod);
     }
     uint256 principalAccrued = calculatePrincipalAccrued(cl, balance, timestamp, liquidated);
@@ -53,14 +54,15 @@ library Accountant {
     ICreditLine cl,
     uint256 balance,
     uint256 timestamp,
-    IJuniorPool.LiquidationProcess liquidated
+    uint256 liquidated
   ) public view returns (uint256) {
     // If we've already accrued principal as of the term end time, then don't accrue more principal
     uint256 termEndTime = cl.termEndTime();
-    if (cl.interestAccruedAsOf() >= termEndTime || liquidated == IJuniorPool.LiquidationProcess.Processing) {
+    IJuniorPool.LiquidationProcess liquidate = IJuniorPool.LiquidationProcess(liquidated);
+    if (cl.interestAccruedAsOf() >= termEndTime || liquidate == IJuniorPool.LiquidationProcess.Processing) {
       return 0;
     }
-    if (timestamp >= termEndTime || liquidated == IJuniorPool.LiquidationProcess.Starting) {
+    if (timestamp >= termEndTime || liquidate == IJuniorPool.LiquidationProcess.Starting) {
       return balance;
     } else {
       return 0;
