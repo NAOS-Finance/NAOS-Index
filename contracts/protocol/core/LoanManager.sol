@@ -175,10 +175,10 @@ contract LoanManager is BaseUpgradeablePausable {
         IJuniorPool juniorPool = IJuniorPool(pool.juniorPoolAddress);
         require(juniorPool.liquidated() == IJuniorPool.LiquidationProcess.NotInProcess, "The pool is going through the liquidation process");
 
-        juniorPool.setLiquidated(IJuniorPool.LiquidationProcess.Starting);
+        juniorPool.setLiquidated(uint256(IJuniorPool.LiquidationProcess.Starting));
         juniorPool.assess();
         config.getIndexPool().writedown(juniorPool);
-        juniorPool.setLiquidated(IJuniorPool.LiquidationProcess.Processing);
+        juniorPool.setLiquidated(uint256(IJuniorPool.LiquidationProcess.Processing));
 
         emit poolLiquidated(_poolId);
     }

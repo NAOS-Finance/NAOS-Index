@@ -278,7 +278,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       balance,
       newInterestOwed,
       newPrincipalOwed,
-      liquidated
+      uint256(liquidated)
     );
 
     uint256 newBalance = balance.sub(pa.principalPayment);
@@ -303,7 +303,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       this,
       timestamp,
       config.getLatenessGracePeriodInDays(),
-      liquidated
+      uint256(liquidated)
     );
     if (interestAccrued > 0) {
       // If we've accrued any interest, update interestAccruedAsOf to the time that we've
