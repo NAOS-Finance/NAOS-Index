@@ -5,7 +5,7 @@ import {getDeployedContract, fromAtomic, OWNER_ROLE} from "../scripts/blockchain
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import updateConfigs from "../scripts/blockchain_scripts/updateConfigs"
 import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
-import {GoldfinchFactory} from "../types"
+import {NAOSFactory} from "../types"
 
 const TEST_TIMEOUT = 30000
 
@@ -17,17 +17,17 @@ describe("Deployment", async () => {
 
     it("should set the protocol owner to the treasury reserve", async () => {
       const {protocol_owner} = await getNamedAccounts()
-      const config = await getDeployedContract(deployments, "TestGoldfinchConfig")
+      const config = await getDeployedContract(deployments, "TestNAOSConfig")
       expect(await config.getAddress(CONFIG_KEYS.TreasuryReserve)).to.equal(protocol_owner)
     })
     it("sets the right defaults", async () => {
-      const goldfinchFactory = await getDeployedContract(deployments, "GoldfinchFactory")
-      const goldfinchConfig = await getDeployedContract(deployments, "TestGoldfinchConfig")
+      const goldfinchFactory = await getDeployedContract(deployments, "NAOSFactory")
+      const naosConfig = await getDeployedContract(deployments, "TestNAOSConfig")
 
-      expect(String(await goldfinchConfig.getNumber(CONFIG_KEYS.TransactionLimit))).to.bignumber.gt(new BN(0))
-      expect(String(await goldfinchConfig.getNumber(CONFIG_KEYS.TotalFundsLimit))).to.bignumber.gt(new BN(0))
-      expect(String(await goldfinchConfig.getNumber(CONFIG_KEYS.MaxUnderwriterLimit))).to.bignumber.gt(new BN(0))
-      expect(await goldfinchConfig.getAddress(CONFIG_KEYS.GoldfinchFactory)).to.equal(goldfinchFactory.address)
+      // expect(String(await naosConfig.getNumber(CONFIG_KEYS.TransactionLimit))).to.bignumber.gt(new BN(0))
+      expect(String(await naosConfig.getNumber(CONFIG_KEYS.TotalFundsLimit))).to.bignumber.gt(new BN(0))
+      // expect(String(await naosConfig.getNumber(CONFIG_KEYS.MaxUnderwriterLimit))).to.bignumber.gt(new BN(0))
+      expect(await naosConfig.getAddress(CONFIG_KEYS.NAOSFactory)).to.equal(goldfinchFactory.address)
     })
   })
 
@@ -39,7 +39,7 @@ describe("Deployment", async () => {
     // })
     it("should create borrower contract and tranched pool", async () => {
       // await deployments.run("setup_for_testing")
-      const goldfinchFactory = await getDeployedContract<GoldfinchFactory>(deployments, "GoldfinchFactory")
+      const goldfinchFactory = await getDeployedContract<NAOSFactory>(deployments, "NAOSFactory")
       const borrowerCreated = await goldfinchFactory.queryFilter(goldfinchFactory.filters.BorrowerCreated())
       expect(borrowerCreated.length).to.equal(0)
       // const event = borrowerCreated[0]
@@ -56,7 +56,7 @@ describe("Deployment", async () => {
     // })
 
     it("should allow you to change the owner of the implementation, without affecting the owner of the proxy", async () => {
-      const seniorPool = await getDeployedContract(deployments, "SeniorPool")
+      const seniorPool = await getDeployedContract(deployments, "IndexPool")
       const someWallet = ethers.Wallet.createRandom()
 
       const originally = await seniorPool.hasRole(OWNER_ROLE, someWallet.address)
@@ -70,7 +70,7 @@ describe("Deployment", async () => {
 
     it("should allow for a way to transfer ownership of the proxy", async () => {
       const {protocol_owner, gf_deployer} = await getNamedAccounts()
-      const seniorPoolProxy = await getDeployedContract(deployments, "SeniorPool_Proxy", protocol_owner)
+      const seniorPoolProxy = await getDeployedContract(deployments, "IndexPool_Proxy", protocol_owner)
 
       const originalOwner = await seniorPoolProxy.owner()
       expect(originalOwner).to.equal(protocol_owner)
@@ -88,18 +88,15 @@ describe("Deployment", async () => {
     // })
 
     it("Should update protocol configs", async () => {
-      const config = await getDeployedContract(deployments, "TestGoldfinchConfig")
+      const config = await getDeployedContract(deployments, "TestNAOSConfig")
 
       const new_config = {
         totalFundsLimit: 2000,
-        transactionLimit: 1000,
-        maxUnderwriterLimit: 2000,
         reserveDenominator: 11,
         withdrawFeeDenominator: 202,
         latenessGracePeriod: 9,
         latenessMaxDays: 6,
         drawdownPeriodInSeconds: 11000,
-        transferRestrictionPeriodInDays: 180,
         leverageRatio: String(17e18),
       }
 
@@ -108,13 +105,6 @@ describe("Deployment", async () => {
       expect(fromAtomic(await config.getNumber(CONFIG_KEYS.TotalFundsLimit))).to.bignumber.eq(
         new BN(new_config["totalFundsLimit"])
       )
-      expect(fromAtomic(await config.getNumber(CONFIG_KEYS.TransactionLimit))).to.bignumber.eq(
-        new BN(new_config["transactionLimit"])
-      )
-      expect(fromAtomic(await config.getNumber(CONFIG_KEYS.MaxUnderwriterLimit))).to.bignumber.eq(
-        new BN(new_config["maxUnderwriterLimit"])
-      )
-
       expect(String(await config.getNumber(CONFIG_KEYS.ReserveDenominator))).to.eq(
         String(new_config["reserveDenominator"])
       )
@@ -127,9 +117,6 @@ describe("Deployment", async () => {
       expect(String(await config.getNumber(CONFIG_KEYS.LatenessMaxDays))).to.eq(String(new_config["latenessMaxDays"]))
       expect(String(await config.getNumber(CONFIG_KEYS.DrawdownPeriodInSeconds))).to.eq(
         String(new_config["drawdownPeriodInSeconds"])
-      )
-      expect(String(await config.getNumber(CONFIG_KEYS.TransferPeriodRestrictionInDays))).to.eq(
-        String(new_config["transferRestrictionPeriodInDays"])
       )
       expect(String(await config.getNumber(CONFIG_KEYS.LeverageRatio))).to.eq(String(new_config["leverageRatio"]))
     })
