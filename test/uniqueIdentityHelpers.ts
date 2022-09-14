@@ -71,8 +71,6 @@ export async function mint(
   overrideFrom?: string,
   overrideChainId?: BN
 ): Promise<void> {
-  const contractBalanceBefore = await web3.eth.getBalance(uniqueIdentity.address)
-  const tokenBalanceBefore = await uniqueIdentity.balanceOf(overrideFrom as string, bnToHex(tokenId))
 
   const messageElements: [string, string, string, string] = [overrideFrom as string, bnToHex(tokenId), bnToHex(expiresAt), uniqueIdentity.address]
   const signature = await sign(
@@ -90,18 +88,10 @@ export async function mint(
   const from = overrideFrom || defaultFrom
   const eSigner = await ethers.getSigner(from as string)
 
-  const receipt = await uniqueIdentity.connect(eSigner).mint(...mintParams, signature, {
-    value: bnToHex(MINT_PAYMENT),
-  })
+  const receipt = await uniqueIdentity.connect(eSigner).mint(...mintParams, signature)
 
-  // Verify contract state.
-  const contractBalanceAfter = await web3.eth.getBalance(uniqueIdentity.address)
-  expect(new BN(contractBalanceAfter).sub(new BN(contractBalanceBefore))).to.bignumber.equal(MINT_PAYMENT)
-
-  const tokenBalanceAfter = await uniqueIdentity.balanceOf(overrideFrom as string, bnToHex(tokenId))
-  expect(bnToBnjs(tokenBalanceAfter.sub(tokenBalanceBefore))).to.bignumber.equal(new BN(1))
-  expect(bnToBnjs(tokenBalanceAfter)).to.bignumber.equal(new BN(1))
-
+  const expiration = await uniqueIdentity.expiration(overrideFrom as string, bnToHex(tokenId))
+  expect(bnToBnjs(expiration)).to.bignumber.equal(expiresAt)
   expect(bnToBnjs(await uniqueIdentity.nonces(overrideFrom as string))).to.bignumber.equal(nonce.add(new BN(1)))
 
   // Verify that event was emitted.
@@ -129,8 +119,6 @@ export async function burn(
   overrideFrom?: string,
   overrideChainId?: BN
 ): Promise<void> {
-  const contractBalanceBefore = await web3.eth.getBalance(uniqueIdentity.address)
-  const tokenBalanceBefore = await uniqueIdentity.balanceOf(recipient, bnToHex(tokenId))
 
   const messageElements: [string, string, string, string] = [recipient, bnToHex(tokenId), bnToHex(expiresAt), uniqueIdentity.address]
   const signature = await sign(
@@ -150,14 +138,8 @@ export async function burn(
 
   const receipt = await uniqueIdentity.connect(eSigner).burn(...burnParams, signature)
 
-  // Verify contract state.
-  const contractBalanceAfter = await web3.eth.getBalance(uniqueIdentity.address)
-  expect(new BN(contractBalanceAfter)).to.bignumber.equal(new BN(contractBalanceBefore))
-
-  const tokenBalanceAfter = await uniqueIdentity.balanceOf(recipient, bnToHex(tokenId))
-  expect(bnToBnjs(tokenBalanceBefore.sub(tokenBalanceAfter))).to.bignumber.equal(new BN(1))
-  expect(bnToBnjs(tokenBalanceAfter)).to.bignumber.equal(new BN(0))
-
+  const expiration = await uniqueIdentity.expiration(recipient as string, bnToHex(tokenId))
+  expect(bnToBnjs(expiration)).to.bignumber.equal(new BN(0))
   expect(bnToBnjs(await uniqueIdentity.nonces(recipient))).to.bignumber.equal(nonce.add(new BN(1)))
 
   // Verify that event was emitted.
