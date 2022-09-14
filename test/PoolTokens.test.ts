@@ -22,19 +22,19 @@ import hre, { ethers } from "hardhat"
 import BN from "bn.js"
 import {asNonNullable, assertNonNullable} from "../scripts/blockchain_scripts/utils"
 const {deployments, artifacts, web3} = hre
-const TranchedPool = artifacts.require("TranchedPool")
+const JuniorPool = artifacts.require("JuniorPool")
 import {expectEvent} from "@openzeppelin/test-helpers"
 import {mint} from "./uniqueIdentityHelpers"
 import {
   // GFI,
   // BackerRewards,
-  GoldfinchFactory,
+  NAOSFactory,
   TestPoolTokens,
 } from "../types"
-import {deployBaseFixture, deployUninitializedTranchedPoolFixture} from "./util/fixtures"
+import {deployBaseFixture, deployUninitializedJuniorPoolFixture} from "./util/fixtures"
 // import {TokenMinted} from "../typechain/truffle/IPoolTokens"
 // import {TokenPrincipalWithdrawn} from "../typechain/truffle/PoolTokens"
-// import {PoolCreated} from "../typechain/truffle/GoldfinchFactory"
+// import {PoolCreated} from "../typechain/truffle/NAOSFactory"
 
 const testSetup = deployments.createFixture(async ({deployments, getNamedAccounts}) => {
   const [_owner, _person2, _person3] = await web3.eth.getAccounts()
@@ -42,9 +42,9 @@ const testSetup = deployments.createFixture(async ({deployments, getNamedAccount
   const person2 = asNonNullable(_person2)
   const person3 = asNonNullable(_person3)
 
-  const {poolTokens, goldfinchConfig, goldfinchFactory, usdc, uniqueIdentity, gfi} =
+  const {poolTokens, naosConfig, naosFactory, usdc, uniqueIdentity, naos} =
     await deployBaseFixture()
-  await goldfinchConfig.bulkAddToGoList([owner, person2])
+  await naosConfig.bulkAddToGoList([owner, person2])
   await erc20Transfer(usdc, [person2], usdcVal(1000), owner)
 
   return {
@@ -52,11 +52,11 @@ const testSetup = deployments.createFixture(async ({deployments, getNamedAccount
     person2,
     person3,
     poolTokens,
-    goldfinchConfig,
-    goldfinchFactory,
+    naosConfig,
+    naosFactory,
     usdc,
     uniqueIdentity,
-    gfi,
+    naos,
   }
 })
 
@@ -64,14 +64,14 @@ describe("PoolTokens", () => {
   let owner,
     person2,
     person3,
-    goldfinchConfig,
+    naosConfig,
     poolTokens,
     pool,
-    goldfinchFactory: GoldfinchFactory,
+    naosFactory: NAOSFactory,
     usdc,
     uniqueIdentity
     // backerRewards: BackerRewards,
-    // gfi: GFI
+    // naos: GFI
 
   const withPoolSender = async (func, otherPoolAddress?) => {
     // We need to fake the address so we can bypass the pool
@@ -89,22 +89,22 @@ describe("PoolTokens", () => {
       person2,
       person3,
       poolTokens,
-      goldfinchConfig,
-      goldfinchFactory,
+      naosConfig,
+      naosFactory,
       usdc,
       uniqueIdentity,
       // backerRewards,
-      // gfi,
+      // naos,
     } = await testSetup())
 
     await (poolTokens as TestPoolTokens)._disablePoolValidation(true)
   })
 
   async function addToLegacyGoList(target, goLister) {
-    expect(await goldfinchConfig.goList(target)).to.equal(false)
-    expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, goLister)).to.equal(true)
-    await goldfinchConfig.addToGoList(target, {from: goLister})
-    expect(await goldfinchConfig.goList(target)).to.equal(true)
+    expect(await naosConfig.goList(target)).to.equal(false)
+    expect(await naosConfig.hasRole(GO_LISTER_ROLE, goLister)).to.equal(true)
+    await naosConfig.addToGoList(target, {from: goLister})
+    expect(await naosConfig.goList(target)).to.equal(true)
   }
 
   async function mintUniqueIdentityToken(recipient, signer) {
@@ -112,12 +112,12 @@ describe("PoolTokens", () => {
     const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
     await uniqueIdentity.setSupportedUIDTypes([uniqueIdentityTokenId], [true])
     await mint(hre, uniqueIdentity, uniqueIdentityTokenId, expiresAt, new BN(0), signer, undefined, recipient)
-    expect(await uniqueIdentity.balanceOf(recipient, uniqueIdentityTokenId)).to.bignumber.equal(new BN(1))
+    expect(await uniqueIdentity.expiration(recipient, uniqueIdentityTokenId)).to.bignumber.equal(new BN(1))
   }
 
   describe("initialization", async () => {
     it("should not allow it to be called twice", async () => {
-      return expect(poolTokens.__initialize__(owner, goldfinchConfig.address)).to.be.rejectedWith(
+      return expect(poolTokens.__initialize__(owner, naosConfig.address)).to.be.rejectedWith(
         /has already been initialized/
       )
     })
@@ -132,7 +132,7 @@ describe("PoolTokens", () => {
   describe("mint", async () => {
     beforeEach(async function () {
       const signer = await ethers.getSigner(owner)
-      const tx = await goldfinchFactory.connect(signer).createPool(
+      const tx = await naosFactory.connect(signer).createPool(
         person2,
         bnToHex(new BN(20)),
         bnToHex(usdcVal(100)),
@@ -145,9 +145,9 @@ describe("PoolTokens", () => {
         []
       )
       const receipt = await tx.wait()
-      const log = receipt.logs.filter((l) => l.address.toLowerCase() === goldfinchFactory.address.toLowerCase())[1]
+      const log = receipt.logs.filter((l) => l.address.toLowerCase() === naosFactory.address.toLowerCase())[1]
       const poolAddress = '0x' + log.topics[1].substr(26)
-      pool = await TranchedPool.at(poolAddress)
+      pool = await JuniorPool.at(poolAddress)
       // grant role so the person can deposit into the senior tranche
       await pool.grantRole(await pool.SENIOR_ROLE(), person2)
       await erc20Approve(usdc, pool.address, usdcVal(100000), [person2])
@@ -163,9 +163,9 @@ describe("PoolTokens", () => {
 
       it("should disallow invalidly created pools", async () => {
         // Wasn't created through our factory
-        const {tranchedPool: fakePool} = await deployUninitializedTranchedPoolFixture()
+        const {juniorPool: fakePool} = await deployUninitializedJuniorPoolFixture()
         await fakePool.initialize(
-          goldfinchConfig.address,
+          naosConfig.address,
           person2,
           bnToHex(new BN(20)),
           bnToHex(usdcVal(1000)),
@@ -211,7 +211,7 @@ describe("PoolTokens", () => {
     // })
 
     it("should use the current rewardsPerPrincipalShare when it's a second drawdown", async () => {
-      // await setupBackerRewards(gfi, backerRewards, owner)
+      // await setupBackerRewards(naos, backerRewards, owner)
 
       const amount = usdcVal(5)
       await pool.deposit(bnToHex(new BN(1)), bnToHex(amount), { from: person2 })
@@ -268,7 +268,7 @@ describe("PoolTokens", () => {
   //   }
 
   //   beforeEach(async () => {
-  //     const result = await goldfinchFactory.createPool(
+  //     const result = await naosFactory.createPool(
   //       person2,
   //       new BN(20),
   //       usdcVal(100),
@@ -281,8 +281,8 @@ describe("PoolTokens", () => {
   //       [],
   //       {from: owner}
   //     )
-  //     const event = decodeAndGetFirstLog<PoolCreated>(result.receipt.rawLogs, goldfinchFactory, "PoolCreated")
-  //     pool = await TranchedPool.at(event.args.pool)
+  //     const event = decodeAndGetFirstLog<PoolCreated>(result.receipt.rawLogs, naosFactory, "PoolCreated")
+  //     pool = await JuniorPool.at(event.args.pool)
   //     // grant role so the person can deposit into the senior tranche
   //     await pool.grantRole(await pool.SENIOR_ROLE(), person2)
   //     await erc20Approve(usdc, pool.address, usdcVal(100000), [person2])
@@ -371,7 +371,7 @@ describe("PoolTokens", () => {
   // describe("redeem", async () => {
   //   let tokenIdA, mintAmountA, tokenIdB, mintAmountB
   //   beforeEach(async function () {
-  //     let result = await goldfinchFactory.createPool(
+  //     let result = await naosFactory.createPool(
   //       person2,
   //       new BN(20),
   //       usdcVal(100),
@@ -386,10 +386,10 @@ describe("PoolTokens", () => {
   //     )
   //     const poolCreatedEvent = decodeAndGetFirstLog<PoolCreated>(
   //       result.receipt.rawLogs,
-  //       goldfinchFactory,
+  //       naosFactory,
   //       "PoolCreated"
   //     )
-  //     pool = await TranchedPool.at(poolCreatedEvent.args.pool)
+  //     pool = await JuniorPool.at(poolCreatedEvent.args.pool)
   //     // grant role so the person can deposit into the senior tranche
   //     await pool.grantRole(await pool.SENIOR_ROLE(), person2)
 
@@ -514,7 +514,7 @@ describe("PoolTokens", () => {
   // describe("reducePrincipalAmount", async () => {
   //   let tokenId, mintAmount
   //   beforeEach(async function () {
-  //     let result = await goldfinchFactory.createPool(
+  //     let result = await naosFactory.createPool(
   //       person2,
   //       new BN(20),
   //       usdcVal(100),
@@ -529,10 +529,10 @@ describe("PoolTokens", () => {
   //     )
   //     const poolCreatedEvent = decodeAndGetFirstLog<PoolCreated>(
   //       result.receipt.rawLogs,
-  //       goldfinchFactory,
+  //       naosFactory,
   //       "PoolCreated"
   //     )
-  //     pool = await TranchedPool.at(poolCreatedEvent.args.pool)
+  //     pool = await JuniorPool.at(poolCreatedEvent.args.pool)
   //     await erc20Approve(usdc, pool.address, usdcVal(100000), [person2])
 
   //     mintAmount = usdcVal(5)
@@ -641,7 +641,7 @@ describe("PoolTokens", () => {
   // describe("burning", async () => {
   //   let tokenId, mintAmount
   //   beforeEach(async function () {
-  //     let result = await goldfinchFactory.createPool(
+  //     let result = await naosFactory.createPool(
   //       person2,
   //       new BN(20),
   //       usdcVal(100),
@@ -654,8 +654,8 @@ describe("PoolTokens", () => {
   //       [],
   //       {from: owner}
   //     )
-  //     const poolCreateEvent = decodeAndGetFirstLog<PoolCreated>(result.receipt.rawLogs, goldfinchFactory, "PoolCreated")
-  //     pool = await TranchedPool.at(poolCreateEvent.args.pool)
+  //     const poolCreateEvent = decodeAndGetFirstLog<PoolCreated>(result.receipt.rawLogs, naosFactory, "PoolCreated")
+  //     pool = await JuniorPool.at(poolCreateEvent.args.pool)
   //     // grant role so the person can deposit into the senior tranche
   //     await pool.grantRole(await pool.SENIOR_ROLE(), person2)
 
@@ -726,7 +726,7 @@ describe("PoolTokens", () => {
   // describe("go listing", async () => {
   //   let amount
   //   beforeEach(async function () {
-  //     const result = await goldfinchFactory.createPool(
+  //     const result = await naosFactory.createPool(
   //       person2,
   //       new BN(20),
   //       usdcVal(100),
@@ -739,8 +739,8 @@ describe("PoolTokens", () => {
   //       [],
   //       {from: owner}
   //     )
-  //     const event = decodeAndGetFirstLog<PoolCreated>(result.receipt.rawLogs, goldfinchFactory, "PoolCreated")
-  //     pool = await TranchedPool.at(event?.args.pool)
+  //     const event = decodeAndGetFirstLog<PoolCreated>(result.receipt.rawLogs, naosFactory, "PoolCreated")
+  //     pool = await JuniorPool.at(event?.args.pool)
   //   })
   //   describe("mint", async () => {
   //     beforeEach(async function () {
@@ -750,7 +750,7 @@ describe("PoolTokens", () => {
   //     context("account with 0 balance UniqueIdentity token (id 0)", () => {
   //       beforeEach(async () => {
   //         const uniqueIdentityTokenId = new BN(0)
-  //         expect(await uniqueIdentity.balanceOf(person3, uniqueIdentityTokenId)).to.bignumber.equal(new BN(0))
+  //         expect(await uniqueIdentity.expiration(person3, uniqueIdentityTokenId)).to.bignumber.equal(new BN(0))
   //       })
 
   //       context("account is on legacy go-list", () => {
@@ -766,7 +766,7 @@ describe("PoolTokens", () => {
   //       })
   //       context("account is not on legacy go-list", () => {
   //         beforeEach(async () => {
-  //           expect(await goldfinchConfig.goList(person3)).to.equal(false)
+  //           expect(await naosConfig.goList(person3)).to.equal(false)
   //         })
 
   //         it("allows", async () => {
@@ -795,7 +795,7 @@ describe("PoolTokens", () => {
   //       })
   //       context("account is not on legacy go-list", () => {
   //         beforeEach(async () => {
-  //           expect(await goldfinchConfig.goList(person3)).to.equal(false)
+  //           expect(await naosConfig.goList(person3)).to.equal(false)
   //         })
 
   //         it("allows", async () => {
@@ -823,7 +823,7 @@ describe("PoolTokens", () => {
   //     context("recipient with 0 balance UniqueIdentity token (id 0)", () => {
   //       beforeEach(async () => {
   //         const uniqueIdentityTokenId = new BN(0)
-  //         expect(await uniqueIdentity.balanceOf(person3, uniqueIdentityTokenId)).to.bignumber.equal(new BN(0))
+  //         expect(await uniqueIdentity.expiration(person3, uniqueIdentityTokenId)).to.bignumber.equal(new BN(0))
   //       })
 
   //       context("recipient is on legacy go-list", () => {
@@ -837,7 +837,7 @@ describe("PoolTokens", () => {
   //       })
   //       context("recipient is not on legacy go-list", () => {
   //         beforeEach(async () => {
-  //           expect(await goldfinchConfig.goList(person3)).to.equal(false)
+  //           expect(await naosConfig.goList(person3)).to.equal(false)
   //         })
 
   //         it("allows transfer", async () => {
@@ -862,7 +862,7 @@ describe("PoolTokens", () => {
   //       })
   //       context("recipient is not on legacy go-list", () => {
   //         beforeEach(async () => {
-  //           expect(await goldfinchConfig.goList(person3)).to.equal(false)
+  //           expect(await naosConfig.goList(person3)).to.equal(false)
   //         })
 
   //         it("allows transfer", async () => {
@@ -881,7 +881,7 @@ describe("PoolTokens", () => {
   //   describe("setting it", () => {
   //     it("emits an event", async () => {
   //       const newConfig = await deployments.deploy("GoldfinchConfig", {from: owner})
-  //       await goldfinchConfig.setGoldfinchConfig(newConfig.address)
+  //       await naosConfig.setGoldfinchConfig(newConfig.address)
   //       const tx = await poolTokens.updateGoldfinchConfig()
   //       expectEvent(tx, "GoldfinchConfigUpdated", {
   //         who: owner,
