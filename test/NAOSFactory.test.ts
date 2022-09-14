@@ -2,20 +2,20 @@ import hre, { ethers } from "hardhat"
 const {deployments, artifacts, web3} = hre
 import {expect, expectAction, BN, usdcVal, bnToHex, bnToBnjs} from "./testHelpers"
 import {expectEvent} from "@openzeppelin/test-helpers"
-import {GoldfinchFactory, GoldfinchConfig} from "../types"
+import {NAOSFactory, NAOSConfig} from "../types"
 import {interestAprAsBN} from "../scripts/blockchain_scripts/deployHelpers"
 import {deployBaseFixture} from "./util/fixtures"
 
 // TODO: update expect event
-describe("GoldfinchFactory", async () => {
+describe("NAOSFactory", async () => {
   const testSetup = deployments.createFixture(async ({deployments, getNamedAccounts}) => {
-    const {goldfinchFactory, goldfinchConfig, ...deployed} = await deployBaseFixture()
+    const {naosFactory, naosConfig, ...deployed} = await deployBaseFixture()
     const [owner, borrower, otherPerson] = await web3.eth.getAccounts()
-    const borrowerRole = await goldfinchFactory.BORROWER_ROLE()
-    await goldfinchFactory.grantRole(borrowerRole, borrower as string, {from: owner})
+    const borrowerRole = await naosFactory.BORROWER_ROLE()
+    await naosFactory.grantRole(borrowerRole, borrower as string, {from: owner})
     return {
-      goldfinchFactory,
-      goldfinchConfig,
+      naosFactory,
+      naosConfig,
       owner: owner as string,
       borrower: borrower as string,
       otherPerson: otherPerson as string,
@@ -26,11 +26,11 @@ describe("GoldfinchFactory", async () => {
   let owner: string
   let otherPerson: string
   let borrower: string
-  let goldfinchFactory: GoldfinchFactory
-  let goldfinchConfig: GoldfinchConfig
+  let naosFactory: NAOSFactory
+  let naosConfig: NAOSConfig
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;({owner, otherPerson, borrower, goldfinchConfig, goldfinchFactory} = await testSetup())
+    ;({owner, otherPerson, borrower, naosConfig, naosFactory} = await testSetup())
   })
 
   describe("createPool", () => {
@@ -46,12 +46,12 @@ describe("GoldfinchFactory", async () => {
 
     it("user with admin role can call", async () => {
       const caller = owner
-      const adminRole = await goldfinchFactory.OWNER_ROLE()
+      const adminRole = await naosFactory.OWNER_ROLE()
 
-      expect(await goldfinchFactory.hasRole(adminRole, caller)).to.be.true
+      expect(await naosFactory.hasRole(adminRole, caller)).to.be.true
 
       const signer = await ethers.getSigner(caller)
-      const tx = await goldfinchFactory.connect(signer).createPool(
+      const tx = await naosFactory.connect(signer).createPool(
         borrower,
         bnToHex(juniorFeePercent),
         bnToHex(limit),
@@ -70,12 +70,12 @@ describe("GoldfinchFactory", async () => {
 
     it("user with borrower role can call", async () => {
       const caller = borrower
-      const borrowerRole = await goldfinchFactory.BORROWER_ROLE()
+      const borrowerRole = await naosFactory.BORROWER_ROLE()
 
-      expect(await goldfinchFactory.hasRole(borrowerRole, caller)).to.be.true
+      expect(await naosFactory.hasRole(borrowerRole, caller)).to.be.true
 
       const signer = await ethers.getSigner(caller)
-      const tx = await goldfinchFactory.connect(signer).createPool(
+      const tx = await naosFactory.connect(signer).createPool(
         borrower,
         bnToHex(juniorFeePercent),
         bnToHex(limit),
@@ -94,15 +94,15 @@ describe("GoldfinchFactory", async () => {
 
     it("users without the admin or borrower role cannot create a pool", async () => {
       const caller = otherPerson
-      const borrowerRole = await goldfinchFactory.BORROWER_ROLE()
-      const adminRole = await goldfinchFactory.OWNER_ROLE()
+      const borrowerRole = await naosFactory.BORROWER_ROLE()
+      const adminRole = await naosFactory.OWNER_ROLE()
 
-      expect(await goldfinchFactory.hasRole(borrowerRole, caller)).to.be.false
-      expect(await goldfinchFactory.hasRole(adminRole, caller), borrower).to.be.false
+      expect(await naosFactory.hasRole(borrowerRole, caller)).to.be.false
+      expect(await naosFactory.hasRole(adminRole, caller), borrower).to.be.false
 
       const signer = await ethers.getSigner(caller)
       expect(
-        goldfinchFactory.connect(signer).createPool(
+        naosFactory.connect(signer).createPool(
           borrower,
           bnToHex(juniorFeePercent),
           bnToHex(limit),
@@ -120,49 +120,49 @@ describe("GoldfinchFactory", async () => {
 
   describe("grantRole", async () => {
     it("owner can grant borrower role", async () => {
-      const borrowerRole = await goldfinchFactory.BORROWER_ROLE()
-      await goldfinchFactory.grantRole(borrowerRole, otherPerson, {from: owner})
-      expect(await goldfinchFactory.hasRole(borrowerRole, otherPerson)).to.be.true
+      const borrowerRole = await naosFactory.BORROWER_ROLE()
+      await naosFactory.grantRole(borrowerRole, otherPerson, {from: owner})
+      expect(await naosFactory.hasRole(borrowerRole, otherPerson)).to.be.true
     })
 
     it("others cannot grant borrower role", async () => {
-      const borrowerRole = await goldfinchFactory.BORROWER_ROLE()
-      expect(goldfinchFactory.grantRole(borrowerRole, otherPerson, {from: otherPerson})).to.be.rejectedWith(
+      const borrowerRole = await naosFactory.BORROWER_ROLE()
+      expect(naosFactory.grantRole(borrowerRole, otherPerson, {from: otherPerson})).to.be.rejectedWith(
         /AccessControl: sender must be an admin to grant/i
       )
-      expect(await goldfinchFactory.hasRole(borrowerRole, otherPerson)).to.be.false
+      expect(await naosFactory.hasRole(borrowerRole, otherPerson)).to.be.false
     })
   })
 
   describe("performUgrade", async () => {
     const performUpgradeSetup = deployments.createFixture(async () => {
-      const {goldfinchFactory, ...others} = await testSetup()
-      await goldfinchFactory.performUpgrade({from: owner})
-      return {goldfinchFactory, ...others}
+      const {naosFactory, ...others} = await testSetup()
+      await naosFactory.performUpgrade({from: owner})
+      return {naosFactory, ...others}
     })
 
     beforeEach(async () => {
       // eslint-disable-next-line @typescript-eslint/no-extra-semi
-      ;({goldfinchFactory} = await performUpgradeSetup())
+      ;({naosFactory} = await performUpgradeSetup())
     })
 
     it("makes OWNER_ROLE admin of BORROWER_ROLE", async () => {
-      const borrowerRole = await goldfinchFactory.BORROWER_ROLE()
-      const ownerRole = await goldfinchFactory.OWNER_ROLE()
+      const borrowerRole = await naosFactory.BORROWER_ROLE()
+      const ownerRole = await naosFactory.OWNER_ROLE()
 
-      expect(await goldfinchFactory.getRoleAdmin(borrowerRole)).to.eq(ownerRole)
+      expect(await naosFactory.getRoleAdmin(borrowerRole)).to.eq(ownerRole)
     })
   })
 
-  describe("updateGoldfinchConfig", async () => {
+  describe("updateNAOSConfig", async () => {
     describe("setting it", async () => {
       it("emits an event", async () => {
-        const newConfig = await deployments.deploy("GoldfinchConfig", {from: owner})
-        await goldfinchConfig.setGoldfinchConfig(newConfig.address, {from: owner})
+        const newConfig = await deployments.deploy("NAOSConfig", {from: owner})
+        await naosConfig.setNAOSConfig(newConfig.address, {from: owner})
         const signer = await ethers.getSigner(owner)
-        const tx = await goldfinchFactory.connect(signer).updateGoldfinchConfig()
+        const tx = await naosFactory.connect(signer).updateNAOSConfig()
         const receipt = await tx.wait()
-        // expectEvent(tx, "GoldfinchConfigUpdated", {
+        // expectEvent(tx, "NAOSConfigUpdated", {
         //   who: owner,
         //   configAddress: newConfig.address,
         // })
