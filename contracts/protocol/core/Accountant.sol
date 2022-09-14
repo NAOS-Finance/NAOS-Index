@@ -42,8 +42,7 @@ library Accountant {
   ) public view returns (uint256, uint256) {
     uint256 balance = cl.balance(); // gas optimization
     uint256 interestAccrued = 0;
-    IJuniorPool.LiquidationProcess liquidate = IJuniorPool.LiquidationProcess(liquidated);
-    if (liquidate != IJuniorPool.LiquidationProcess.Processing) {
+    if (IJuniorPool.LiquidationProcess(liquidated) != IJuniorPool.LiquidationProcess.Processing) {
       interestAccrued = calculateInterestAccrued(cl, balance, timestamp, lateFeeGracePeriod);
     }
     uint256 principalAccrued = calculatePrincipalAccrued(cl, balance, timestamp, liquidated);
@@ -167,9 +166,8 @@ library Accountant {
     uint256 paymentRemaining = paymentAmount;
     uint256 interestPayment;
     uint256 principalPayment;
-    IJuniorPool.LiquidationProcess liquidate = IJuniorPool.LiquidationProcess(liquidated);
 
-    if (liquidate == IJuniorPool.LiquidationProcess.NotInProcess) {
+    if (IJuniorPool.LiquidationProcess(liquidated) == IJuniorPool.LiquidationProcess.NotInProcess) {
       interestPayment = Math.min(interestOwed, paymentRemaining);
       paymentRemaining = paymentRemaining.sub(interestPayment);
 
