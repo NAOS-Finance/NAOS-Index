@@ -530,13 +530,13 @@ describe("DynamicLeverageRatioStrategy", () => {
 
       it("levers junior investment using the leverageRatio", async () => {
         await leverJuniorInvestment(juniorPool, strategy, juniorInvestmentAmount, owner, borrower, async () => {
-          return await strategy.estimateInvestment(indexPool.address, juniorPool.address)
+          return await strategy.estimateInvestment(juniorPool.address)
         })
       })
 
       it("correctly handles decimal places, for a fractional leverageRatio", async () => {
         await leverFractionally(juniorPool, strategy, juniorInvestmentAmount, owner, borrower, async () => {
-          return await strategy.estimateInvestment(indexPool.address, juniorPool.address)
+          return await strategy.estimateInvestment(juniorPool.address)
         })
       })
     })
@@ -562,7 +562,7 @@ describe("DynamicLeverageRatioStrategy", () => {
           const seniorTrancheLockedUntil = new BN(seniorTranche.lockedUntil)
           expect(seniorTrancheLockedUntil).to.be.bignumber.equal(new BN(0))
 
-          const amount = strategy.estimateInvestment(indexPool.address, juniorPool.address)
+          const amount = strategy.estimateInvestment(juniorPool.address)
           await expect(amount).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
         })
       })
@@ -582,7 +582,7 @@ describe("DynamicLeverageRatioStrategy", () => {
             const leverageRatioNotSet = strategy.getLeverageRatio(juniorPool.address)
             expect(leverageRatioNotSet).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
 
-            const amount = strategy.estimateInvestment(indexPool.address, juniorPool.address)
+            const amount = strategy.estimateInvestment(juniorPool.address)
             await expect(amount).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
           })
         })
@@ -603,7 +603,7 @@ describe("DynamicLeverageRatioStrategy", () => {
               const leverageRatio = await strategy.getLeverageRatio(juniorPool.address)
               expect(leverageRatio).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
 
-              const amount = await strategy.estimateInvestment(indexPool.address, juniorPool.address)
+              const amount = await strategy.estimateInvestment(juniorPool.address)
               expect(amount).to.bignumber.equal(juniorInvestmentAmount.mul(leverageRatio).div(LEVERAGE_RATIO_DECIMALS))
             })
           })
@@ -627,7 +627,7 @@ describe("DynamicLeverageRatioStrategy", () => {
               const existingSeniorPrincipal = juniorInvestmentAmount.add(new BN(10))
               await juniorPool.deposit(TRANCHES.Senior, existingSeniorPrincipal)
 
-              const amount = await strategy.estimateInvestment(indexPool.address, juniorPool.address)
+              const amount = await strategy.estimateInvestment(juniorPool.address)
               expect(amount).to.bignumber.equal(
                 juniorInvestmentAmount.mul(leverageRatio).div(LEVERAGE_RATIO_DECIMALS).sub(existingSeniorPrincipal)
               )
@@ -655,7 +655,7 @@ describe("DynamicLeverageRatioStrategy", () => {
               )
               await juniorPool.deposit(TRANCHES.Senior, existingSeniorPrincipal)
 
-              const amount = await strategy.estimateInvestment(indexPool.address, juniorPool.address)
+              const amount = await strategy.estimateInvestment(juniorPool.address)
               expect(amount).to.bignumber.equal(new BN(0))
             })
           })
@@ -678,7 +678,7 @@ describe("DynamicLeverageRatioStrategy", () => {
             const leverageRatioNotSet = strategy.getLeverageRatio(juniorPool.address)
             await expect(leverageRatioNotSet).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
 
-            const amount = strategy.estimateInvestment(indexPool.address, juniorPool.address)
+            const amount = strategy.estimateInvestment(juniorPool.address)
             await expect(amount).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
           })
         })
@@ -700,7 +700,7 @@ describe("DynamicLeverageRatioStrategy", () => {
 
             await juniorPool.lockPool({from: borrower})
 
-            const amount = await strategy.estimateInvestment(indexPool.address, juniorPool.address)
+            const amount = await strategy.estimateInvestment(juniorPool.address)
             expect(amount).to.bignumber.equal(juniorInvestmentAmount.mul(leverageRatio).div(LEVERAGE_RATIO_DECIMALS))
           })
         })
@@ -719,13 +719,13 @@ describe("DynamicLeverageRatioStrategy", () => {
 
       it("levers junior investment using the leverageRatio", async () => {
         await leverJuniorInvestment(juniorPool, strategy, juniorInvestmentAmount, owner, borrower, async () => {
-          return await strategy.invest(indexPool.address, juniorPool.address)
+          return await strategy.invest(juniorPool.address)
         })
       })
 
       it("correctly handles decimal places, for a fractional leverageRatio", async () => {
         await leverFractionally(juniorPool, strategy, juniorInvestmentAmount, owner, borrower, async () => {
-          return await strategy.invest(indexPool.address, juniorPool.address)
+          return await strategy.invest(juniorPool.address)
         })
       })
     })
@@ -751,7 +751,7 @@ describe("DynamicLeverageRatioStrategy", () => {
           const seniorTrancheLockedUntil = new BN(seniorTranche.lockedUntil)
           expect(seniorTrancheLockedUntil).to.be.bignumber.equal(new BN(0))
 
-          const amount = await strategy.invest(indexPool.address, juniorPool.address)
+          const amount = await strategy.invest(juniorPool.address)
           expect(amount).to.bignumber.equal(new BN(0))
         })
       })
@@ -771,7 +771,7 @@ describe("DynamicLeverageRatioStrategy", () => {
             const leverageRatioNotSet = strategy.getLeverageRatio(juniorPool.address)
             await expect(leverageRatioNotSet).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
 
-            const amount = strategy.invest(indexPool.address, juniorPool.address)
+            const amount = strategy.invest(juniorPool.address)
             await expect(amount).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
           })
         })
@@ -792,7 +792,7 @@ describe("DynamicLeverageRatioStrategy", () => {
               const leverageRatio = await strategy.getLeverageRatio(juniorPool.address)
               expect(leverageRatio).to.bignumber.equal(EXPECTED_LEVERAGE_RATIO)
 
-              const amount = await strategy.invest(indexPool.address, juniorPool.address)
+              const amount = await strategy.invest(juniorPool.address)
               expect(amount).to.bignumber.equal(juniorInvestmentAmount.mul(leverageRatio).div(LEVERAGE_RATIO_DECIMALS))
             })
           })
@@ -816,7 +816,7 @@ describe("DynamicLeverageRatioStrategy", () => {
               const existingSeniorPrincipal = juniorInvestmentAmount.add(new BN(10))
               await juniorPool.deposit(TRANCHES.Senior, existingSeniorPrincipal)
 
-              const amount = await strategy.invest(indexPool.address, juniorPool.address)
+              const amount = await strategy.invest(juniorPool.address)
               expect(amount).to.bignumber.equal(
                 juniorInvestmentAmount.mul(leverageRatio).div(LEVERAGE_RATIO_DECIMALS).sub(existingSeniorPrincipal)
               )
@@ -841,7 +841,7 @@ describe("DynamicLeverageRatioStrategy", () => {
               )
               await juniorPool.deposit(TRANCHES.Senior, existingSeniorPrincipal)
 
-              const amount = await strategy.invest(indexPool.address, juniorPool.address)
+              const amount = await strategy.invest(juniorPool.address)
               expect(amount).to.bignumber.equal(new BN(0))
             })
           })
@@ -864,7 +864,7 @@ describe("DynamicLeverageRatioStrategy", () => {
             const leverageRatioNotSet = strategy.getLeverageRatio(juniorPool.address)
             await expect(leverageRatioNotSet).to.be.rejectedWith(LEVERAGE_RATIO_NOT_SET_REGEXP)
 
-            const amount = await strategy.invest(indexPool.address, juniorPool.address)
+            const amount = await strategy.invest(juniorPool.address)
             expect(amount).to.bignumber.equal(new BN(0))
           })
         })
@@ -881,7 +881,7 @@ describe("DynamicLeverageRatioStrategy", () => {
             await setLeverageRatio(juniorPool, strategy, owner, EXPECTED_LEVERAGE_RATIO)
             await juniorPool.lockPool({from: borrower})
 
-            const amount = await strategy.invest(indexPool.address, juniorPool.address)
+            const amount = await strategy.invest(juniorPool.address)
             expect(amount).to.bignumber.equal(new BN(0))
           })
         })
