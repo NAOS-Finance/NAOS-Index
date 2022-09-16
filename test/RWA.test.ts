@@ -1,20 +1,20 @@
 import hre, { ethers } from "hardhat"
-const {deployments, artifacts, web3} = hre
-import {expectEvent} from "@openzeppelin/test-helpers"
-import {expect, bigVal, expectAction, bnToHex} from "./testHelpers"
-import {OWNER_ROLE} from "../scripts/blockchain_scripts/deployHelpers"
-import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
-import {deployBaseFixture} from "./util/fixtures"
+const { deployments, artifacts, web3 } = hre
+import { expectEvent } from "@openzeppelin/test-helpers"
+import { expect, bigVal, expectAction, bnToHex, BN } from "./testHelpers"
+import { OWNER_ROLE } from "../scripts/blockchain_scripts/deployHelpers"
+import { CONFIG_KEYS } from "../scripts/blockchain_scripts/configKeys"
+import { deployBaseFixture } from "./util/fixtures"
 const NAOSConfig = artifacts.require("NAOSConfig")
 const RWA = artifacts.require("RWA")
 
 describe("RWA", () => {
-  const testSetup = deployments.createFixture(async ({deployments, getNamedAccounts}) => {
-    const {protocol_owner} = await getNamedAccounts()
+  const testSetup = deployments.createFixture(async ({ deployments, getNamedAccounts }) => {
+    const { protocol_owner } = await getNamedAccounts()
     owner = protocol_owner
 
-    const {rwa, naosConfig, indexPool} = await deployBaseFixture()
-    return {rwa, naosConfig, indexPool}
+    const { rwa, naosConfig, indexPool } = await deployBaseFixture()
+    return { rwa, naosConfig, indexPool }
   })
 
   let owner, person2, naosConfig, rwa, indexPool
@@ -22,7 +22,7 @@ describe("RWA", () => {
     // Pull in our unlocked accounts
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[owner, person2] = await web3.eth.getAccounts()
-    ;({rwa, naosConfig, indexPool} = await testSetup())
+      ; ({ rwa, naosConfig, indexPool } = await testSetup())
   })
 
   describe("Initialization", async () => {
@@ -85,11 +85,11 @@ describe("RWA", () => {
     })
     it("should allow the minter to call it", async () => {
       const signer = await ethers.getSigner(owner as string)
-      return expect(rwa.connect(signer).mintTo(person2, bnToHex(bigVal(1)))).to.be.fulfilled
+      return expect(rwa.connect(signer).mintTo(person2, bnToHex(new BN(1)))).to.be.fulfilled
     })
     it("should not allow anyone else to call it", async () => {
       const signer = await ethers.getSigner(person2 as string)
-      return expect(rwa.connect(signer).mintTo(person2, bnToHex(bigVal(1)))).to.be.rejectedWith(/minter role/)
+      return expect(rwa.connect(signer).mintTo(person2, bnToHex(new BN(1)))).to.be.rejectedWith(/minter role/)
     })
   })
 
@@ -100,16 +100,16 @@ describe("RWA", () => {
       const deployments = await testSetup()
       const signer = await ethers.getSigner(owner as string)
       rwa = deployments.rwa
-      await rwa.connect(signer).mintTo(person2, bnToHex(bigVal(1)))
+      await rwa.connect(signer).mintTo(person2, bnToHex(new BN(1)))
     })
 
     it("should allow the minter to call it", async () => {
       const signer = await ethers.getSigner(owner as string)
-      return expect(rwa.connect(signer).burnFrom(person2, bnToHex(bigVal(1)))).to.be.fulfilled
+      return expect(rwa.connect(signer).burnFrom(person2, bnToHex(new BN(1)))).to.be.fulfilled
     })
     it("should not allow anyone else to call it", async () => {
       const signer = await ethers.getSigner(person2 as string)
-      return expect(rwa.connect(signer).burnFrom(person2, bnToHex(bigVal(1)))).to.be.rejectedWith(/minter role/)
+      return expect(rwa.connect(signer).burnFrom(person2, bnToHex(new BN(1)))).to.be.rejectedWith(/minter role/)
     })
   })
 })
