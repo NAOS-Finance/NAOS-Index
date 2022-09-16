@@ -387,124 +387,6 @@ describe("IndexPool", () => {
     })
   })
 
-  describe("withdraw", () => {
-    let capitalProvider
-
-    const testSetup = deployments.createFixture(async () => {
-      let signer = await ethers.getSigner(person2)
-      await usdc.connect(signer).approve(indexPool.address, bnToHex(new BN(100000).mul(USDC_DECIMALS)))
-      signer = await ethers.getSigner(owner)
-      await usdc.connect(signer).approve(indexPool.address, bnToHex(new BN(100000).mul(USDC_DECIMALS)))
-
-      capitalProvider = person2
-    })
-
-    beforeEach(async () => {
-      await testSetup()
-    })
-
-    it("withdraws the correct amount of value from the contract when you call withdraw", async () => {
-      await makeDeposit()
-      const balanceBefore = await getBalance(indexPool.address, usdc)
-      await makeWithdraw()
-      const balanceAfter = await getBalance(indexPool.address, usdc)
-      const delta = balanceBefore.sub(balanceAfter)
-      expect(delta).to.bignumber.equal(withdrawAmount)
-    })
-
-    // it("emits an event with the correct data", async () => {
-    //   await makeDeposit()
-    //   const result = await makeWithdraw()
-    //   const event = decodeAndGetFirstLog<WithdrawalMade>(result.receipt.rawLogs, indexPool, "WithdrawalMade")
-    //   const reserveAmount = withdrawAmount.div(new BN(200))
-
-    //   expect(event.event).to.equal("WithdrawalMade")
-    //   expect(event.args.capitalProvider).to.equal(capitalProvider)
-    //   expect(event.args.reserveAmount).to.bignumber.equal(reserveAmount)
-    //   expect(event.args.userAmount).to.bignumber.equal(withdrawAmount.sub(reserveAmount))
-    // })
-
-    // it("should emit an event that the reserve received funds", async () => {
-    //   await makeDeposit()
-    //   const result = await makeWithdraw()
-    //   const event = decodeAndGetFirstLog<ReserveFundsCollected>(
-    //     result.receipt.rawLogs,
-    //     indexPool,
-    //     "ReserveFundsCollected"
-    //   )
-
-    //   expect(event.event).to.equal("ReserveFundsCollected")
-    //   expect(event.args.user).to.equal(capitalProvider)
-    //   expect(event.args.amount).to.bignumber.equal(withdrawAmount.div(WITHDRAWL_FEE_DENOMINATOR))
-    // })
-
-    it("sends the amount back to the address, accounting for fees", async () => {
-      await makeDeposit()
-      const addressValueBefore = await getBalance(person2, usdc)
-      await makeWithdraw()
-      const addressValueAfter = await getBalance(person2, usdc)
-      const expectedFee = withdrawAmount.div(WITHDRAWL_FEE_DENOMINATOR)
-      const delta = addressValueAfter.sub(addressValueBefore)
-      expect(delta).bignumber.equal(withdrawAmount.sub(expectedFee))
-    })
-
-    it("should send the fees to the reserve address", async () => {
-      await makeDeposit()
-      const reserveBalanceBefore = await getBalance(reserve, usdc)
-      await makeWithdraw()
-      const reserveBalanceAfter = await getBalance(reserve, usdc)
-      const expectedFee = withdrawAmount.div(WITHDRAWL_FEE_DENOMINATOR)
-      const delta = reserveBalanceAfter.sub(reserveBalanceBefore)
-      expect(delta).bignumber.equal(expectedFee)
-    })
-
-    it("reduces your shares of rwa", async () => {
-      await makeDeposit()
-      const balanceBefore = await getBalance(person2, rwa)
-      await makeWithdraw()
-      const balanceAfter = await getBalance(person2, rwa)
-      const expectedShares = balanceBefore.sub(withdrawAmount.mul(decimals).div(USDC_DECIMALS))
-      expect(balanceAfter).to.bignumber.equal(expectedShares)
-    })
-
-    it("decreases the totalSupply of RWA", async () => {
-      await makeDeposit()
-      const sharesBefore = await rwa.totalSupply()
-      await makeWithdraw()
-      const sharesAfter = await rwa.totalSupply()
-      const expectedShares = bnToBnjs(sharesBefore).sub(withdrawAmount.mul(decimals.div(USDC_DECIMALS)))
-      expect(bnToBnjs(sharesAfter)).to.bignumber.equal(expectedShares)
-    })
-
-    it("lets you withdraw in rwa terms", async () => {
-      await makeDeposit()
-      const rwaBalance = await getBalance(person2, rwa)
-      expect(rwaBalance).to.bignumber.gt(new BN("0"))
-
-      // await expectAction(() => {
-      //   return makeWithdrawInRWA(person2, rwaBalance)
-      // }).toChange([
-      //   [() => getBalance(person2, usdc), {byCloseTo: usdcVal(4)}], // Not exactly the same as input due to fees
-      //   [() => getBalance(person2, rwa), {to: new BN(0)}], // All rwa deducted
-      //   [() => getBalance(indexPool.address, usdc), {to: new BN(0)}], // Should have removed the full balance
-      //   [() => rwa.totalSupply(), {by: rwaBalance.neg()}], // RWA has been burned
-      // ])
-    })
-
-    it("prevents you from withdrawing more than you have", async () => {
-      const expectedErr = /Amount requested is greater than what this address owns/
-      await expect(makeWithdraw()).to.be.rejectedWith(expectedErr)
-      await expect(makeWithdrawInRWA(person2, withdrawAmount)).to.be.rejectedWith(expectedErr)
-    })
-
-    it("it lets you withdraw your exact total holdings", async () => {
-      await makeDeposit(person2, new BN("123"))
-      await makeWithdraw(person2, new BN("123"))
-      const sharesAfter = await getBalance(person2, rwa)
-      expect(sharesAfter.toNumber()).to.equal(0)
-    })
-  })
-
   describe("hard limits", async () => {
     describe("totalFundsLimit", async () => {
       describe("once it's set", async () => {
@@ -527,7 +409,7 @@ describe("IndexPool", () => {
 
         it("should fail if you're over the limit", async () => {
           return expect(makeDeposit(person2, new BN(limit).add(new BN(1)).mul(USDC_DECIMALS))).to.be.rejectedWith(
-            /put the senior pool over the total limit/
+            /put the index pool over the total limit/
           )
         })
       })
@@ -637,7 +519,7 @@ describe("IndexPool", () => {
         expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
           indexPoolFixedStrategy.address
         )
-        const investmentAmount = await indexPoolFixedStrategy.invest(indexPool.address, juniorPool.address)
+        const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
 
         await indexPool.invest(juniorPool.address)
 
@@ -654,7 +536,7 @@ describe("IndexPool", () => {
         expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
           indexPoolFixedStrategy.address
         )
-        const investmentAmount = await indexPoolFixedStrategy.invest(indexPool.address, juniorPool.address)
+        const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
 
         // await expectAction(async () => await indexPool.invest(juniorPool.address)).toChange([
         //   [async () => await getBalance(indexPool.address, usdc), {by: investmentAmount.neg()}],
@@ -672,7 +554,7 @@ describe("IndexPool", () => {
         expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
           indexPoolFixedStrategy.address
         )
-        const investmentAmount = await indexPoolFixedStrategy.invest(indexPool.address, juniorPool.address)
+        const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
 
         const receipt = await indexPool.invest(juniorPool.address)
         // const event = decodeAndGetFirstLog<InvestmentMadeInSenior>(
@@ -693,7 +575,7 @@ describe("IndexPool", () => {
         expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
           indexPoolFixedStrategy.address
         )
-        const investmentAmount = await indexPoolFixedStrategy.invest(indexPool.address, juniorPool.address)
+        const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
 
         // await expectAction(() => indexPool.invest(juniorPool.address)).toChange([
         //   [indexPool.totalLoansOutstanding, {by: bnToBnjs(investmentAmount)}],
@@ -709,7 +591,7 @@ describe("IndexPool", () => {
         expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
           indexPoolFixedStrategy.address
         )
-        const investmentAmount = await indexPoolFixedStrategy.invest(indexPool.address, juniorPool.address)
+        const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
         expect(bnToBnjs(investmentAmount)).to.bignumber.equal(new BN(0))
 
         await expect(indexPool.invest(juniorPool.address)).to.be.rejectedWith(/amount must be positive/)
@@ -732,7 +614,7 @@ describe("IndexPool", () => {
         expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
           indexPoolFixedStrategy.address
         )
-        const investmentAmount = await indexPoolFixedStrategy.invest(indexPool.address, juniorPool.address)
+        const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
 
         const reducedLimit = investmentAmount.sub(BigNumber.from(1))
         await juniorPool._setLimit(bnjsToHex(reducedLimit))
@@ -874,216 +756,6 @@ describe("IndexPool", () => {
 
       // // No reserve funds should be collected for a regular redeem
       // expectEvent.notEmitted(receipt, "ReserveFundsCollected")
-    })
-  })
-
-  describe("writedown", async () => {
-    let originalSharePrice, originalTotalShares
-    let tokenId, juniorTokenId
-    const juniorInvestmentAmount = usdcVal(20)
-
-    const testSetup = deployments.createFixture(async () => {
-      await makeDeposit(person2, usdcVal(100))
-
-      let tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(juniorInvestmentAmount))
-      const juniorReceipt = await tx.wait()
-      let eventId = juniorReceipt.logs[0].topics[juniorReceipt.logs[0].topics.length - 1]
-      juniorTokenId = BigNumber.from(eventId[eventId.length - 1])
-      const signer = await ethers.getSigner(borrower)
-      await juniorPool.connect(signer).lockJuniorCapital()
-      tx = await indexPool.invest(juniorPool.address)
-      const receipt = await tx.wait()
-      const depositMadeLog = receipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
-      eventId = depositMadeLog.topics[depositMadeLog.topics.length - 1]
-      tokenId = BigNumber.from(eventId.substr(eventId.length - 2))
-      await juniorPool.connect(signer).lockPool()
-      await juniorPool.connect(signer).drawdown(bnToHex(usdcVal(100)))
-
-      originalSharePrice = await indexPool.sharePrice()
-      originalTotalShares = await rwa.totalSupply()
-    })
-
-    beforeEach(async () => {
-      await testSetup()
-    })
-
-    context("called by non-governance", async () => {
-      it("should not revert", async () => {
-        expect(indexPool.writedown(bnjsToHex(tokenId), {from: person2})).to.not.be.rejected
-      })
-    })
-
-    context("before loan term ends", async () => {
-      it("should write down the principal and distribute losses", async () => {
-        // Assess for two periods of lateness
-        const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
-        const twoPaymentPeriodsInSeconds = paymentPeriodInSeconds.mul(new BN(2))
-        await advanceTime({seconds: twoPaymentPeriodsInSeconds})
-        // So writedown is 2 periods late - 1 grace period / 4 max = 25%
-        const expectedWritedown = usdcVal(80).div(new BN(4)) // 25% of 80 = 20
-
-        await juniorPool.assess()
-        await indexPool.writedown(bnjsToHex(tokenId))
-        // await expectAction(() => indexPool.writedown(tokenId)).toChange([
-        //   [indexPool.totalWritedowns, {byCloseTo: expectedWritedown}],
-        //   [indexPool.assets, {byCloseTo: expectedWritedown.neg()}],
-        // ])
-
-        const newSharePrice = await indexPool.sharePrice()
-        const delta = originalSharePrice.sub(newSharePrice)
-        const normalizedWritedown = await indexPool.usdcToRWA(bnToHex(expectedWritedown))
-        const expectedDelta = bnToBnjs(normalizedWritedown).mul(decimals).div(bnToBnjs(originalTotalShares))
-
-        expect(bnToBnjs(delta)).to.be.bignumber.closeTo(expectedDelta, rwaTolerance)
-        expect(bnToBnjs(newSharePrice)).to.be.bignumber.lt(bnToBnjs(originalSharePrice))
-        expect(bnToBnjs(newSharePrice)).to.be.bignumber.closeTo(bnToBnjs(originalSharePrice.sub(delta)), rwaTolerance)
-      })
-
-      it("should decrease the write down amount if partially paid back", async () => {
-        // Assess for two periods of lateness
-        const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
-        const twoPaymentPeriodsInSeconds = paymentPeriodInSeconds.mul(new BN(2))
-        await advanceTime({seconds: twoPaymentPeriodsInSeconds})
-        // Writedown is 2 periods late - 1 grace period / 4 max = 25%
-        const expectedWritedown = usdcVal(80).div(new BN(4)) // 25% of 80 = 20
-
-        await juniorPool.assess()
-        await indexPool.writedown(bnjsToHex(tokenId))
-        // await expectAction(() => indexPool.writedown(tokenId)).toChange([
-        //   [indexPool.totalWritedowns, {byCloseTo: expectedWritedown}],
-        //   [indexPool.assets, {byCloseTo: expectedWritedown.neg()}],
-        // ])
-
-        const sharePriceAfterAssess = await indexPool.sharePrice()
-
-        // Pay back half of one period
-        const creditLine = await artifacts.require("CreditLine").at(await juniorPool.creditLine())
-        const interestOwed = await creditLine.interestOwed()
-        const interestPaid = bnToBnjs(interestOwed).div(new BN(4)) // interestOwed is for 2 periods
-        const expectedNewWritedown = expectedWritedown.div(new BN(2))
-        const signer = await ethers.getSigner(borrower)
-        // await erc20Transfer(usdc, [borrower], interestPaid, owner)
-        await erc20Approve(usdc, juniorPool.address, interestPaid, [borrower])
-        await juniorPool.connect(signer).pay(bnToHex(interestPaid))
-
-        await indexPool.writedown(bnjsToHex(tokenId))
-        // await expectAction(() => indexPool.writedown(tokenId)).toChange([
-        //   [indexPool.totalWritedowns, {byCloseTo: expectedWritedown.sub(expectedNewWritedown).neg()}],
-        //   [indexPool.assets, {byCloseTo: expectedWritedown.sub(expectedNewWritedown)}],
-        // ])
-
-        const finalSharePrice = await indexPool.sharePrice()
-        const delta = originalSharePrice.sub(finalSharePrice)
-        const normalizedWritedown = await indexPool.usdcToRWA(bnToHex(expectedNewWritedown))
-        const expectedDelta = bnToBnjs(normalizedWritedown).mul(decimals).div(bnToBnjs(originalTotalShares))
-
-        expect(bnToBnjs(delta)).to.be.bignumber.closeTo(expectedDelta, rwaTolerance)
-        // Share price must go down after the initial write down, and then up after partially paid back
-        expect(bnToBnjs(sharePriceAfterAssess)).to.be.bignumber.lt(bnToBnjs(originalSharePrice))
-        expect(bnToBnjs(finalSharePrice)).to.be.bignumber.gt(bnToBnjs(sharePriceAfterAssess))
-        expect(bnToBnjs(finalSharePrice)).to.be.bignumber.closeTo(bnToBnjs(originalSharePrice.sub(delta)), rwaTolerance)
-      })
-
-      // it("should reset the writedowns to 0 if fully paid back", async () => {
-      //   // Assess for two periods of lateness
-      //   const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
-      //   const twoPaymentPeriodsInSeconds = paymentPeriodInSeconds.mul(new BN(2))
-      //   await advanceTime({seconds: twoPaymentPeriodsInSeconds})
-      //   // Writedown is 2 periods late - 1 grace period / 4 max = 25%
-      //   const expectedWritedown = usdcVal(80).div(new BN(4)) // 25% of 80 = 20
-
-      //   await juniorPool.assess()
-      //   await indexPool.writedown(bnjsToHex(tokenId))
-      //   // await expectAction(() => indexPool.writedown(tokenId)).toChange([
-      //   //   [indexPool.totalWritedowns, {byCloseTo: expectedWritedown}],
-      //   //   [indexPool.assets, {byCloseTo: expectedWritedown.neg()}],
-      //   // ])
-
-      //   const sharePriceAfterAssess = await indexPool.sharePrice()
-
-      //   // Pay back all interest owed
-      //   const creditLine = await artifacts.require("CreditLine").at(await juniorPool.creditLine())
-      //   const interestOwed = await creditLine.interestOwed()
-      //   const interestPaid = interestOwed
-      //   const expectedNewWritedown = new BN(0)
-      //   await juniorPool.pay(interestPaid, {from: borrower})
-
-      //   await indexPool.writedown(bnjsToHex(tokenId))
-      //   // await expectAction(() => indexPool.writedown(tokenId)).toChange([
-      //   //   [indexPool.totalWritedowns, {to: new BN(0)}],
-      //   //   [indexPool.assets, {byCloseTo: expectedWritedown.sub(expectedNewWritedown)}],
-      //   // ])
-
-      //   const finalSharePrice = await indexPool.sharePrice()
-      //   const delta = originalSharePrice.sub(finalSharePrice)
-
-      //   expect(delta).to.be.bignumber.equal(new BN(0))
-      //   // Share price must go down after the initial write down, and then back up to original after fully repaid
-      //   expect(sharePriceAfterAssess).to.be.bignumber.lt(originalSharePrice)
-      //   expect(finalSharePrice).to.be.bignumber.gt(sharePriceAfterAssess)
-      //   expect(finalSharePrice).to.be.bignumber.equal(originalSharePrice)
-      // })
-
-      // it("should emit an event", async () => {
-      //   // Assess for two periods of lateness
-      //   const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
-      //   const twoPaymentPeriodsInSeconds = paymentPeriodInSeconds.mul(new BN(2))
-      //   await advanceTime({seconds: twoPaymentPeriodsInSeconds})
-      //   // So writedown is 2 periods late - 1 grace period / 4 max = 25%
-      //   const expectedWritedown = usdcVal(80).div(new BN(4)) // 25% of 80 = 20
-
-      //   await juniorPool.assess()
-      //   const receipt = await indexPool.writedown(tokenId)
-      //   const event = decodeLogs(receipt.receipt.rawLogs, indexPool, "PrincipalWrittenDown")[0]
-      //   assertNonNullable(event)
-      //   expect(event.args.juniorPool).to.equal(juniorPool.address)
-      //   expect(event.args.amount).to.bignumber.closeTo(expectedWritedown, rwaTolerance)
-      // })
-    })
-
-    context("tokenId is not owned by senior pool", () => {
-      it("reverts", async () => {
-        await expect(indexPool.writedown(bnjsToHex(juniorTokenId))).to.be.rejectedWith(
-          /Only tokens owned by the senior pool can be written down/
-        )
-      })
-    })
-  })
-
-  describe("calculateWritedown", async () => {
-    let tokenId
-    const juniorInvestmentAmount = usdcVal(20)
-    const testSetup = deployments.createFixture(async () => {
-      await makeDeposit(person2, usdcVal(100))
-
-      await juniorPool.deposit(TRANCHES.Junior, bnToHex(juniorInvestmentAmount))
-      const signer = await ethers.getSigner(borrower)
-      await juniorPool.connect(signer).lockJuniorCapital()
-      const tx = await indexPool.invest(juniorPool.address)
-      const receipt = await tx.wait()
-      const depositMadeLog = receipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
-      const eventId = depositMadeLog.topics[depositMadeLog.topics.length - 1]
-      tokenId = BigNumber.from(eventId.substr(eventId.length - 2))
-      await juniorPool.connect(signer).lockPool()
-      await juniorPool.connect(signer).drawdown(bnToHex(usdcVal(100)))
-    })
-
-    beforeEach(async () => {
-      await testSetup()
-    })
-
-    it("returns writedown amount", async () => {
-      const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
-      const twoPaymentPeriodsInSeconds = paymentPeriodInSeconds.mul(new BN(2))
-      await advanceTime({seconds: twoPaymentPeriodsInSeconds.add(new BN(10000))})
-
-      // So writedown is 2 periods late - 1 grace period / 4 max = 25%
-      const expectedWritedown = usdcVal(80).div(new BN(4)) // 25% of 80 = ~20
-
-      await juniorPool.assess()
-      const writedownAmount = await indexPool.calculateWritedown(tokenId)
-
-      expect(bnToBnjs(writedownAmount)).to.bignumber.closeTo(expectedWritedown, tolerance)
     })
   })
 })
