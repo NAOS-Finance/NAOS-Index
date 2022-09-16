@@ -188,7 +188,8 @@ describe("PoolTokens", () => {
     it("should mint a token with correct info", async () => {
       const amount = usdcVal(5)
       const tx = await pool.deposit(bnToHex(new BN(1)), bnToHex(amount), { from: person2 })
-      const receipt = await tx.wait()
+      // const receipt = await tx.wait()
+      const receipt = tx.receipt
       const log = receipt.logs.filter((l) => l.address.toLowerCase() === pool.address.toLowerCase())
       // const poolAddress = '0x' + log.topics[1].substr(26)
       // const event = decodeLogs(result.receipt.rawLogs, poolTokens, "TokenMinted")[0]
@@ -226,7 +227,8 @@ describe("PoolTokens", () => {
       await pool.initializeNextSlice(bnToHex(new BN(0)), {from: person2})
 
       const tx = await pool.deposit(bnToHex(new BN(3)), bnToHex(amount), {from: person2})
-      const receipt = await tx.wait()
+      // const receipt = await tx.wait()
+      const receipt = tx.receipt
       // const event = decodeLogs(result.receipt.rawLogs, poolTokens, "TokenMinted")[0]
       // assertNonNullable(event)
       // const backerRewardsTokenInfo = await backerRewards.tokens(event.args.tokenId)
