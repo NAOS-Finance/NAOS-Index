@@ -204,6 +204,9 @@ contract IndexStakingPool is ReentrancyGuard {
         _pool.update(_ctx);
 
         _deposit(_poolId, _depositAmount);
+
+        IERC20withDec token = _pool.config.getRWA();
+        require(token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
     }
 
     /// @notice Deposit to IndexPool and stake your shares in the same transaction.
@@ -503,9 +506,6 @@ contract IndexStakingPool is ReentrancyGuard {
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
-        IERC20withDec token = _pool.config.getRWA();
-
-        require(token.transferFrom(msg.sender, address(this), _depositAmount), "token transfer failed");
 
         emit TokensDeposited(msg.sender, _poolId, _depositAmount);
     }
