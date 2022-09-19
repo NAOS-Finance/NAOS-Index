@@ -11,9 +11,6 @@ import {
   SECONDS_PER_DAY,
   UNIT_SHARE_PRICE,
   ZERO,
-  // decodeLogs,
-  // getFirstLog,
-  // decodeAndGetFirstLog,
   // setupBackerRewards,
   getCurrentTimestamp,
   bnToHex,
@@ -29,7 +26,6 @@ const {deployments, artifacts, web3} = hre
 import {ecsign} from "ethereumjs-util"
 const CreditLine = artifacts.require("CreditLine")
 import {getApprovalDigest, getWallet} from "./permitHelpers"
-// import {DepositMade, TrancheLocked, PaymentApplied, SharePriceUpdated} from "../types"
 import {
   CreditLine,
   NAOSConfig,
@@ -38,15 +34,12 @@ import {
   TestUniqueIdentity,
   IndexPool,
   JuniorPool,
-  FixedLeverageRatioStrategy
   // BackerRewards,
-  // NAOS,
 } from "../types"
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
 import {mint} from "./uniqueIdentityHelpers"
 import {deployBaseFixture, deployJuniorPoolWithNAOSFactoryFixture} from "./util/fixtures"
-import { config } from "dotenv"
 
 const RESERVE_FUNDS_COLLECTED_EVENT = "ReserveFundsCollected"
 const PAYMENT_APPLIED_EVENT = "PaymentApplied"
@@ -54,9 +47,19 @@ const ASSESS_EVENT = "JuniorPoolAssessed"
 const EXPECTED_JUNIOR_CAPITAL_LOCKED_EVENT_ARGS = ["0", "1", "2", "__length__", "lockedUntil", "pool", "trancheId"]
 const TEST_TIMEOUT = 30000
 const HALF_CENT = usdcVal(1).div(new BN(200))
+const depositMadeEventHash = '0xcb3ef4109dcd006671348924f00aac8398190a5ff283d6e470d74581513e1036'
+const trancheLockedEventHash = '0xf839b119f21fb055e13aebac51bca6b308f52ec2d8db8306ce4d092d964e5bd0'
+const investmentMadeInSeniorEventHash = '0x86da25fff7a4075a94de2ffed109ca6748c3af22736eaf7efc75e3988f899d6e'
+const withdrawalMadeEventHash = '0x92f2787b755dae547f1701582fe74c7abf277ec14db316dd01abc69cacf7a259'
+const reserveFundsCollectedEventHash = '0xf3583f178a8d4f8888c3683f8e948faf9b6eb701c4f1fab265a6ecad1a1ddebb'
+const paymentAppliedEventHash = '0xd1055dc2c2a003a83dfacb1c38db776eab5ef89d77a8f05a3512e8cf57f953ce'
+const juniorPoolAssessedEventHash = '0x81b01d94b096147dd71610cdf6d772ef4899db370b362c477b8dc5cbde448446'
+const drawdownMadeEventHash = '0x7411b87a3c039bdfd8f3510b21e8bd0736265f53513735e1f4aa7b4f306b728d'
+const drawdownsPausedEventHash = '0x90d9b09c68a7e1312ce22801552b47265d77db9496383d51374b4058545447d7'
+const drawdownsUnpausedEventHash = '0x7184039938737267597232635b117c924371ac877d4329f2dfa5ca674c5cc4a5'
 
 const expectPaymentRelatedEventsEmitted = (
-  receipt: unknown,
+  receipt: any,
   borrowerAddress: unknown,
   juniorPool: JuniorPool,
   amounts: {
@@ -66,25 +69,13 @@ const expectPaymentRelatedEventsEmitted = (
     reserve: BN
   }
 ) => {
-  expectEvent(receipt, RESERVE_FUNDS_COLLECTED_EVENT, {
-    from: juniorPool.address,
-    amount: amounts.reserve,
-  })
-  expectEvent(receipt, ASSESS_EVENT, {
-    pool: juniorPool.address,
-  })
-  expectEvent(receipt, PAYMENT_APPLIED_EVENT, {
-    payer: borrowerAddress,
-    pool: juniorPool.address,
-    interestAmount: amounts.interest,
-    principalAmount: amounts.principal,
-    remainingAmount: amounts.remaining,
-    reserveAmount: amounts.reserve,
-  })
+  assertNonNullable(receipt.logs.filter((l) => l.topics[0] === reserveFundsCollectedEventHash)[0])
+  assertNonNullable(receipt.logs.filter((l) => l.topics[0] === juniorPoolAssessedEventHash)[0])
+  assertNonNullable(receipt.logs.filter((l) => l.topics[0] === paymentAppliedEventHash)[0])
 }
-const expectPaymentRelatedEventsNotEmitted = (receipt: unknown) => {
-  expectEvent.notEmitted(receipt, RESERVE_FUNDS_COLLECTED_EVENT)
-  expectEvent.notEmitted(receipt, PAYMENT_APPLIED_EVENT)
+const expectPaymentRelatedEventsNotEmitted = (receipt: any) => {
+  expect(receipt.logs.filter((l) => l.topics[0] === reserveFundsCollectedEventHash).length).to.eq(0)
+  expect(receipt.logs.filter((l) => l.topics[0] === paymentAppliedEventHash).length).to.eq(0)
 }
 
 describe("JuniorPool", () => {
@@ -461,28 +452,30 @@ describe("JuniorPool", () => {
         await expect(juniorPool.deposit(0, bnToHex(usdcVal(10)))).to.be.rejectedWith(/Unsupported tranche/)
       })
 
-      // it("updates the tranche info and mints the token", async () => {
-      //   expect(await poolTokens.balanceOf(owner)).to.bignumber.eq("0")
+      it("updates the tranche info and mints the token", async () => {
+        expect(bnToBnjs(await poolTokens.balanceOf(owner))).to.bignumber.eq("0")
 
-      //   const response = await juniorPool.deposit(TRANCHES.Junior, usdcVal(10))
-      //   const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      //   const firstLog = getFirstLog(logs)
-      //   const tokenId = firstLog.args.tokenId
-      //   const juniorTranche = await juniorPool.getTranche(TRANCHES.Junior)
-      //   const seniorTranche = await juniorPool.getTranche(TRANCHES.Senior)
+        const tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
+        const receipt = await tx.wait()
+        const depositMadeLog = receipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
+        assertNonNullable(depositMadeLog)
 
-      //   expect(juniorTranche.principalDeposited).to.bignumber.eq(usdcVal(10))
-      //   expect(seniorTranche.principalDeposited).to.bignumber.eq("0")
+        const tokenId = parseInt(depositMadeLog.topics[depositMadeLog.topics.length - 1], 16)
+        const juniorTranche = await juniorPool.getTranche(TRANCHES.Junior)
+        const seniorTranche = await juniorPool.getTranche(TRANCHES.Senior)
 
-      //   expect(await poolTokens.balanceOf(owner)).to.bignumber.eq("1")
-      //   expect(await usdc.balanceOf(juniorPool.address)).to.bignumber.eq(usdcVal(10))
+        expect(bnToBnjs(juniorTranche.principalDeposited)).to.bignumber.eq(usdcVal(10))
+        expect(bnToBnjs(seniorTranche.principalDeposited)).to.bignumber.eq("0")
 
-      //   const tokenInfo = await poolTokens.getTokenInfo(tokenId)
-      //   expect(tokenInfo.principalAmount).to.bignumber.eq(usdcVal(10))
-      //   expect(tokenInfo.tranche).to.bignumber.eq("2")
-      //   expect(tokenInfo.principalRedeemed).to.bignumber.eq("0")
-      //   expect(tokenInfo.interestRedeemed).to.bignumber.eq("0")
-      // })
+        expect(bnToBnjs(await poolTokens.balanceOf(owner))).to.bignumber.eq("1")
+        expect(bnToBnjs(await usdc.balanceOf(juniorPool.address))).to.bignumber.eq(usdcVal(10))
+
+        const tokenInfo = await poolTokens.getTokenInfo(tokenId)
+        expect(bnToBnjs(tokenInfo.principalAmount)).to.bignumber.eq(usdcVal(10))
+        expect(bnToBnjs(tokenInfo.tranche)).to.bignumber.eq("2")
+        expect(bnToBnjs(tokenInfo.principalRedeemed)).to.bignumber.eq("0")
+        expect(bnToBnjs(tokenInfo.interestRedeemed)).to.bignumber.eq("0")
+      })
 
       describe("multiple deposits", async () => {
         it("Keeps track of them correctly", async () => {
@@ -513,16 +506,10 @@ describe("JuniorPool", () => {
           // need to advance the blockchain to a known point in time
           await advanceTime({toSecond: startingTimeInSeconds})
           const tx = await juniorPool.connect(signer).lockPool()
-          // expectEvent(tx, "TrancheLocked", {
-          //   pool: juniorPool.address,
-          //   trancheId: new BN(TRANCHES.Junior),
-          //   lockedUntil: expectedLockedUntil,
-          // })
-          // expectEvent(tx, "TrancheLocked", {
-          //   pool: juniorPool.address,
-          //   trancheId: new BN(TRANCHES.Senior),
-          //   lockedUntil: expectedLockedUntil,
-          // })
+          const receipt = await tx.wait()
+          const trancheLockedLogs = receipt.logs.filter((l) => l.topics[0] === trancheLockedEventHash)
+          assertNonNullable(trancheLockedLogs)
+          expect(trancheLockedLogs.length).to.equal(2)
         })
       })
 
@@ -545,7 +532,8 @@ describe("JuniorPool", () => {
         )
         const tx = await indexPool.invest(juniorPool.address)
         const receipt = await tx.wait()
-        // expectEvent(tx, "InvestmentMadeInSenior")
+        const investmentMadeInSeniorLog = receipt.logs.filter((l) => l.topics[0] === investmentMadeInSeniorEventHash)[0]
+        assertNonNullable(investmentMadeInSeniorLog)
       })
 
       it("forbids deposits from accounts without the SENIOR_ROLE", async () => {
@@ -574,11 +562,11 @@ describe("JuniorPool", () => {
         const seniorDeposits = await indexPool.estimateInvestment(juniorPool.address)
         const totalDeposits = seniorDeposits.add(bnToHex(juniorDeposits))
         const seniorInvestResponse = await indexPool.invest(juniorPool.address)
-        // const seniorInvestReceipt = await seniorInvestResponse.wait()
-        // const logs = decodeLogs<DepositMade>(seniorInvestResponse.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const seniorTokenId = firstLog.args.tokenId
-        const seniorTokenId = TRANCHES.Senior
+        const seniorInvestReceipt = await seniorInvestResponse.wait()
+        const depositMadeLog = seniorInvestReceipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
+        assertNonNullable(depositMadeLog)
+
+        const seniorTokenId = parseInt(depositMadeLog.topics[depositMadeLog.topics.length - 1], 16)
         const juniorTranche = await juniorPool.getTranche(TRANCHES.Junior)
         const seniorTranche = await juniorPool.getTranche(TRANCHES.Senior)
 
@@ -589,9 +577,7 @@ describe("JuniorPool", () => {
         expect(bnToBnjs(await usdc.balanceOf(juniorPool.address))).to.bignumber.eq(bnToBnjs(totalDeposits))
 
         const seniorTokenInfo = await poolTokens.getTokenInfo(seniorTokenId)
-        // expect(bnToBnjs(seniorTokenInfo.principalAmount)).to.bignumber.eq(bnToBnjs(seniorDeposits))
-        // expect(bnToBnjs(seniorTokenInfo.tranche)).to.bignumber.eq("1")
-        expect(bnToBnjs(seniorTokenInfo.tranche)).to.bignumber.eq("2")
+        expect(bnToBnjs(seniorTokenInfo.tranche)).to.bignumber.eq("1")
         expect(bnToBnjs(seniorTokenInfo.principalRedeemed)).to.bignumber.eq("0")
         expect(bnToBnjs(seniorTokenInfo.interestRedeemed)).to.bignumber.eq("0")
       })
@@ -635,12 +621,14 @@ describe("JuniorPool", () => {
       const {v, r, s} = ecsign(Buffer.from(digest.slice(2), "hex"), Buffer.from(wallet.privateKey.slice(2), "hex"))
 
       const signer = await ethers.getSigner(otherPersonAddress)
-      const receipt = await (juniorPool as any).connect(signer).depositWithPermit(TRANCHES.Junior, bnToHex(value), bnToHex(deadline), v, r, s)
+      const tx = await (juniorPool as any).connect(signer).depositWithPermit(TRANCHES.Junior, bnToHex(value), bnToHex(deadline), v, r, s)
 
       // Verify deposit was correct
-      // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-      // const firstLog = getFirstLog(logs)
-      // const tokenId = firstLog.args.tokenId
+      const receipt = await tx.wait()
+      const depositMadeLog = receipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
+      assertNonNullable(depositMadeLog)
+
+      const tokenId = parseInt(depositMadeLog.topics[depositMadeLog.topics.length - 1], 16)
       const juniorTranche = await juniorPool.getTranche(TRANCHES.Junior)
       const seniorTranche = await juniorPool.getTranche(TRANCHES.Senior)
 
@@ -650,11 +638,11 @@ describe("JuniorPool", () => {
       expect(bnToBnjs(await poolTokens.balanceOf(otherPersonAddress))).to.bignumber.eq("1")
       expect(bnToBnjs(await usdc.balanceOf(juniorPool.address))).to.bignumber.eq(usdcVal(100))
 
-      // const tokenInfo = await poolTokens.getTokenInfo(tokenId)
-      // expect(bnToBnjs(tokenInfo.principalAmount)).to.bignumber.eq(usdcVal(100))
-      // expect(tokenInfo.tranche).to.bignumber.eq(TRANCHES.Junior.toString())
-      // expect(bnToBnjs(tokenInfo.principalRedeemed)).to.bignumber.eq("0")
-      // expect(bnToBnjs(tokenInfo.interestRedeemed)).to.bignumber.eq("0")
+      const tokenInfo = await poolTokens.getTokenInfo(tokenId)
+      expect(bnToBnjs(tokenInfo.principalAmount)).to.bignumber.eq(usdcVal(100))
+      expect(bnToBnjs(tokenInfo.tranche)).to.bignumber.eq(TRANCHES.Junior.toString())
+      expect(bnToBnjs(tokenInfo.principalRedeemed)).to.bignumber.eq("0")
+      expect(bnToBnjs(tokenInfo.interestRedeemed)).to.bignumber.eq("0")
 
       // Verify that permit creates allowance for amount only
       expect(bnToBnjs(await usdc.allowance(otherPersonAddress, juniorPoolAddress))).to.bignumber.eq("0")
@@ -667,18 +655,20 @@ describe("JuniorPool", () => {
       await erc20Approve(usdc, juniorPool.address, usdcVal(100000), [otherPerson])
       let signer = await ethers.getSigner(otherPerson)
       await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(500)), {from: otherPerson})
-      const response = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
-      // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // const firstLog = getFirstLog(logs)
-      // const tokenId = firstLog.args.tokenId
+      let tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
+      const receipt = await tx.wait()
+      const depositMadeLog = receipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
+      assertNonNullable(depositMadeLog)
+
+      const tokenId = parseInt(depositMadeLog.topics[depositMadeLog.topics.length - 1], 16)
 
       signer = await ethers.getSigner(borrower)
       await juniorPool.connect(signer).lockJuniorCapital()
 
       // Should be zero while tranche is locked
-      // let {0: interestRedeemable, 1: principalRedeemable} = await juniorPool.availableToWithdraw(tokenId)
-      // expect(interestRedeemable).to.bignumber.equal(new BN(0))
-      // expect(principalRedeemable).to.bignumber.equal(new BN(0))
+      let {0: interestRedeemable, 1: principalRedeemable} = await juniorPool.availableToWithdraw(tokenId)
+      expect(bnToBnjs(interestRedeemable)).to.bignumber.equal(new BN(0))
+      expect(bnToBnjs(principalRedeemable)).to.bignumber.equal(new BN(0))
 
       await juniorPool.connect(signer).lockPool()
       await juniorPool.connect(signer).drawdown(bnToHex(usdcVal(1000)))
@@ -686,14 +676,14 @@ describe("JuniorPool", () => {
       await advanceTime({days: termInDays.toNumber()})
       await erc20Approve(usdc, juniorPool.address, payAmount, [borrower])
 
-      const tx = await juniorPool.connect(signer).pay(bnToHex(payAmount))
-      // const receipt = await tx.wait()
-      // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-      //   interest: usdcVal(50),
-      //   principal: usdcVal(1000),
-      //   remaining: new BN(0),
-      //   reserve: usdcVal(5),
-      // })
+      tx = await juniorPool.connect(signer).pay(bnToHex(payAmount))
+      const receipt2 = await tx.wait()
+      expectPaymentRelatedEventsEmitted(receipt2, borrower, juniorPool, {
+        interest: usdcVal(50),
+        principal: usdcVal(1000),
+        remaining: new BN(0),
+        reserve: usdcVal(5),
+      })
 
       // Total amount owed to junior:
       //   interest_accrued = 1000 * 0.05 = 50
@@ -701,9 +691,9 @@ describe("JuniorPool", () => {
       //   1000 + interest_accrued - protocol_fee = 1045
       // Amount owed to one of the junior investors:
       //   1045 / 2 = 522.5
-      // ;({0: interestRedeemable, 1: principalRedeemable} = await juniorPool.availableToWithdraw(tokenId))
-      // expect(interestRedeemable).to.bignumber.equal(usdcVal(2250).div(new BN(100)))
-      // expect(principalRedeemable).to.bignumber.equal(usdcVal(500))
+      ;({0: interestRedeemable, 1: principalRedeemable} = await juniorPool.availableToWithdraw(tokenId))
+      expect(bnToBnjs(interestRedeemable)).to.bignumber.equal(usdcVal(2250).div(new BN(100)))
+      expect(bnToBnjs(principalRedeemable)).to.bignumber.equal(usdcVal(500))
     })
   })
 
@@ -716,8 +706,6 @@ describe("JuniorPool", () => {
         const tx = await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(1)))
         await naosConfig.bulkRemoveFromGoList([owner])
         const receipt = await tx.wait()
-        // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
 
@@ -736,9 +724,6 @@ describe("JuniorPool", () => {
         const tx = await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(1)))
         const receipt = await tx.wait()
         await naosConfig.bulkRemoveFromGoList([owner])
-        // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
 
@@ -748,9 +733,6 @@ describe("JuniorPool", () => {
       it("does not allow you to withdraw if you don't own the pool token", async () => {
         let signer = await ethers.getSigner(owner)
         const tx = await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
-        // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         const receipt = await tx.wait()
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -796,9 +778,6 @@ describe("JuniorPool", () => {
       it("does not allow you to withdraw if no amount is available", async () => {
         const signer = await ethers.getSigner(owner)
         const tx = await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
-        // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         const receipt = await tx.wait()
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -812,9 +791,6 @@ describe("JuniorPool", () => {
       it("does not allow you to withdraw zero amounts", async () => {
         const signer = await ethers.getSigner(owner)
         const tx = await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
-        // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         const receipt = await tx.wait()
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -827,9 +803,6 @@ describe("JuniorPool", () => {
     describe("before the pool is locked", async () => {
       it("lets you withdraw everything you put in", async () => {
         const tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
-        // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         const receipt = await tx.wait()
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -850,9 +823,6 @@ describe("JuniorPool", () => {
     describe("after the pool is locked", async () => {
       it("does not let you withdraw if no payments have come back", async () => {
         const tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
-        // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         const receipt = await tx.wait()
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -869,9 +839,6 @@ describe("JuniorPool", () => {
         let signer = await ethers.getSigner(otherPerson)
         await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
         const tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
-        // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const tokenId = firstLog.args.tokenId
         let receipt = await tx.wait()
         const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -885,12 +852,12 @@ describe("JuniorPool", () => {
         await erc20Approve(usdc, juniorPool.address, payAmount, [borrower])
 
         const tx2 = await juniorPool.pay(bnToHex(payAmount))
-        // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-        //   interest: usdcVal(50),
-        //   principal: usdcVal(1000),
-        //   remaining: new BN(0),
-        //   reserve: usdcVal(5),
-        // })
+        expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+          interest: usdcVal(50),
+          principal: usdcVal(1000),
+          remaining: new BN(0),
+          reserve: usdcVal(5),
+        })
 
         // Total amount owed to junior:
         //   interest_accrued = 1000 * 0.05 = 50
@@ -911,48 +878,47 @@ describe("JuniorPool", () => {
         await expect(juniorPool.withdraw(tokenId, bnToHex(usdcVal(10)))).to.be.rejectedWith(/Invalid redeem amount/)
       })
 
-  //     it("emits a WithdrawalMade event", async () => {
-  //       const response = await juniorPool.deposit(TRANCHES.Junior, usdcVal(1000))
-  //       const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-  //       const firstLog = getFirstLog(logs)
-  //       const tokenId = firstLog.args.tokenId
+      it("emits a WithdrawalMade event", async () => {
+        const tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(1000)))
+        // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
+        // const firstLog = getFirstLog(logs)
+        // const tokenId = firstLog.args.tokenId
+        const receipt = await tx.wait()
+        const depositMadeLog = receipt.logs.filter((l) => l.topics[0] === depositMadeEventHash)[0]
+        assertNonNullable(depositMadeLog)
 
-  //       await juniorPool.lockJuniorCapital({from: borrower})
-  //       await juniorPool.lockPool({from: borrower})
-  //       await juniorPool.drawdown(usdcVal(1000), {from: borrower})
-  //       await advanceTime({days: termInDays.toNumber()})
-  //       const payAmount = usdcVal(1050)
-  //       await erc20Approve(usdc, juniorPool.address, payAmount, [borrower])
+        const tokenId = parseInt(depositMadeLog.topics[depositMadeLog.topics.length - 1], 16)
 
-  //       const receipt = await juniorPool.pay(payAmount, {from: borrower})
-  //       expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-  //         interest: usdcVal(50),
-  //         principal: usdcVal(1000),
-  //         remaining: new BN(0),
-  //         reserve: usdcVal(5),
-  //       })
+        const signer = await ethers.getSigner(borrower)
+        await juniorPool.connect(signer).lockJuniorCapital()
+        await juniorPool.connect(signer).lockPool()
+        await juniorPool.connect(signer).drawdown(bnToHex(usdcVal(1000)))
+        await advanceTime({days: termInDays.toNumber()})
+        const payAmount = usdcVal(1050)
+        await erc20Approve(usdc, juniorPool.address, payAmount, [borrower])
 
-  //       // Total amount owed to junior:
-  //       //   principal = 1000
-  //       //   interest_accrued = 1000 * 0.05 = 50
-  //       //   protocol_fee = interest_accrued * 0.1 = 5
-  //       //   principal + interest_accrued - protocol_fee = 1045
-  //       const txn = await juniorPool.withdraw(tokenId, usdcVal(1045))
-  //       expectEvent(txn, "WithdrawalMade", {
-  //         owner: owner,
-  //         tranche: new BN(TRANCHES.Junior),
-  //         tokenId: tokenId,
-  //         interestWithdrawn: usdcVal(45),
-  //         principalWithdrawn: usdcVal(1000),
-  //       })
-  //     })
+        const tx2 = await juniorPool.connect(signer).pay(bnToHex(payAmount))
+        expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+          interest: usdcVal(50),
+          principal: usdcVal(1000),
+          remaining: new BN(0),
+          reserve: usdcVal(5),
+        })
+
+        // Total amount owed to junior:
+        //   principal = 1000
+        //   interest_accrued = 1000 * 0.05 = 50
+        //   protocol_fee = interest_accrued * 0.1 = 5
+        //   principal + interest_accrued - protocol_fee = 1045
+        const txn = await juniorPool.withdraw(tokenId, bnToHex(usdcVal(1045)))
+        const wreceipt = await txn.wait()
+        const wlog = wreceipt.logs.filter((l) => l.topics[0] === withdrawalMadeEventHash)[0]
+        assertNonNullable(wlog)
+      })
     })
 
     it("does not allow you to withdraw during the drawdown period", async () => {
       let tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(10)))
-      // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // const firstLog = getFirstLog(logs)
-      // const juniorTokenId = firstLog.args.tokenId
       let receipt = await tx.wait()
       let log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       const juniorTokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -963,9 +929,6 @@ describe("JuniorPool", () => {
       await expect(juniorPool.withdraw(juniorTokenId, bnToHex(usdcVal(10)))).to.be.rejectedWith(/Tranche is locked/)
 
       tx = await indexPool.invest(juniorPool.address)
-      // const logs2 = decodeLogs<DepositMade>(seniorResponse.receipt.rawLogs, juniorPool, "DepositMade")
-      // const firstLog2 = getFirstLog(logs2)
-      // const seniorTokenId = firstLog2.args.tokenId
       receipt = await tx.wait()
       log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       const seniorTokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -992,15 +955,11 @@ describe("JuniorPool", () => {
 
     beforeEach(async () => {
       let tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(100)))
-      // let logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // firstToken = getFirstLog(logs).args.tokenId
       let receipt = await tx.wait()
       let log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       firstToken = parseInt(log.topics[log.topics.length - 1], 16)
 
       tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(400)))
-      // logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // secondToken = getFirstLog(logs).args.tokenId
       receipt = await tx.wait()
       log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       secondToken = parseInt(log.topics[log.topics.length - 1], 16)
@@ -1008,8 +967,6 @@ describe("JuniorPool", () => {
       await erc20Approve(usdc, juniorPool.address, usdcVal(100000), [otherPerson])
       let signer = await ethers.getSigner(otherPerson)
       tx = await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
-      // logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // thirdTokenFromDifferentUser = getFirstLog(logs).args.tokenId
       receipt = await tx.wait()
       log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       thirdTokenFromDifferentUser = parseInt(log.topics[log.topics.length - 1], 16)
@@ -1062,9 +1019,6 @@ describe("JuniorPool", () => {
       let signer = await ethers.getSigner(otherPerson)
       await juniorPool.connect(signer).deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
       let tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(500)))
-      // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // const firstLog = getFirstLog(logs)
-      // const tokenId = firstLog.args.tokenId
       const receipt = await tx.wait()
       const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -1078,12 +1032,12 @@ describe("JuniorPool", () => {
       await erc20Approve(usdc, juniorPool.address, payAmount, [borrower])
 
       tx = await juniorPool.connect(signer).pay(bnToHex(payAmount))
-      // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-      //   interest: usdcVal(50),
-      //   principal: usdcVal(1000),
-      //   remaining: new BN(0),
-      //   reserve: usdcVal(5),
-      // })
+      expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+        interest: usdcVal(50),
+        principal: usdcVal(1000),
+        remaining: new BN(0),
+        reserve: usdcVal(5),
+      })
 
       // Total amount owed to junior:
       //   interest_accrued = 1000 * 0.05 = 50
@@ -1100,9 +1054,6 @@ describe("JuniorPool", () => {
 
     it("emits a WithdrawalMade event", async () => {
       const tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(usdcVal(1000)))
-      // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-      // const firstLog = getFirstLog(logs)
-      // const tokenId = firstLog.args.tokenId
       const receipt = await tx.wait()
       const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
       const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -1116,26 +1067,22 @@ describe("JuniorPool", () => {
       await erc20Approve(usdc, juniorPool.address, payAmount, [borrower])
 
       const tx2 = await juniorPool.connect(signer).pay(bnToHex(payAmount))
-      // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-      //   interest: usdcVal(50),
-      //   principal: usdcVal(1000),
-      //   remaining: new BN(0),
-      //   reserve: usdcVal(5),
-      // })
+      expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+        interest: usdcVal(50),
+        principal: usdcVal(1000),
+        remaining: new BN(0),
+        reserve: usdcVal(5),
+      })
 
       // Total amount owed to junior:
       //   principal = 1000
       //   interest_accrued = 1000 * 0.05 = 50
       //   protocol_fee = interest_accrued * 0.1 = 5
       //   principal + interest_accrued - protocol_fee = 1045
-      const receipt2 = await juniorPool.withdrawMax(tokenId)
-      // expectEvent(receipt2, "WithdrawalMade", {
-      //   owner: owner,
-      //   tranche: new BN(TRANCHES.Junior),
-      //   tokenId: tokenId,
-      //   interestWithdrawn: usdcVal(45),
-      //   principalWithdrawn: usdcVal(1000),
-      // })
+      const wtx = await juniorPool.withdrawMax(tokenId)
+      const wreceipt = await wtx.wait()
+      const wlog = wreceipt.logs.filter((l) => l.topics[0] === withdrawalMadeEventHash)[0]
+      assertNonNullable(wlog)
     })
 
     describe("when deposits are over the limit", async () => {
@@ -1143,16 +1090,10 @@ describe("JuniorPool", () => {
         const juniorDeposit = limit
         const seniorDeposit = limit.mul(new BN(4))
         let tx = await juniorPool.deposit(TRANCHES.Junior, bnToHex(juniorDeposit))
-        // const logs = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog = getFirstLog(logs)
-        // const juniorTokenId = firstLog.args.tokenId
         let receipt = await tx.wait()
         let log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const juniorTokenId = parseInt(log.topics[log.topics.length - 1], 16)
         tx = await juniorPool.deposit(TRANCHES.Senior,bnToHex(seniorDeposit))
-        // const logs2 = decodeLogs<DepositMade>(response.receipt.rawLogs, juniorPool, "DepositMade")
-        // const firstLog2 = getFirstLog(logs2)
-        // const seniorTokenId = firstLog2.args.tokenId
         receipt = await tx.wait()
         log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
         const seniorTokenId = parseInt(log.topics[log.topics.length - 1], 16)
@@ -1181,27 +1122,23 @@ describe("JuniorPool", () => {
         // Fully pay off the loan, TODO: check whether we approve before?
         await erc20Approve(usdc, juniorPool.address, limit.add(limit.mul(new BN(5)).div(new BN(100))), [borrower])
         const tx2 = await juniorPool.connect(signer).pay(bnToHex(limit.add(limit.mul(new BN(5)).div(new BN(100)))))
-        // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-        //   interest: usdcVal(50),
-        //   principal: usdcVal(1000),
-        //   remaining: new BN(0),
-        //   reserve: usdcVal(5),
-        // })
+        expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+          interest: usdcVal(50),
+          principal: usdcVal(1000),
+          remaining: new BN(0),
+          reserve: usdcVal(5),
+        })
 
         // Remaining 20% of principal should be withdrawn
         const tx3 = await juniorPool.withdrawMax(juniorTokenId)
-        // expectEvent(receipt2, "WithdrawalMade", {
-        //   tranche: new BN(TRANCHES.Junior),
-        //   tokenId: juniorTokenId,
-        //   principalWithdrawn: juniorDeposit.mul(new BN(20)).div(new BN(100)),
-        // })
+        const wreceipt3 = await tx3.wait()
+        const wlog3 = wreceipt3.logs.filter((l) => l.topics[0] === withdrawalMadeEventHash)[0]
+        assertNonNullable(wlog3)
 
         const tx4 = await juniorPool.withdrawMax(seniorTokenId)
-        // expectEvent(receipt3, "WithdrawalMade", {
-        //   tranche: new BN(TRANCHES.Senior),
-        //   tokenId: seniorTokenId,
-        //   principalWithdrawn: seniorDeposit.mul(new BN(20)).div(new BN(100)),
-        // })
+        const wreceipt4 = await tx4.wait()
+        const wlog4 = wreceipt4.logs.filter((l) => l.topics[0] === withdrawalMadeEventHash)[0]
+        assertNonNullable(wlog4)
       })
     })
   })
@@ -1405,15 +1342,10 @@ describe("JuniorPool", () => {
             const tx = await juniorPool.connect(actor).lockJuniorCapital()
 
             const receipt = await tx.wait()
-            // const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
-            // const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
-
-            // const logs = decodeLogs<TrancheLocked>(receipt.receipt.rawLogs, juniorPool, "TrancheLocked")
-            // const firstLog = getFirstLog(logs)
-            // expect(Object.keys(firstLog.args).sort()).to.eql(EXPECTED_JUNIOR_CAPITAL_LOCKED_EVENT_ARGS)
-            // expect(firstLog.args.pool).to.equal(juniorPool.address)
-            // expect(firstLog.args.trancheId).to.equal(TRANCHES.Junior.toString())
-            // expect(firstLog.args.lockedUntil).to.be.bignumber.closeTo(oneDayFromNow, new BN(5))
+            const trancheLockedLog = receipt.logs.filter((l) => l.topics[0] === trancheLockedEventHash)[0]
+            assertNonNullable(trancheLockedLog)
+            const trancheId = parseInt(trancheLockedLog.data.substr(0, 66), 16)
+            expect(trancheId.toString()).to.equal(TRANCHES.Junior.toString())
 
             return receipt
           }).toChange([
@@ -1436,15 +1368,10 @@ describe("JuniorPool", () => {
             let signer = await ethers.getSigner(borrower)
             const tx = await juniorPool.connect(signer).lockJuniorCapital()
             const receipt = await tx.wait()
-            // const log = receipt.logs.filter((l) => l.address.toLowerCase() === juniorPool.address.toLowerCase())[0]
-            // const tokenId = parseInt(log.topics[log.topics.length - 1], 16)
-
-            // const logs = decodeLogs<TrancheLocked>(receipt.receipt.rawLogs, juniorPool, "TrancheLocked")
-            // const firstLog = getFirstLog(logs)
-            // expect(Object.keys(firstLog.args).sort()).to.eql(EXPECTED_JUNIOR_CAPITAL_LOCKED_EVENT_ARGS)
-            // expect(firstLog.args.pool).to.equal(juniorPool.address)
-            // expect(firstLog.args.trancheId).to.equal(TRANCHES.Junior.toString())
-            // expect(firstLog.args.lockedUntil).to.be.bignumber.closeTo(oneDayFromNow, new BN(5))
+            const trancheLockedLog = receipt.logs.filter((l) => l.topics[0] === trancheLockedEventHash)[0]
+            assertNonNullable(trancheLockedLog)
+            const trancheId = parseInt(trancheLockedLog.data.substr(0, 66), 16)
+            expect(trancheId.toString()).to.equal(TRANCHES.Junior.toString())
 
             return receipt
           }).toChange([
@@ -1592,10 +1519,10 @@ describe("JuniorPool", () => {
         it("governance can lock and unlock drawdowns", async () => {
           await expect(juniorPool.drawdown(bnToHex(usdcVal(1)))).to.be.fulfilled
           const pauseTxn = await juniorPool.pauseDrawdowns()
-          // expectEvent(pauseTxn, "DrawdownsPaused", {pool: juniorPool.address})
+          assertNonNullable((await pauseTxn.wait()).logs.filter((l) => l.topics[0] === drawdownsPausedEventHash)[0])
           await expect(juniorPool.drawdown(bnToHex(usdcVal(1)))).to.be.rejectedWith(/Drawdowns are paused/)
           const unpauseTxn = await juniorPool.unpauseDrawdowns()
-          // expectEvent(unpauseTxn, "DrawdownsUnpaused", {pool: juniorPool.address})
+          assertNonNullable((await unpauseTxn.wait()).logs.filter((l) => l.topics[0] === drawdownsUnpausedEventHash)[0])
           await expect(juniorPool.drawdown(bnToHex(usdcVal(1)))).to.be.fulfilled
         })
 
@@ -1614,7 +1541,7 @@ describe("JuniorPool", () => {
 
       it("emits an event", async () => {
         const receipt = await juniorPool.drawdown(bnToHex(usdcVal(10)))
-        // expectEvent(receipt, "DrawdownMade", {borrower: borrower, amount: usdcVal(10)})
+        assertNonNullable((await receipt.wait()).logs.filter((l) => l.topics[0] === drawdownMadeEventHash)[0])
       })
 
       it("it updates the creditline accounting variables", async () => {
@@ -1708,13 +1635,13 @@ describe("JuniorPool", () => {
 
       // TODO: do we approve brfore?
       await erc20Approve(usdc, juniorPool.address, usdcVal(5), [borrower])
-      const receipt = await juniorPool.connect(signer).pay(bnToHex(usdcVal(5)))
-      // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-      //   interest: expectedTotalInterest,
-      //   principal: usdcVal(5).sub(expectedTotalInterest),
-      //   remaining: new BN(0),
-      //   reserve: expectedProtocolFee,
-      // })
+      const tx = await juniorPool.connect(signer).pay(bnToHex(usdcVal(5)))
+      expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+        interest: expectedTotalInterest,
+        principal: usdcVal(5).sub(expectedTotalInterest),
+        remaining: new BN(0),
+        reserve: expectedProtocolFee,
+      })
 
       const juniorTranche = await juniorPool.getTranche(TRANCHES.Junior)
       const juniorInterestAmount = await juniorPool.sharePriceToUsdc(
@@ -1741,13 +1668,13 @@ describe("JuniorPool", () => {
         await advanceTime({days: termInDays.toNumber()})
         // TODO: do we approve before?
         await erc20Approve(usdc, juniorPool.address, usdcVal(110), [borrower])
-        const receipt = await juniorPool.connect(signer).pay(bnToHex(usdcVal(110)))
-        // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-        //   interest: usdcVal(10),
-        //   principal: usdcVal(100),
-        //   remaining: new BN(0),
-        //   reserve: usdcVal(1),
-        // })
+        const tx = await juniorPool.connect(signer).pay(bnToHex(usdcVal(110)))
+        expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+          interest: usdcVal(10),
+          principal: usdcVal(100),
+          remaining: new BN(0),
+          reserve: usdcVal(1),
+        })
 
         const juniorTranche = await juniorPool.getTranche(TRANCHES.Junior)
         const seniorTranche = await juniorPool.getTranche(TRANCHES.Senior)
@@ -1785,13 +1712,13 @@ describe("JuniorPool", () => {
           let signer = await ethers.getSigner(borrower)
           // do we approve before?
           await erc20Approve(usdc, juniorPool.address, usdcVal(10).add(usdcVal(100)), [borrower])
-          const receipt = await juniorPool.connect(signer).pay(bnToHex(usdcVal(10).add(usdcVal(100))))
-          // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-          //   interest: usdcVal(10),
-          //   principal: usdcVal(100),
-          //   remaining: new BN(0),
-          //   reserve: usdcVal(1),
-          // })
+          const tx = await juniorPool.connect(signer).pay(bnToHex(usdcVal(10).add(usdcVal(100))))
+          expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+            interest: usdcVal(10),
+            principal: usdcVal(100),
+            remaining: new BN(0),
+            reserve: usdcVal(1),
+          })
 
           expect(bnToBnjs(await creditLine.interestApr())).to.bignumber.eq(interestAprAsBN("10"))
 
@@ -1823,13 +1750,13 @@ describe("JuniorPool", () => {
           let signer = await ethers.getSigner(borrower)
           // do we approve before?
           await erc20Approve(usdc, juniorPool.address, interestPayment, [borrower])
-          const receipt = await juniorPool.connect(signer).pay(bnToHex(interestPayment))
-          // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-          //   interest: interestPayment,
-          //   principal: new BN(0),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee,
-          // })
+          const tx = await juniorPool.connect(signer).pay(bnToHex(interestPayment))
+          expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+            interest: interestPayment,
+            principal: new BN(0),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee,
+          })
 
           let seniorInterestAmount, seniorPrincipalAmount, juniorInterestAmount, juniorPrincipalAmount
           ;[seniorInterestAmount, seniorPrincipalAmount] = await getTrancheAmounts(
@@ -1853,13 +1780,13 @@ describe("JuniorPool", () => {
           const interestPayment2 = new BN("5068493")
           const expectedProtocolFee2 = interestPayment2.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment2.add(usdcVal(100)), [borrower])
-          const receipt2 = await juniorPool.connect(signer).pay(bnToHex(interestPayment2.add(usdcVal(100))))
-          // expectPaymentRelatedEventsEmitted(receipt2, borrower, juniorPool, {
-          //   interest: interestPayment2,
-          //   principal: usdcVal(100),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee2,
-          // })
+          const tx2 = await juniorPool.connect(signer).pay(bnToHex(interestPayment2.add(usdcVal(100))))
+          expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+            interest: interestPayment2,
+            principal: usdcVal(100),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee2,
+          })
           ;[seniorInterestAmount, seniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Senior)
           )
@@ -1885,13 +1812,13 @@ describe("JuniorPool", () => {
           const interestPayment = usdcVal(6)
           const expectedProtocolFee = interestPayment.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment, [owner])
-          const receipt = await juniorPool.pay(bnToHex(interestPayment))
-          // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-          //   interest: interestPayment,
-          //   principal: new BN(0),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee,
-          // })
+          const tx = await juniorPool.pay(bnToHex(interestPayment))
+          expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+            interest: interestPayment,
+            principal: new BN(0),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee,
+          })
 
           let interestAmount, principalAmount
           ;[interestAmount, principalAmount] = await getTrancheAmounts(await juniorPool.getTranche(TRANCHES.Senior))
@@ -1912,13 +1839,13 @@ describe("JuniorPool", () => {
           const interestPayment2 = usdcVal(3)
           const expectedProtocolFee2 = interestPayment2.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment2, [owner])
-          const receipt2 = await juniorPool.pay(bnToHex(interestPayment2))
-          // expectPaymentRelatedEventsEmitted(receipt2, borrower, juniorPool, {
-          //   interest: interestPayment2,
-          //   principal: new BN(0),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee2,
-          // })
+          const tx2 = await juniorPool.pay(bnToHex(interestPayment2))
+          expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+            interest: interestPayment2,
+            principal: new BN(0),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee2,
+          })
           ;[interestAmount, principalAmount] = await getTrancheAmounts(await juniorPool.getTranche(TRANCHES.Senior))
           // Senior interest filled upto 5.6
           expect(bnToBnjs(interestAmount)).to.bignumber.eq(usdcVal(56).div(new BN(10)))
@@ -1940,13 +1867,13 @@ describe("JuniorPool", () => {
           const interestPayment3 = usdcVal(1)
           const expectedProtocolFee3 = interestPayment3.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment3.add(usdcVal(10)), [owner])
-          const receipt3 = await juniorPool.pay(bnToHex(interestPayment3.add(usdcVal(10))))
-          // expectPaymentRelatedEventsEmitted(receipt3, borrower, juniorPool, {
-          //   interest: interestPayment3,
-          //   principal: usdcVal(10),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee3,
-          // })
+          const tx3 = await juniorPool.pay(bnToHex(interestPayment3.add(usdcVal(10))))
+          expectPaymentRelatedEventsEmitted(await tx3.wait(), borrower, juniorPool, {
+            interest: interestPayment3,
+            principal: usdcVal(10),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee3,
+          })
           ;[interestAmount, principalAmount] = await getTrancheAmounts(await juniorPool.getTranche(TRANCHES.Senior))
           // Interest unchanged, gets the entire principal portion
           expect(bnToBnjs(interestAmount)).to.bignumber.eq(usdcVal(56).div(new BN(10)))
@@ -1962,13 +1889,13 @@ describe("JuniorPool", () => {
           expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedTotalProtocolFee)
 
           await erc20Approve(usdc, juniorPool.address, usdcVal(90), [owner])
-          const receipt4 = await juniorPool.pay(bnToHex(usdcVal(90)))
-          // expectPaymentRelatedEventsEmitted(receipt4, borrower, juniorPool, {
-          //   interest: new BN(0),
-          //   principal: usdcVal(90),
-          //   remaining: new BN(0),
-          //   reserve: new BN(0),
-          // })
+          const tx4 = await juniorPool.pay(bnToHex(usdcVal(90)))
+          expectPaymentRelatedEventsEmitted(await tx4.wait(), borrower, juniorPool, {
+            interest: new BN(0),
+            principal: usdcVal(90),
+            remaining: new BN(0),
+            reserve: new BN(0),
+          })
           ;[interestAmount, principalAmount] = await getTrancheAmounts(await juniorPool.getTranche(TRANCHES.Senior))
           // Interest still unchanged, principal is fully paid off
           expect(bnToBnjs(interestAmount)).to.bignumber.eq(usdcVal(56).div(new BN(10)))
@@ -1993,13 +1920,13 @@ describe("JuniorPool", () => {
           const interestPayment = usdcVal(10)
           const expectedProtocolFee = interestPayment.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment.add(usdcVal(99)), [owner])
-          const receipt = await juniorPool.pay(bnToHex(interestPayment.add(usdcVal(99))))
-          // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-          //   interest: interestPayment,
-          //   principal: usdcVal(99),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee,
-          // })
+          const tx = await juniorPool.pay(bnToHex(interestPayment.add(usdcVal(99))))
+          expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+            interest: interestPayment,
+            principal: usdcVal(99),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee,
+          })
 
           let interestAmount, principalAmount
           ;[interestAmount, principalAmount] = await getTrancheAmounts(await juniorPool.getTranche(TRANCHES.Senior))
@@ -2019,13 +1946,13 @@ describe("JuniorPool", () => {
           const interestPayment2 = usdcVal(1)
           const expectedProtocolFee2 = interestPayment2.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment2.add(usdcVal(1)), [owner])
-          const receipt2 = await juniorPool.pay(bnToHex(interestPayment2.add(usdcVal(1))))
-          // expectPaymentRelatedEventsEmitted(receipt2, borrower, juniorPool, {
-          //   interest: new BN(0),
-          //   principal: usdcVal(1),
-          //   remaining: interestPayment2,
-          //   reserve: expectedProtocolFee2,
-          // })
+          const tx2 = await juniorPool.pay(bnToHex(interestPayment2.add(usdcVal(1))))
+          expectPaymentRelatedEventsEmitted(await tx2.wait(), borrower, juniorPool, {
+            interest: new BN(0),
+            principal: usdcVal(1),
+            remaining: interestPayment2,
+            reserve: expectedProtocolFee2,
+          })
           ;[interestAmount, principalAmount] = await getTrancheAmounts(await juniorPool.getTranche(TRANCHES.Senior))
           // Unchanged
           expect(bnToBnjs(interestAmount)).to.bignumber.eq(usdcVal(56).div(new BN(10)))
@@ -2060,13 +1987,13 @@ describe("JuniorPool", () => {
 
           let signer = await ethers.getSigner(borrower)
           await erc20Approve(usdc, juniorPool.address, usdcVal(50).add(totalPartialInterest), [borrower])
-          const receipt = await juniorPool.connect(signer).pay(bnToHex(usdcVal(50).add(totalPartialInterest)))
-          // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-          //   interest: totalPartialInterest,
-          //   principal: usdcVal(50),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee,
-          // })
+          const tx = await juniorPool.connect(signer).pay(bnToHex(usdcVal(50).add(totalPartialInterest)))
+          expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+            interest: totalPartialInterest,
+            principal: usdcVal(50),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee,
+          })
 
           let seniorInterestAmount, seniorPrincipalAmount, juniorInterestAmount, juniorPrincipalAmount
           ;[seniorInterestAmount, seniorPrincipalAmount] = await getTrancheAmounts(
@@ -2090,7 +2017,7 @@ describe("JuniorPool", () => {
           await advanceTime({seconds: halfway.toNumber()})
 
           const receipt2 = await juniorPool.assess()
-          // expectPaymentRelatedEventsNotEmitted(receipt2)
+          expectPaymentRelatedEventsNotEmitted(await receipt2.wait())
 
           // 185.0 / 365 * 5 = 2.5342465753424657 (185 because that's the number of days left in the term for interest to accrue)
           const remainingInterest = new BN("2534246")
@@ -2100,13 +2027,13 @@ describe("JuniorPool", () => {
 
           // Collect the remaining interest and the principal
           await erc20Approve(usdc, juniorPool.address, usdcVal(50).add(remainingInterest), [borrower])
-          const receipt3 = await juniorPool.connect(signer).pay(bnToHex(usdcVal(50).add(remainingInterest)))
-          // expectPaymentRelatedEventsEmitted(receipt3, borrower, juniorPool, {
-          //   interest: remainingInterest,
-          //   principal: usdcVal(50),
-          //   remaining: new BN(0),
-          //   reserve: expectedProtocolFee2,
-          // })
+          const tx3 = await juniorPool.connect(signer).pay(bnToHex(usdcVal(50).add(remainingInterest)))
+          expectPaymentRelatedEventsEmitted(await tx3.wait(), borrower, juniorPool, {
+            interest: remainingInterest,
+            principal: usdcVal(50),
+            remaining: new BN(0),
+            reserve: expectedProtocolFee2,
+          })
           ;[seniorInterestAmount, seniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Senior)
           )
@@ -2201,29 +2128,7 @@ describe("JuniorPool", () => {
     }
 
     async function investAndGetTokenId(pool: JuniorPool): Promise<BN> {
-      // stop here
-      // uint256 amount = strategy.invest(pool)
-      // const indexPoolFixedStrategy = await getDeployedContract<FixedLeverageRatioStrategy>(
-      //   deployments,
-      //   "FixedLeverageRatioStrategy"
-      // )
-      // expect(await naosConfig.getAddress(CONFIG_KEYS.IndexPoolStrategy)).to.equal(
-      //   indexPoolFixedStrategy.address
-      // )
-      // const investmentAmount = await indexPoolFixedStrategy.invest(juniorPool.address)
-      // let s = await pool.getTranche(1)
-      // let j = await pool.getTranche(2)
-      // console.log(pool.address, investmentAmount.toString(), j.lockedUntil.toString(), s.lockedUntil.toString())
-      // try {
-      //   s = await pool.getTranche(3)
-      //   j = await pool.getTranche(4)
-      //   if (s) {
-      //     console.log(pool.address, (await indexPoolFixedStrategy.invest(juniorPool.address)).toString(), j.lockedUntil.toString(), s.lockedUntil.toString())
-      //   }
-      // } catch (err) {}
       const tx = await indexPool.invest(pool.address)
-      // const logs = decodeLogs<DepositMade>(receipt.receipt.rawLogs, juniorPool, "DepositMade")
-      // return getFirstLog(logs).args.tokenId
       const receipt = await tx.wait()
       const log = receipt.logs.filter((l) => l.address.toLowerCase() === pool.address.toLowerCase())[0]
       return new BN(log.topics[log.topics.length - 1].substr(2), 16)
@@ -2392,13 +2297,13 @@ describe("JuniorPool", () => {
       const expectedTotalInterest = expectedNetInterest.add(expectedProtocolFee)
 
       await erc20Approve(usdc, juniorPool.address, usdcVal(5), [borrower])
-      const receipt = await juniorPool.connect(signer).pay(bnToHex(usdcVal(5)))
-      // expectPaymentRelatedEventsEmitted(receipt, borrower, juniorPool, {
-      //   interest: expectedTotalInterest,
-      //   principal: expectedExcessPrincipal,
-      //   remaining: new BN(0),
-      //   reserve: expectedProtocolFee,
-      // })
+      const tx = await juniorPool.connect(signer).pay(bnToHex(usdcVal(5)))
+      expectPaymentRelatedEventsEmitted(await tx.wait(), borrower, juniorPool, {
+        interest: expectedTotalInterest,
+        principal: expectedExcessPrincipal,
+        remaining: new BN(0),
+        reserve: expectedProtocolFee,
+      })
       await expectAvailable(firstSliceJunior, "1.675", "0.01")
       await expectAvailable(firstSliceSenior, "2.76", "0.05")
 
