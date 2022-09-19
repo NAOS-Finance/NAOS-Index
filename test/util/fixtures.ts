@@ -233,10 +233,8 @@ export const deployJuniorPoolWithNAOSFactoryFixture = createFixtureWithRequiredO
 
     await erc20Approve(usdc, juniorPool.address, MAX_UINT, [owner])
 
-    // Only approve if borrower is an EOA (could be a borrower contract)
-    // if ((await web3.eth.getCode(borrower)) === "0x") {
-    //   await erc20Approve(usdc, juniorPool.address, MAX_UINT, [borrower])
-    // }
+    // Only approve if borrower is an EOA
+    await erc20Approve(usdc, juniorPool.address, MAX_UINT, [borrower])
 
     return {juniorPool, creditLine}
   }
