@@ -535,7 +535,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     return (interestToRedeem, principalToRedeem);
   }
 
-  function _isSeniorTrancheId(uint256 trancheId) internal view returns (bool) {
+  function _isSeniorTrancheId(uint256 trancheId) internal pure returns (bool) {
     return trancheId.mod(NUM_TRANCHES_PER_SLICE) == 1;
   }
 
