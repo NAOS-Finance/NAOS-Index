@@ -24,8 +24,14 @@ abstract contract LeverageRatioStrategy is BaseUpgradeablePausable, IIndexPoolSt
    * @return The amount of money to invest into the tranched pool's senior tranche, from the index pool
    */
   function invest(IJuniorPool pool) public view override returns (uint256) {
-    IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Junior));
-    IJuniorPool.TrancheInfo memory seniorTranche = pool.getTranche(uint256(IJuniorPool.Tranches.Senior));
+    uint256 nSlices = pool.numSlices();
+    // If the pool has no slices, we cant invest
+    if (nSlices == 0) {
+      return 0;
+    }
+    uint256 sliceIndex = nSlices.sub(1);
+    IJuniorPool.TrancheInfo memory juniorTranche = pool.getTranche(sliceIndex.mul(2).add(2));
+    IJuniorPool.TrancheInfo memory seniorTranche = pool.getTranche(sliceIndex.mul(2).add(1));
 
     // If junior capital is not yet invested, or pool already locked, then don't invest anything.
     if (juniorTranche.lockedUntil == 0 || seniorTranche.lockedUntil > 0) {

@@ -43,8 +43,8 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
       chainId := chainid()
     }
 
-    bytes32 hash = keccak256(abi.encodePacked(account, id, expiresAt, address(this), nonces[account], chainId));
-    bytes32 ethSignedMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    bytes32 h = keccak256(abi.encodePacked(account, id, expiresAt, address(this), nonces[account], chainId));
+    bytes32 ethSignedMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", h));
     address recovered = tryRecover(ethSignedMessage, signature);
     require(hasRole(SIGNER_ROLE, recovered), "Invalid signer");
     _;
@@ -74,7 +74,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
   }
 
   function setSupportedUIDTypes(uint256[] calldata ids, bool[] calldata values) public onlyAdmin {
-    require(ids.length == values.length, "accounts and ids length mismatch");
+    require(ids.length == values.length, "values and ids length mismatch");
     for (uint256 i = 0; i < ids.length; ++i) {
       supportedUIDTypes[ids[i]] = values[i];
     }
@@ -104,6 +104,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
   }
 
   function updateExpiration(address account, uint256 id, uint256 expiresAt) external onlyAdmin incrementNonce(account) {
+    require(supportedUIDTypes[id] == true, "Token id not supported");
     _updateExpiration(account, id, expiresAt);
   }
 
@@ -111,6 +112,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     require(accounts.length == ids.length, "accounts and ids length mismatch");
     require(ids.length == expiresAts.length, "expireAts and ids length mismatch");
     for (uint256 i = 0; i < accounts.length; ++i) {
+      require(supportedUIDTypes[ids[i]] == true, "Token id not supported");
       nonces[accounts[i]] += 1;
       _updateExpiration(accounts[i], ids[i], expiresAts[i]);
     }
@@ -182,7 +184,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
       }
       return tryRecover(hash, r, vs);
     } else {
-      revert("InvalidSignature");
+      revert("InvalidSignatureLength");
     }
   }
 }

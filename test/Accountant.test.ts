@@ -17,7 +17,7 @@ import {interestAprAsBN, INTEREST_DECIMALS, ETHDecimals} from "../scripts/blockc
 import {deployBaseFixture, deployUninitializedCreditLineFixture} from "./util/fixtures"
 
 describe("Accountant", async () => {
-  let accountant, owner, borrower, testAccountant, goldfinchConfig, creditLine
+  let accountant, owner, borrower, testAccountant, naosConfig, creditLine
 
   const testSetup = deployments.createFixture(async () => {
     const baseFixtures = await deployBaseFixture()
@@ -30,7 +30,7 @@ describe("Accountant", async () => {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[owner, borrower] = await web3.eth.getAccounts()
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;({goldfinchConfig, testAccountant, accountant, creditLine} = await testSetup())
+    ;({naosConfig, testAccountant, accountant, creditLine} = await testSetup())
   })
 
   describe("calculateInterestAndPrincipalAccrued", async () => {
@@ -68,7 +68,7 @@ describe("Accountant", async () => {
       paymentPeriodInDays = new BN(30)
       lateFeeGracePeriodInDays = lateFeeGracePeriod.mul(paymentPeriodInDays)
       await creditLine.initialize(
-        goldfinchConfig.address,
+        naosConfig.address,
         owner,
         borrower,
         bnToHex(bigVal(500)),
@@ -174,7 +174,7 @@ describe("Accountant", async () => {
       const lateFeeApr = interestAprAsBN("0")
 
       await creditLine.initialize(
-        goldfinchConfig.address,
+        naosConfig.address,
         owner,
         borrower,
         bnToHex(bigVal(500)),
@@ -196,14 +196,13 @@ describe("Accountant", async () => {
       return totalInterestPerYear.mul(paymentPeriodInSeconds).divRound(SECONDS_PER_YEAR)
     }
 
-    const calculateWritedownFor = async (creditline, timestamp, gracePeriod, maxLatePeriods) => {
+    const calculateWritedownFor = async (creditline, timestamp, maxLatePeriods) => {
       const result = await testAccountant.calculateWritedownFor(
         creditline.address,
         bnToHex(timestamp),
-        bnToHex(gracePeriod),
         bnToHex(maxLatePeriods)
       )
-      return [bnToBnjs(result[0]), bnToBnjs(result[1])]
+      return bnToBnjs(result)
     }
 
     describe("calculateAmountOwedForOnePeriod", async () => {
@@ -224,19 +223,14 @@ describe("Accountant", async () => {
       })
 
       it("should respect the maximum number of grace period days", async () => {
-        // With a 30-day max, and 90 day period, then interest owed for one period
-        // is equivalent to 3 periods late, which is 3-1 / 4 = 50% writedown
         await creditLine.setInterestOwed(bnToHex(interestOwedForOnePeriod()))
-        const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+        const writedownAmount = await calculateWritedownFor(
           creditLine,
           timestamp,
-          gracePeriod,
           maxLatePeriods
         )
 
-        // Should be marked down by 100%
-        expect(writedownPercent).to.bignumber.eq("50")
-        expect(writedownAmount).to.bignumber.closeTo(balance.div(new BN(2)), tolerance)
+        expect(writedownAmount).to.bignumber.eq("0")
       })
     })
 
@@ -247,13 +241,11 @@ describe("Accountant", async () => {
         // Only half the interest owed for one period has accumulated, so within grace period
         await creditLine.setInterestOwed(bnToHex(interestOwedForOnePeriod().div(new BN(2))))
 
-        const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+        const writedownAmount = await calculateWritedownFor(
           creditLine,
           timestamp,
-          gracePeriod,
           maxLatePeriods
         )
-        expect(writedownPercent).to.bignumber.eq("0")
         expect(writedownAmount).to.bignumber.eq("0")
       })
 
@@ -261,44 +253,39 @@ describe("Accountant", async () => {
         // 2 periods of interest have accumulated, so we're beyond the grace period.
         await creditLine.setInterestOwed(bnToHex(interestOwedForOnePeriod().mul(new BN(2))))
 
-        const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+        const writedownAmount = await calculateWritedownFor(
           creditLine,
           timestamp,
-          gracePeriod,
           maxLatePeriods
         )
 
         // Should be marked down by 25% ((daysLate - grace period) / maxLateDays * 100)
-        expect(writedownPercent).to.bignumber.eq("25")
-        expect(writedownAmount).to.bignumber.closeTo(balance.div(new BN(4)), tolerance) // 25% of 10
+        // expect(writedownAmount).to.bignumber.closeTo(balance.div(new BN(4)), tolerance) // 25% of 10
+        expect(writedownAmount).to.bignumber.eq('0')
       })
 
       it("caps the write down to 100% beyond the max late periods", async () => {
         // 13 periods (130 days) of interest have accumulated, so we're beyond the max late days (120)
         await creditLine.setInterestOwed(bnToHex(interestOwedForOnePeriod().mul(new BN(13))))
 
-        const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+        const writedownAmount = await calculateWritedownFor(
           creditLine,
           timestamp,
-          gracePeriod,
           maxLatePeriods
         )
 
         // Should be marked down by 100%
-        expect(writedownPercent).to.bignumber.eq("100")
         expect(writedownAmount).to.bignumber.eq(balance)
       })
 
       it("does not write down if there is no balance owed", async () => {
         await creditLine.setBalance(bnToHex(new BN("0")))
 
-        const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+        const writedownAmount = await calculateWritedownFor(
           creditLine,
           timestamp,
-          gracePeriod,
           maxLatePeriods
         )
-        expect(writedownPercent).to.bignumber.eq("0")
         expect(writedownAmount).to.bignumber.eq("0")
       })
 
@@ -307,68 +294,62 @@ describe("Accountant", async () => {
           const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
           // 50% of one payment period, so within the grace period
           timestamp = termEndTime.add(paymentPeriodInSeconds.div(new BN(2)))
-          const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+          const writedownAmount = await calculateWritedownFor(
             creditLine,
             timestamp,
-            gracePeriod,
             maxLatePeriods
           )
-          expect(writedownPercent).to.bignumber.eq("0")
           expect(writedownAmount).to.bignumber.eq("0")
         })
 
         it("does not go down when you just go over the term end date", async () => {
           await creditLine.setInterestOwed(bnToHex(interestOwedForOnePeriod().mul(new BN(2))))
           timestamp = termEndTime.sub(new BN(2))
-          const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+          const writedownAmount = await calculateWritedownFor(
             creditLine,
             timestamp,
-            gracePeriod,
             maxLatePeriods
           )
-          expect(writedownPercent).to.bignumber.eq("25")
-          expect(writedownAmount).to.bignumber.eq("2500094")
+          // expect(writedownAmount).to.bignumber.eq("2500094")
+          expect(writedownAmount).to.bignumber.eq('0')
 
           timestamp = termEndTime.add(new BN(1))
-          const [newWritedownPercent, newWritedownAmount] = await calculateWritedownFor(
+          const newWritedownAmount = await calculateWritedownFor(
             creditLine,
             timestamp,
-            gracePeriod,
             maxLatePeriods
           )
-          expect(newWritedownPercent).to.bignumber.eq("25")
-          expect(newWritedownAmount).to.bignumber.closeTo(writedownAmount, "100")
+          // expect(newWritedownAmount).to.bignumber.closeTo(writedownAmount, "100")
+          expect(newWritedownAmount).to.bignumber.eq('0')
         })
 
         it("uses the timestamp to write down proportionally", async () => {
           const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
           // 2 periods late
           timestamp = termEndTime.add(paymentPeriodInSeconds.mul(new BN(2)))
-          const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+          const writedownAmount = await calculateWritedownFor(
             creditLine,
             timestamp,
-            gracePeriod,
             maxLatePeriods
           )
           // Should be marked down by 25% ((periodslate - grace period)/ maxLatePeriods * 100)
-          expect(writedownPercent).to.bignumber.eq("25")
-          expect(writedownAmount).to.bignumber.eq(balance.div(new BN(4))) // 25% of 10
+          // expect(writedownAmount).to.bignumber.eq(balance.div(new BN(4))) // 25% of 10
+          expect(writedownAmount).to.bignumber.eq('0')
         })
 
         it("uses the timestamp to cap max periods late", async () => {
           const paymentPeriodInSeconds = paymentPeriodInDays.mul(SECONDS_PER_DAY)
           // 130 days late
           timestamp = termEndTime.add(paymentPeriodInSeconds.mul(new BN(13)))
-          const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+          const writedownAmount = await calculateWritedownFor(
             creditLine,
             timestamp,
-            gracePeriod,
             maxLatePeriods
           )
 
           // Should be marked down by 100%
-          expect(writedownPercent).to.bignumber.eq("100")
-          expect(writedownAmount).to.bignumber.eq(balance)
+          // expect(writedownAmount).to.bignumber.eq(balance)
+          expect(writedownAmount).to.bignumber.eq('0')
         })
 
         it("does not write down if there is no balance owed", async () => {
@@ -377,13 +358,11 @@ describe("Accountant", async () => {
           // 5 periods later
           timestamp = termEndTime.add(paymentPeriodInSeconds.mul(new BN(5)))
 
-          const [writedownPercent, writedownAmount] = await calculateWritedownFor(
+          const writedownAmount = await calculateWritedownFor(
             creditLine,
             timestamp,
-            gracePeriod,
             maxLatePeriods
           )
-          expect(writedownPercent).to.bignumber.eq("0")
           expect(writedownAmount).to.bignumber.eq("0")
         })
       })
@@ -392,22 +371,23 @@ describe("Accountant", async () => {
 
   describe("allocatePayment", async () => {
     const tests = [
-      // payment, balance, totalInterestOwed, totalPrincipalOwed, expectedResults
-      [10, 40, 10, 20, {interestPayment: 10, principalPayment: 0, additionalBalancePayment: 0}],
-      [5, 40, 10, 20, {interestPayment: 5, principalPayment: 0, additionalBalancePayment: 0}],
-      [15, 40, 10, 20, {interestPayment: 10, principalPayment: 5, additionalBalancePayment: 0}],
-      [35, 40, 10, 20, {interestPayment: 10, principalPayment: 20, additionalBalancePayment: 5}],
-      [55, 40, 10, 20, {interestPayment: 10, principalPayment: 20, additionalBalancePayment: 20}],
-      [0, 40, 10, 20, {interestPayment: 0, principalPayment: 0, additionalBalancePayment: 0}],
+      // payment, balance, totalInterestOwed, totalPrincipalOwed, expectedResults, liquidated
+      [10, 40, 10, 20, 0, {interestPayment: 10, principalPayment: 0, additionalBalancePayment: 0}],
+      [5, 40, 10, 20, 0, {interestPayment: 5, principalPayment: 0, additionalBalancePayment: 0}],
+      [15, 40, 10, 20, 0, {interestPayment: 10, principalPayment: 5, additionalBalancePayment: 0}],
+      [35, 40, 10, 20, 0, {interestPayment: 10, principalPayment: 20, additionalBalancePayment: 5}],
+      [55, 40, 10, 20, 0, {interestPayment: 10, principalPayment: 20, additionalBalancePayment: 20}],
+      [0, 40, 10, 20, 0, {interestPayment: 0, principalPayment: 0, additionalBalancePayment: 0}],
     ]
     mochaEach(tests).it(
       "should calculate things correctly!",
-      async (paymentAmount, balance, totalInterestOwed, totalPrincipalOwed, expected) => {
+      async (paymentAmount, balance, totalInterestOwed, totalPrincipalOwed, liquidated, expected) => {
         const result = await accountant.allocatePayment(
           bnToHex(bigVal(paymentAmount)),
           bnToHex(bigVal(balance)),
           bnToHex(bigVal(totalInterestOwed)),
-          bnToHex(bigVal(totalPrincipalOwed))
+          bnToHex(bigVal(totalPrincipalOwed)),
+          bnToHex(bigVal(liquidated)),
         )
 
         expect(bnToBnjs(result.interestPayment)).to.be.bignumber.equals(bigVal(expected.interestPayment))

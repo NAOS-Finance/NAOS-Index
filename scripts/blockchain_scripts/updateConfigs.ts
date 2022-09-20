@@ -21,7 +21,7 @@ async function updateConfigs(hre, protocolConfig) {
   //the deployments.log is not enabled. So, just use console.log instead
   logger = console.log
 
-  const config = await getDeployedContract<GoldfinchConfig>(deployments, "GoldfinchConfig")
+  const config = await getDeployedContract<NAOSConfig>(deployments, "NAOSConfig")
 
   const maxUnderwriterLimit = String(protocolConfig.maxUnderwriterLimit)
   const transactionLimit = String(protocolConfig.transactionLimit)
@@ -35,17 +35,12 @@ async function updateConfigs(hre, protocolConfig) {
   const transferPeriodRestrictionInDays = String(protocolConfig.transferRestrictionPeriodInDays)
   const leverageRatio = String(protocolConfig.leverageRatio)
 
-  await updateConfig(config, "number", CONFIG_KEYS.MaxUnderwriterLimit, toAtomic(new BN(maxUnderwriterLimit)))
-  await updateConfig(config, "number", CONFIG_KEYS.TransactionLimit, toAtomic(new BN(transactionLimit)))
   await updateConfig(config, "number", CONFIG_KEYS.TotalFundsLimit, toAtomic(new BN(totalFundsLimit)))
   await updateConfig(config, "number", CONFIG_KEYS.ReserveDenominator, reserveDenominator)
   await updateConfig(config, "number", CONFIG_KEYS.WithdrawFeeDenominator, withdrawFeeDenominator)
   await updateConfig(config, "number", CONFIG_KEYS.LatenessGracePeriodInDays, latenessGracePeriod)
   await updateConfig(config, "number", CONFIG_KEYS.LatenessMaxDays, latenessMaxDays)
   await updateConfig(config, "number", CONFIG_KEYS.DrawdownPeriodInSeconds, drawdownPeriodInSeconds)
-  await updateConfig(config, "number", CONFIG_KEYS.TransferPeriodRestrictionInDays, transferPeriodRestrictionInDays, {
-    logger,
-  })
   await updateConfig(config, "number", CONFIG_KEYS.LeverageRatio, leverageRatio)
 
   logger("Done")

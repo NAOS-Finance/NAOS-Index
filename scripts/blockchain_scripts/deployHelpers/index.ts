@@ -53,7 +53,7 @@ const LOCAL = "localhost"
 const ROPSTEN = "ropsten"
 const RINKEBY = "rinkeby"
 const MAINNET = "mainnet"
-const GOERLI = "gorli"
+const GOERLI = "goerli"
 const BSC = "bsc"
 
 export type ChainName = typeof LOCAL | typeof RINKEBY | typeof MAINNET | typeof GOERLI | typeof BSC
@@ -387,7 +387,15 @@ export async function getEthersContract<T extends BaseContract | Contract = Cont
   contractName: string,
   opts: GetContractOptions = {}
 ): Promise<T> {
-  return await getContract<T, never, ETHERS_CONTRACT_PROVIDER>(contractName, ETHERS_CONTRACT_PROVIDER, opts)
+  if (!opts.at) {
+    opts.at = await getExistingAddress(contractName)
+  }
+  const at = opts.at
+  const from = opts.from || (await getProtocolOwner())
+  const abi = await artifacts.require(contractName).abi
+  const contract = await ethers.getContractAt(abi, at)
+  const signer = await ethers.getSigner(from)
+  return contract.connect(signer) as T
 }
 
 // export async function getTruffleContract<T extends Truffle.ContractInstance = Truffle.ContractInstance>(

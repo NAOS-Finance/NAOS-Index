@@ -444,7 +444,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     return getTrancheInfo(tranche);
   }
 
-  function numSlices() public view returns (uint256) {
+  function numSlices() public view override returns (uint256) {
     return poolSlices.length;
   }
 

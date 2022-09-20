@@ -12,13 +12,7 @@ import {
   PAUSER_ROLE,
   ETHERS_CONTRACT_PROVIDER,
 } from "../scripts/blockchain_scripts/deployHelpers"
-import {Go, GoldfinchConfig, TestUniqueIdentity} from "../types"
-// import {
-//   Go,
-//   GoldfinchConfig,
-//   StakingRewardsInstance,
-//   TestUniqueIdentity,
-// } from "../typechain/truffle"
+import {Verified, NAOSConfig, TestUniqueIdentity} from "../types"
 import {mint} from "./uniqueIdentityHelpers"
 import BN from 'bn.js'
 import {DeployResult} from "hardhat-deploy/types"
@@ -36,15 +30,15 @@ const setupTest = deployments.createFixture(async ({deployments}) => {
 
   const deployed = await deployBaseFixture()
 
-  const goldfinchConfig = deployed.goldfinchConfig
+  const naosConfig = deployed.naosConfig
   const uniqueIdentity = deployed.uniqueIdentity
-  const go = deployed.go
+  const go = deployed.verified
 
-  const uninitializedGoDeployResult = await deploy("Go", {
+  const uninitializedGoDeployResult = await deploy("Verified", {
     from: uninitializedGoDeployer,
     gasLimit: 4000000,
   })
-  const uninitializedGo = await getContract<Go, any>("Go", ETHERS_CONTRACT_PROVIDER, {
+  const uninitializedGo = await getContract<Verified, any>("Verified", ETHERS_CONTRACT_PROVIDER, {
     at: uninitializedGoDeployResult.address,
   })
 
@@ -55,19 +49,19 @@ const setupTest = deployments.createFixture(async ({deployments}) => {
     go,
     uninitializedGo,
     uninitializedGoDeployer,
-    goldfinchConfig,
+    naosConfig,
     uniqueIdentity,
   }
 })
 
-describe("Go", () => {
+describe("Verified", () => {
   let owner: string,
     anotherUser: string,
     anotherUser2: string,
-    go: Go,
+    go: Verified,
     uninitializedGoDeployer: string,
-    uninitializedGo: Go,
-    goldfinchConfig: GoldfinchConfig,
+    uninitializedGo: Verified,
+    naosConfig: NAOSConfig,
     uniqueIdentity: TestUniqueIdentity
 
   beforeEach(async () => {
@@ -79,7 +73,7 @@ describe("Go", () => {
       go,
       uninitializedGoDeployer,
       uninitializedGo,
-      goldfinchConfig,
+      naosConfig,
       uniqueIdentity,
     } = await setupTest())
   })
@@ -93,34 +87,34 @@ describe("Go", () => {
   describe("setLegacyGoList", async () => {
     const testAddress = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
-    describe("when set with a valid GoldfinchConfig address", async () => {
-      let goldfinchConfigWithGoList: GoldfinchConfig
+    describe("when set with a valid NAOSConfig address", async () => {
+      let naosConfigWithGoList: NAOSConfig
       beforeEach(async () => {
-        const newConfigDeployment = await deployments.deploy("GoldfinchConfig", {
+        const newConfigDeployment = await deployments.deploy("NAOSConfig", {
           from: owner,
           skipIfAlreadyDeployed: false,
         })
-        goldfinchConfigWithGoList = await getEthersContract<GoldfinchConfig>("GoldfinchConfig", {
+        naosConfigWithGoList = await getEthersContract<NAOSConfig>("NAOSConfig", {
           at: newConfigDeployment.address,
         })
 
-        await goldfinchConfigWithGoList.initialize(owner)
+        await naosConfigWithGoList.initialize(owner)
         const signer = await ethers.getSigner(owner)
-        await goldfinchConfigWithGoList.connect(signer).addToGoList(testAddress)
-        await go.setLegacyGoList(goldfinchConfigWithGoList.address)
+        await naosConfigWithGoList.connect(signer).addToGoList(testAddress)
+        await go.setLegacyGoList(naosConfigWithGoList.address)
       })
 
       it("it should use the other config for the go list", async () => {
-        expect(await go.go(testAddress)).to.be.true
+        expect(await go.verify(testAddress)).to.be.true
       })
     })
 
     describe("by default", async () => {
       it("works correctly", async () => {
-        expect(await go.go(testAddress)).to.be.false
+        expect(await go.verify(testAddress)).to.be.false
         const signer = await ethers.getSigner(owner)
-        await goldfinchConfig.connect(signer).addToGoList(testAddress)
-        expect(await go.go(testAddress)).to.be.true
+        await naosConfig.connect(signer).addToGoList(testAddress)
+        expect(await go.verify(testAddress)).to.be.true
       })
     })
   })
@@ -129,7 +123,7 @@ describe("Go", () => {
     it("rejects zero address owner", async () => {
       const initialized = uninitializedGo.initialize(
         ethersConstants.AddressZero,
-        goldfinchConfig.address,
+        naosConfig.address,
         uniqueIdentity.address
       )
       await expect(initialized).to.be.rejectedWith(/Owner and config and UniqueIdentity addresses cannot be empty/)
@@ -139,12 +133,12 @@ describe("Go", () => {
       await expect(initialized).to.be.rejectedWith(/Owner and config and UniqueIdentity addresses cannot be empty/)
     })
     it("rejects zero address uniqueIdentity", async () => {
-      const initialized = uninitializedGo.initialize(owner, goldfinchConfig.address, ethersConstants.AddressZero)
+      const initialized = uninitializedGo.initialize(owner, naosConfig.address, ethersConstants.AddressZero)
       await expect(initialized).to.be.rejectedWith(/Owner and config and UniqueIdentity addresses cannot be empty/)
     })
     it("grants owner the owner and pauser roles", async () => {
       const signer = await ethers.getSigner(uninitializedGoDeployer)
-      await uninitializedGo.connect(signer).initialize(owner, goldfinchConfig.address, uniqueIdentity.address)
+      await uninitializedGo.connect(signer).initialize(owner, naosConfig.address, uniqueIdentity.address)
       expect(await uninitializedGo.hasRole(OWNER_ROLE, owner)).to.equal(true)
       expect(await uninitializedGo.hasRole(PAUSER_ROLE, owner)).to.equal(true)
 
@@ -153,54 +147,54 @@ describe("Go", () => {
     })
     it("does not grant deployer the owner and pauser roles", async () => {
       const signer = await ethers.getSigner(uninitializedGoDeployer)
-      await uninitializedGo.connect(signer).initialize(owner, goldfinchConfig.address, uniqueIdentity.address)
+      await uninitializedGo.connect(signer).initialize(owner, naosConfig.address, uniqueIdentity.address)
       expect(await uninitializedGo.hasRole(OWNER_ROLE, uninitializedGoDeployer)).to.equal(false)
       expect(await uninitializedGo.hasRole(PAUSER_ROLE, uninitializedGoDeployer)).to.equal(false)
     })
     it("sets config and uniqueIdentity addresses in state", async () => {
       const signer = await ethers.getSigner(uninitializedGoDeployer)
-      await uninitializedGo.connect(signer).initialize(owner, goldfinchConfig.address, uniqueIdentity.address)
-      expect(await uninitializedGo.config()).to.equal(goldfinchConfig.address)
+      await uninitializedGo.connect(signer).initialize(owner, naosConfig.address, uniqueIdentity.address)
+      expect(await uninitializedGo.config()).to.equal(naosConfig.address)
       expect(await uninitializedGo.uniqueIdentity()).to.equal(uniqueIdentity.address)
 
-      expect(await go.config()).to.equal(goldfinchConfig.address)
+      expect(await go.config()).to.equal(naosConfig.address)
       expect(await go.uniqueIdentity()).to.equal(uniqueIdentity.address)
     })
     it("cannot be called twice", async () => {
       const signer = await ethers.getSigner(uninitializedGoDeployer)
-      await uninitializedGo.connect(signer).initialize(owner, goldfinchConfig.address, uniqueIdentity.address)
+      await uninitializedGo.connect(signer).initialize(owner, naosConfig.address, uniqueIdentity.address)
       await expect(
-        uninitializedGo.connect(signer).initialize(anotherUser2, goldfinchConfig.address, uniqueIdentity.address)
+        uninitializedGo.connect(signer).initialize(anotherUser2, naosConfig.address, uniqueIdentity.address)
       ).to.be.rejectedWith(/Contract instance has already been initialized/)
     })
   })
 
-  describe("updateGoldfinchConfig", () => {
+  describe("updateNAOSConfig", () => {
     let newConfig: DeployResult
 
     beforeEach(async () => {
-      newConfig = await deployments.deploy("GoldfinchConfig", {from: owner})
-      await goldfinchConfig.setGoldfinchConfig(newConfig.address)
+      newConfig = await deployments.deploy("NAOSConfig", {from: owner})
+      await naosConfig.setNAOSConfig(newConfig.address)
     })
 
     it("rejects sender who lacks owner role", async () => {
       expect(await go.hasRole(OWNER_ROLE, anotherUser)).to.equal(false)
       const signer = await ethers.getSigner(anotherUser)
-      await expect(go.connect(signer).updateGoldfinchConfig()).to.be.rejectedWith(
+      await expect(go.connect(signer).updateNAOSConfig()).to.be.rejectedWith(
         /Must have admin role to perform this action/
       )
     })
     it("allows sender who has owner role", async () => {
       expect(await go.hasRole(OWNER_ROLE, owner)).to.equal(true)
       const signer = await ethers.getSigner(owner)
-      await expect(go.connect(signer).updateGoldfinchConfig()).to.be.fulfilled
+      await expect(go.connect(signer).updateNAOSConfig()).to.be.fulfilled
     })
     it("updates config address, emits an event", async () => {
-      expect(await go.config()).to.equal(goldfinchConfig.address)
+      expect(await go.config()).to.equal(naosConfig.address)
       const signer = await ethers.getSigner(owner)
-      const receipt = await go.connect(signer).updateGoldfinchConfig()
+      const receipt = await go.connect(signer).updateNAOSConfig()
       expect(await go.config()).to.equal(newConfig.address)
-      // expectEvent(receipt, "GoldfinchConfigUpdated", {
+      // expectEvent(receipt, "NAOSConfigUpdated", {
       //   who: owner,
       //   configAddress: newConfig.address,
       // })
@@ -210,42 +204,42 @@ describe("Go", () => {
       it("does not reject", async () => {
         await pause()
         const signer = await ethers.getSigner(owner)
-        await expect(go.connect(signer).updateGoldfinchConfig()).to.be.fulfilled
+        await expect(go.connect(signer).updateNAOSConfig()).to.be.fulfilled
       })
     })
   })
 
   describe("go", () => {
     it("rejects zero address account", async () => {
-      await expect(go.go(ethersConstants.AddressZero)).to.be.rejectedWith(/Zero address is not go-listed/)
+      await expect(go.verify(ethersConstants.AddressZero)).to.be.rejectedWith(/Zero address is not go-listed/)
     })
 
     context("account with 0 balance UniqueIdentity token (id 0)", () => {
       beforeEach(async () => {
         const tokenId = new BN(0)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(new BN(0))
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(new BN(0))
       })
 
       context("account is on legacy go-list", () => {
         beforeEach(async () => {
-          expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-          expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+          expect(await naosConfig.goList(anotherUser)).to.equal(false)
+          expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
           const signer = await ethers.getSigner(owner)
-          await goldfinchConfig.connect(signer).addToGoList(anotherUser)
-          expect(await goldfinchConfig.goList(anotherUser)).to.equal(true)
+          await naosConfig.connect(signer).addToGoList(anotherUser)
+          expect(await naosConfig.goList(anotherUser)).to.equal(true)
         })
 
         it("returns true", async () => {
-          expect(await go.go(anotherUser)).to.equal(true)
+          expect(await go.verify(anotherUser)).to.equal(true)
         })
       })
       context("account is not on legacy go-list", () => {
         beforeEach(async () => {
-          expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
+          expect(await naosConfig.goList(anotherUser)).to.equal(false)
         })
 
         it("returns false", async () => {
-          expect(await go.go(anotherUser)).to.equal(false)
+          expect(await go.verify(anotherUser)).to.equal(false)
         })
       })
     })
@@ -256,37 +250,37 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([bnToHex(tokenId)], [true])
         await mint(hre, uniqueIdentity, tokenId, expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(new BN(1))
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(expiresAt)
       })
 
       context("account is on legacy go-list", () => {
         beforeEach(async () => {
-          expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-          expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+          expect(await naosConfig.goList(anotherUser)).to.equal(false)
+          expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
           const signer = await ethers.getSigner(owner)
-          await goldfinchConfig.connect(signer).addToGoList(anotherUser)
-          expect(await goldfinchConfig.goList(anotherUser)).to.equal(true)
+          await naosConfig.connect(signer).addToGoList(anotherUser)
+          expect(await naosConfig.goList(anotherUser)).to.equal(true)
         })
 
         it("returns true", async () => {
-          expect(await go.go(anotherUser)).to.equal(true)
+          expect(await go.verify(anotherUser)).to.equal(true)
         })
       })
 
       context("account is not on legacy go-list", () => {
         beforeEach(async () => {
-          expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
+          expect(await naosConfig.goList(anotherUser)).to.equal(false)
         })
 
         it("returns true", async () => {
-          expect(await go.go(anotherUser)).to.equal(true)
+          expect(await go.verify(anotherUser)).to.equal(true)
         })
       })
     })
 
-    context("goOnlyIdTypes", () => {
+    context("verifyOnlyIdTypes", () => {
       it("Validates zero address", async () => {
-        await expect(go.goOnlyIdTypes(ZERO_ADDRESS, [])).to.be.rejectedWith(/Zero address is not go-listed/)
+        await expect(go.verifyOnlyIdTypes(ZERO_ADDRESS, [])).to.be.rejectedWith(/Zero address is not go-listed/)
       })
 
       it("returns true if has UID and not legacy golisted", async () => {
@@ -294,18 +288,18 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([bnToHex(tokenId)], [true])
         await mint(hre, uniqueIdentity, tokenId, expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await go.goOnlyIdTypes(anotherUser, [bnToHex(tokenId)])).to.equal(true)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await go.verifyOnlyIdTypes(anotherUser, [bnToHex(tokenId)])).to.equal(true)
       })
 
       it("returns true if legacy golisted and doesnt have UID", async () => {
         const tokenId = new BN(0)
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
         const signer = await ethers.getSigner(owner)
-        await goldfinchConfig.connect(signer).addToGoList(anotherUser)
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(true)
-        expect(await go.goOnlyIdTypes(anotherUser, [bnToHex(tokenId)])).to.equal(true)
+        await naosConfig.connect(signer).addToGoList(anotherUser)
+        expect(await naosConfig.goList(anotherUser)).to.equal(true)
+        expect(await go.verifyOnlyIdTypes(anotherUser, [bnToHex(tokenId)])).to.equal(true)
       })
 
       it("returns false if not legacy golisted and no included UID", async () => {
@@ -313,9 +307,9 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([bnToHex(tokenId)], [true])
         await mint(hre, uniqueIdentity, tokenId, expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await go.goOnlyIdTypes(anotherUser, [1])).to.equal(false)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, bnToHex(tokenId)))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await go.verifyOnlyIdTypes(anotherUser, [1])).to.equal(false)
       })
     })
 
@@ -323,20 +317,20 @@ describe("Go", () => {
     //   expect(await (await go.getSeniorPoolIdTypes()).map((x) => x.toNumber())).to.deep.equal([0, 1, 3, 4])
     // })
 
-    context("goSeniorPool", () => {
+    context("goIndexPool", () => {
       it("Validates zero address", async () => {
-        await expect(go.goSeniorPool(ZERO_ADDRESS)).to.be.rejectedWith(/Zero address is not go-listed/)
+        await expect(go.verifyIndexPool(ZERO_ADDRESS)).to.be.rejectedWith(/Zero address is not go-listed/)
       })
 
       // it("returns true if called by staking rewards contract", async () => {
       //   const uidTokenId = await uniqueIdentity.ID_TYPE_0()
       //   await uniqueIdentity.setSupportedUIDTypes([], [])
-      //   expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(0))
+      //   expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(new BN(0))
       //   const stakingRewardsContract = await getContract<StakingRewards, StakingRewardsInstance>(
       //     "StakingRewards",
       //     ETHERS_CONTRACT_PROVIDER
       //   )
-      //   await expect(go.goSeniorPool(stakingRewardsContract.address)).to.be.fulfilled
+      //   await expect(go.verifyIndexPool(stakingRewardsContract.address)).to.be.fulfilled
       // })
 
       it("returns true if has non-US UID and not legacy golisted", async () => {
@@ -344,10 +338,10 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([uidTokenId], [true])
         await mint(hre, uniqueIdentity, bnToBnjs(uidTokenId), expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
-        expect(await go.goSeniorPool(anotherUser)).to.equal(true)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+        expect(await go.verifyIndexPool(anotherUser)).to.equal(true)
       })
 
       it("returns true if has US accredited UID and not legacy golisted", async () => {
@@ -355,10 +349,10 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([uidTokenId], [true])
         await mint(hre, uniqueIdentity, bnToBnjs(uidTokenId), expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
-        expect(await go.goSeniorPool(anotherUser)).to.equal(true)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+        expect(await go.verifyIndexPool(anotherUser)).to.equal(true)
       })
 
       // TODO: we don't support type3 and type4 currently
@@ -367,10 +361,10 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([uidTokenId], [true])
         await mint(hre, uniqueIdentity, bnToBnjs(uidTokenId), expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
-        expect(await go.goSeniorPool(anotherUser)).to.equal(false)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+        expect(await go.verifyIndexPool(anotherUser)).to.equal(false)
       })
 
       it("returns true if has non US entity UID and not legacy golisted", async () => {
@@ -378,19 +372,19 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([uidTokenId], [true])
         await mint(hre, uniqueIdentity, bnToBnjs(uidTokenId), expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
-        expect(await go.goSeniorPool(anotherUser)).to.equal(false)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+        expect(await go.verifyIndexPool(anotherUser)).to.equal(false)
       })
 
       it("returns true if legacy golisted", async () => {
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
         const signer = await ethers.getSigner(owner)
-        await goldfinchConfig.connect(signer).addToGoList(anotherUser)
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(true)
-        expect(await go.goSeniorPool(anotherUser)).to.equal(true)
+        await naosConfig.connect(signer).addToGoList(anotherUser)
+        expect(await naosConfig.goList(anotherUser)).to.equal(true)
+        expect(await go.verifyIndexPool(anotherUser)).to.equal(true)
       })
 
       it("returns false if not legacy golisted and no included UID", async () => {
@@ -398,10 +392,10 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([uidTokenId], [true])
         await mint(hre, uniqueIdentity, bnToBnjs(uidTokenId), expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(1))
-        expect(await goldfinchConfig.goList(anotherUser)).to.equal(false)
-        expect(await goldfinchConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
-        expect(await go.goSeniorPool(anotherUser)).to.equal(false)
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(expiresAt)
+        expect(await naosConfig.goList(anotherUser)).to.equal(false)
+        expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
+        expect(await go.verifyIndexPool(anotherUser)).to.equal(false)
       })
     })
 
@@ -411,12 +405,12 @@ describe("Go", () => {
         const expiresAt = (await getCurrentTimestamp()).add(SECONDS_PER_DAY)
         await uniqueIdentity.setSupportedUIDTypes([uidTokenId], [true])
         await mint(hre, uniqueIdentity, bnToBnjs(uidTokenId), expiresAt, new BN(0), owner, undefined, anotherUser)
-        expect(bnToBnjs(await uniqueIdentity.balanceOf(anotherUser, uidTokenId))).to.bignumber.equal(new BN(1))
+        expect(bnToBnjs(await uniqueIdentity.expiration(anotherUser, uidTokenId))).to.bignumber.equal(expiresAt)
       })
 
       it("returns anyway", async () => {
         await pause()
-        expect(await go.go(anotherUser)).to.equal(true)
+        expect(await go.verify(anotherUser)).to.equal(true)
       })
     })
   })
