@@ -427,7 +427,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   }
 
   function rwaToUSDC(uint256 amount) public view returns (uint256) {
-    return amount.div(rwaMantissa().div(usdcMantissa()));
+    return amount.mul(usdcMantissa()).div(rwaMantissa());
   }
 
   function juniorPoolTokensCount(IJuniorPool pool) external override view returns (uint256) {
@@ -454,7 +454,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     return usdc.transferFrom(from, to, amount);
   }
 
-  function _withdraw(uint256 usdcAmount, uint256 withdrawShares) internal returns (uint256 userAmount) {
+  function _withdraw(uint256 usdcAmount, uint256 withdrawShares) internal returns (uint256) {
     IRWA rwa = config.getRWA();
     // Determine current shares the address has and the shares requested to withdraw
     uint256 currentShares = rwa.balanceOf(msg.sender);
@@ -465,7 +465,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
     uint256 currentAmount = config.getUSDC().balanceOf(address(this));
     // Pull the remaining funds from the active vault.
-    if (usdcAmount > currentAmount) {
+    if (usdcAmount > currentAmount && vaultCount() > 0) {
       Vault.Data storage _activeVault = _vaults.last();
       uint256 difference = usdcAmount.sub(currentAmount);
       require(_activeVault.totalDeposited >= difference, "no enough withdrawable tokens");
@@ -478,7 +478,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
     // Burn the shares
     rwa.burnFrom(msg.sender, withdrawShares);
-    return userAmount;
+    return usdcAmount;
   }
 
   function _collectInterestAndPrincipal(
