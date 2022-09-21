@@ -6,6 +6,7 @@ import {
   OWNER_ROLE,
   PAUSER_ROLE,
   ETHDecimals,
+  isDecimal18Env,
 } from "../scripts/blockchain_scripts/deployHelpers"
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import hre, { ethers } from "hardhat"
@@ -21,6 +22,7 @@ import {
   expectAction,
   decimals,
   USDC_DECIMALS,
+  DAI_DECIMALS,
   SECONDS_PER_DAY,
   usdcVal,
   rwaTolerance,
@@ -99,9 +101,10 @@ describe("IndexPool", () => {
   const limit = usdcVal(100000)
   const termInDays = new BN(365)
   const juniorFeePercent = new BN(20)
-  const depositAmount = new BN(4).mul(USDC_DECIMALS)
-  const withdrawAmount = new BN(2).mul(USDC_DECIMALS)
-  const decimalsDelta = decimals.div(USDC_DECIMALS)
+  const decimal = isDecimal18Env() ? DAI_DECIMALS : USDC_DECIMALS
+  const depositAmount = new BN(4).mul(decimal)
+  const withdrawAmount = new BN(2).mul(decimal)
+  const decimalsDelta = decimals.div(decimal)
   const depositMadeEventHash = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 
   const makeDeposit = async (person?: string, amount?: BN) => {
@@ -281,9 +284,9 @@ describe("IndexPool", () => {
 
       const testSetup = deployments.createFixture(async () => {
         let signer = await ethers.getSigner(person2)
-        await usdc.connect(signer).approve(indexPool.address, bnToHex(new BN(100000).mul(USDC_DECIMALS)))
+        await usdc.connect(signer).approve(indexPool.address, bnToHex(new BN(100000).mul(decimal)))
         signer = await ethers.getSigner(owner)
-        await usdc.connect(signer).approve(indexPool.address, bnToHex(new BN(100000).mul(USDC_DECIMALS)))
+        await usdc.connect(signer).approve(indexPool.address, bnToHex(new BN(100000).mul(decimal)))
         capitalProvider = person2
       })
 
@@ -331,7 +334,7 @@ describe("IndexPool", () => {
       // })
 
       it("increases the totalShares, even when two different people deposit", async () => {
-        const secondDepositAmount = new BN(1).mul(USDC_DECIMALS)
+        const secondDepositAmount = new BN(1).mul(decimal)
         await makeDeposit()
         await makeDeposit(owner, secondDepositAmount)
         const totalShares = await rwa.totalSupply()
@@ -382,7 +385,7 @@ describe("IndexPool", () => {
       const sharePrice = await indexPool.sharePrice()
       const numShares = await indexPool._getNumShares(amount)
       expect(bnToBnjs(numShares)).to.bignumber.equal(
-        new BN(amount).mul(decimals.div(USDC_DECIMALS)).mul(decimals).div(bnToBnjs(sharePrice))
+        new BN(amount).mul(decimalsDelta).mul(decimals).div(bnToBnjs(sharePrice))
       )
     })
   })
@@ -392,7 +395,7 @@ describe("IndexPool", () => {
       describe("once it's set", async () => {
         const limit = new BN(5000)
         const testSetup = deployments.createFixture(async () => {
-          await naosConfig.setNumber(CONFIG_KEYS.TotalFundsLimit, bnToHex(limit.mul(USDC_DECIMALS)))
+          await naosConfig.setNumber(CONFIG_KEYS.TotalFundsLimit, bnToHex(limit.mul(decimal)))
         })
 
         beforeEach(async () => {
@@ -400,15 +403,15 @@ describe("IndexPool", () => {
         })
 
         it("should accept deposits before the limit is reached", async () => {
-          return expect(makeDeposit(person2, new BN(1000).mul(USDC_DECIMALS))).to.be.fulfilled
+          return expect(makeDeposit(person2, new BN(1000).mul(decimal))).to.be.fulfilled
         })
 
         it("should accept everything right up to the limit", async () => {
-          return expect(makeDeposit(person2, new BN(limit).mul(USDC_DECIMALS))).to.be.fulfilled
+          return expect(makeDeposit(person2, new BN(limit).mul(decimal))).to.be.fulfilled
         })
 
         it("should fail if you're over the limit", async () => {
-          return expect(makeDeposit(person2, new BN(limit).add(new BN(1)).mul(USDC_DECIMALS))).to.be.rejectedWith(
+          return expect(makeDeposit(person2, new BN(limit).add(new BN(1)).mul(decimal))).to.be.rejectedWith(
             /put the index pool over the total limit/
           )
         })
@@ -423,14 +426,18 @@ describe("IndexPool", () => {
         const testSharePrice = new BN(String(1.23456789 * (ETHDecimals as any)))
         await indexPool._setSharePrice(bnToHex(testSharePrice))
 
-        return expect(makeDeposit(person2, new BN(2500).mul(USDC_DECIMALS))).to.be.fulfilled
+        return expect(makeDeposit(person2, new BN(2500).mul(decimal))).to.be.fulfilled
       })
     })
   })
 
   describe("USDC Mantissa", async () => {
-    it("should equal 1e6", async () => {
-      expect(bnToBnjs(await indexPool.usdcMantissa())).to.bignumber.equal(USDC_DECIMALS)
+    it("should equal", async () => {
+      if (isDecimal18Env()) {
+        expect(bnToBnjs(await indexPool.usdcMantissa())).to.bignumber.equal(DAI_DECIMALS)
+      } else {
+        expect(bnToBnjs(await indexPool.usdcMantissa())).to.bignumber.equal(USDC_DECIMALS)
+      }
     })
   })
 
@@ -441,8 +448,12 @@ describe("IndexPool", () => {
   })
 
   describe("usdcToRWA", async () => {
-    it("should equal 1e12", async () => {
-      expect(bnToBnjs(await indexPool.usdcToRWA(bnToHex(new BN(1))))).to.bignumber.equal(new BN(1e12))
+    it("should equal", async () => {
+      if (isDecimal18Env()) {
+        expect(bnToBnjs(await indexPool.usdcToRWA(bnToHex(new BN(1))))).to.bignumber.equal(new BN(1))
+      } else {
+        expect(bnToBnjs(await indexPool.usdcToRWA(bnToHex(new BN(1))))).to.bignumber.equal(new BN(1e12))
+      }
     })
   })
 
@@ -677,7 +688,7 @@ describe("IndexPool", () => {
       // everything was paid back, senior can redeem full amount.
       expect(principalRedeemed).to.bignumber.equal(usdcVal(400))
       // $5 of interest * (4/5) * (1 - (0.2 + 0.1)) = $2.8 where 0.2 is juniorFeePercent and 0.1 is protocolFee
-      expect(interestRedeemed).to.bignumber.equal(new BN(2.8 * USDC_DECIMALS.toNumber()))
+      expect(interestRedeemed).to.bignumber.equal(decimal.mul(new BN(28)).div(new BN(10)))
 
       expect(bnToBnjs(balanceAfter)).to.bignumber.gte(bnToBnjs(balanceBefore))
       expect(bnToBnjs(balanceAfter.sub(balanceBefore))).to.bignumber.equal(interestRedeemed.add(principalRedeemed))
@@ -711,7 +722,7 @@ describe("IndexPool", () => {
       const interestRedeemed = bnToBnjs(tokenInfoAfter.interestRedeemed).sub(bnToBnjs(tokenInfoBefore.interestRedeemed))
 
       const expectedSharePrice = interestRedeemed
-        .mul(decimals.div(USDC_DECIMALS))
+        .mul(decimals.div(decimal))
         .mul(decimals)
         .div(bnToBnjs(await rwa.totalSupply()))
         .add(bnToBnjs(originalSharePrice))

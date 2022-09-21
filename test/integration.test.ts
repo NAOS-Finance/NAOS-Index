@@ -18,7 +18,7 @@ import {
   bnToHex
 } from "./testHelpers"
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
-import {TRANCHES, interestAprAsBN, INTEREST_DECIMALS, ETHDecimals, MAX_UINT} from "../scripts/blockchain_scripts/deployHelpers"
+import {TRANCHES, interestAprAsBN, INTEREST_DECIMALS, ETHDecimals, MAX_UINT, isDecimal18Env} from "../scripts/blockchain_scripts/deployHelpers"
 import {time} from "@openzeppelin/test-helpers"
 import {deployBaseFixture} from "./util/fixtures"
 // import {GFIInstance, StakingRewardsInstance} from "../typechain/truffle"
@@ -449,7 +449,8 @@ describe("NAOS", async function () {
         let expectedInterest = totalInterestPerYear.mul(secondsPassed).div(SECONDS_PER_YEAR)
         nextDueTime = nextDueTime.add(paymentPeriodInSeconds)
 
-        expect(expectedInterest).to.bignumber.eq("1369863")
+        const amount = isDecimal18Env() ? "1369863013698630136" : "1369863"
+        expect(expectedInterest).to.bignumber.eq(amount)
 
         await assertCreditLine(
           usdcVal(2000),

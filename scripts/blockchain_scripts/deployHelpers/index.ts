@@ -13,6 +13,7 @@ type Ethers = typeof ethers
 import hre, {web3, artifacts} from "hardhat"
 import BN from "bn.js"
 const USDC_DECIMALS = new BN(String(1e6))
+const DAI_DECIMALS = new BN(String(1e18))
 const FIDU_DECIMALS = new BN(String(1e18))
 const NAOS_DECIMALS = new BN(String(1e18))
 const STAKING_REWARDS_MULTIPLIER_DECIMALS = new BN(String(1e18))
@@ -175,6 +176,10 @@ const TRANCHES = {
   Junior: 2,
 }
 
+function isDecimal18Env() {
+  return process.env.USE_DECIMAL === "18"
+}
+
 function isTestEnv() {
   return process.env.NODE_ENV === "test"
 }
@@ -297,16 +302,14 @@ async function setInitialConfigVals(config: NAOSConfig, logger = function (_: an
   }
   const {protocol_owner} = await hre.getNamedAccounts()
   // assertIsString(protocol_owner)
+  const decimal = isDecimal18Env() ? DAI_DECIMALS : USDC_DECIMALS
 
-  const transactionLimit = new BN(PROTOCOL_CONFIG.transactionLimit).mul(USDC_DECIMALS)
-  const totalFundsLimit = new BN(PROTOCOL_CONFIG.totalFundsLimit).mul(USDC_DECIMALS)
-  const maxUnderwriterLimit = new BN(PROTOCOL_CONFIG.maxUnderwriterLimit).mul(USDC_DECIMALS)
+  const totalFundsLimit = new BN(PROTOCOL_CONFIG.totalFundsLimit).mul(decimal)
   const reserveDenominator = new BN(PROTOCOL_CONFIG.reserveDenominator)
   const withdrawFeeDenominator = new BN(PROTOCOL_CONFIG.withdrawFeeDenominator)
   const latenessGracePeriodIndays = new BN(PROTOCOL_CONFIG.latenessGracePeriodInDays)
   const latenessMaxDays = new BN(PROTOCOL_CONFIG.latenessMaxDays)
   const drawdownPeriodInSeconds = new BN(PROTOCOL_CONFIG.drawdownPeriodInSeconds)
-  const transferPeriodRestrictionInDays = new BN(PROTOCOL_CONFIG.transferRestrictionPeriodInDays)
   const leverageRatio = new BN(PROTOCOL_CONFIG.leverageRatio)
 
   logger("Updating the config vals...")
@@ -515,6 +518,7 @@ export {
   LEVERAGE_RATIO_DECIMALS,
   INTEREST_DECIMALS,
   FIDU_DECIMALS,
+  DAI_DECIMALS,
   NAOS_DECIMALS,
   STAKING_REWARDS_MULTIPLIER_DECIMALS,
   getUSDCAddress,
@@ -530,6 +534,7 @@ export {
   LOCAL_CHAIN_ID,
   SAFE_CONFIG,
   TRUSTED_FORWARDER_CONFIG,
+  isDecimal18Env,
   isTestEnv,
   isMainnetForking,
   isMainnet,

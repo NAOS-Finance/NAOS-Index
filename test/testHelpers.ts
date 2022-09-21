@@ -7,8 +7,10 @@ import mochaEach from "mocha-each"
 import {time} from "@openzeppelin/test-helpers"
 import BN from "bn.js"
 import {
+  isDecimal18Env,
   isTestEnv,
   USDC_DECIMALS,
+  DAI_DECIMALS,
   NAOS_DECIMALS,
   interestAprAsBN,
   ZERO_ADDRESS,
@@ -62,6 +64,9 @@ function bigVal(number): BN {
 }
 
 function usdcVal(number) {
+  if (isDecimal18Env()) {
+    return new BN(number).mul(DAI_DECIMALS)
+  }
   return new BN(number).mul(USDC_DECIMALS)
 }
 
@@ -649,6 +654,7 @@ export {
   expect,
   decimals,
   USDC_DECIMALS,
+  DAI_DECIMALS,
   RWA_DECIMALS,
   NAOS_DECIMALS,
   BN,
