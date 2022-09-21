@@ -34,7 +34,8 @@ import {
   UniqueIdentity,
   DynamicLeverageRatioStrategy,
   WithdrawQueue,
-  TestBoostPool
+  TestBoostPool,
+  JuniorRewards
 } from "../types"
 import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
 import "./types"
@@ -345,10 +346,7 @@ async function deployContracts(
   juniorPool: JuniorPool
   naos: TestNAOS
   // stakingRewards: TestStakingRewards
-  // backerRewards: TestBackerRewards
-  // communityRewards: CommunityRewards
-  // merkleDistributor: MerkleDistributor | null
-  // merkleDirectDistributor: MerkleDirectDistributor | null
+  juniorRewards: JuniorRewards
   uniqueIdentity: TestUniqueIdentity
   verified: Verified
   boostPool: TestBoostPool
@@ -374,7 +372,7 @@ async function deployContracts(
   const poolTokens = await getDeployedContract<PoolTokens>(deployments, "PoolTokens")
   const juniorPool = await getDeployedContract<JuniorPool>(deployments, "JuniorPool")
   const naos = await getDeployedContract<TestNAOS>(deployments, "TestNAOS")
-  // const backerRewards = await getDeployedContract<TestBackerRewards>(deployments, "BackerRewards")
+  const juniorRewards = await getDeployedContract<JuniorRewards>(deployments, "JuniorRewards")
 
   const uniqueIdentity = await getContract<TestUniqueIdentity, any>(
     "UniqueIdentity",
@@ -396,6 +394,7 @@ async function deployContracts(
     poolTokens,
     juniorPool,
     naos,
+    juniorRewards,
     // stakingRewards,
     uniqueIdentity,
     verified,
