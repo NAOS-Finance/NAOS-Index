@@ -2009,14 +2009,14 @@ describe("JuniorPool", () => {
             await juniorPool.getTranche(TRANCHES.Senior)
           )
           expect(bnToBnjs(seniorInterestAmount)).to.bignumber.closeTo(expectedSeniorInterest, deviation)
-          expect(bnToBnjs(seniorPrincipalAmount)).to.bignumber.eq(usdcVal(40))
+          expect(bnToBnjs(seniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(40), deviation)
           ;[juniorInterestAmount, juniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Junior)
           )
-          expect(bnToBnjs(juniorInterestAmount)).to.bignumber.eq(expectedJuniorInterest)
-          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.eq(usdcVal(10))
+          expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo(expectedJuniorInterest, deviation)
+          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(10), deviation)
 
-          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedProtocolFee)
+          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedProtocolFee, deviation)
 
           // Now advance to the end of the loan period and collect interest again. Now the total interest owed should
           // be the interested accrued above * 1.5 (i.e. with a 100$ drawdown and 10% interest, we accrue 5$ for the
@@ -2029,10 +2029,10 @@ describe("JuniorPool", () => {
           expectPaymentRelatedEventsNotEmitted(await receipt2.wait())
 
           // 185.0 / 365 * 5 = 2.5342465753424657 (185 because that's the number of days left in the term for interest to accrue)
-          const remainingInterest = new BN("2534246")
+          const remainingInterest = (new BN("2534246")).mul(decimalsDelta)
           const expectedProtocolFee2 = remainingInterest.div(new BN(10))
-          expect(bnToBnjs(await creditLine.interestOwed())).to.bignumber.eq(remainingInterest)
-          expect(bnToBnjs(await creditLine.principalOwed())).to.bignumber.eq(usdcVal(50))
+          expect(bnToBnjs(await creditLine.interestOwed())).to.bignumber.closeTo(remainingInterest, deviation)
+          expect(bnToBnjs(await creditLine.principalOwed())).to.bignumber.closeTo(usdcVal(50), deviation)
 
           // Collect the remaining interest and the principal
           await erc20Approve(usdc, juniorPool.address, usdcVal(50).add(remainingInterest), [borrower])
@@ -2059,13 +2059,13 @@ describe("JuniorPool", () => {
           )
           // Junior = 7.465753424657534 - senior interest - 10% protocol fee = 2.5383561643835613
           expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo(usdcVal(2538).div(new BN(1000)), tolerance)
-          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.eq(usdcVal(20))
+          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(20), deviation)
 
           // Total protocol fee should be 10% of total interest
           const expectedTotalProtocolFee = expectedProtocolFee.add(expectedProtocolFee2)
           const totalInterest = totalPartialInterest.add(remainingInterest)
           expect(totalInterest.div(new BN(10))).to.bignumber.closeTo(expectedTotalProtocolFee, tolerance)
-          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedTotalProtocolFee)
+          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedTotalProtocolFee, deviation)
         })
       })
 
