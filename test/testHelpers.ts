@@ -648,6 +648,10 @@ export const bnjsToHex = (bn: BigNumber): string => {
   return bn.toHexString()
 }
 
+export const bnjsToBn = (bn: BN): BigNumber => {
+  return BigNumber.from(bn.toString())
+}
+
 export {
   hardhat,
   chai,

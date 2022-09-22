@@ -22,6 +22,7 @@ import {interestAprAsBN, TRANCHES, MAX_UINT, OWNER_ROLE, PAUSER_ROLE, isDecimal1
 import {expectEvent, time} from "@openzeppelin/test-helpers"
 import hre, { ethers } from "hardhat"
 import BN from "bn.js"
+import BNJS from "bignumber.js"
 const {deployments, artifacts, web3} = hre
 import {ecsign} from "ethereumjs-util"
 const CreditLine = artifacts.require("CreditLine")
@@ -2145,8 +2146,9 @@ describe("JuniorPool", () => {
 
     async function expectAvailable(tokenId: BN, expectedInterestInUSD: string, expectedPrincipalInUSD: string) {
       const {"0": actualInterest, "1": actualPrincipal} = await juniorPool.availableToWithdraw(bnToHex(tokenId))
-      expect(bnToBnjs(actualInterest)).to.bignumber.closeTo(new BN(parseFloat(expectedInterestInUSD) * 1e6), HALF_CENT)
-      expect(bnToBnjs(actualPrincipal)).to.bignumber.closeTo(new BN(parseFloat(expectedPrincipalInUSD) * 1e6), HALF_CENT)
+      const de = isDecimal18Env() ? new BNJS(DAI_DECIMALS.toString()) : new BNJS(USDC_DECIMALS.toString())
+      expect(bnToBnjs(actualInterest)).to.bignumber.closeTo(((new BNJS(parseFloat(expectedInterestInUSD)).multipliedBy(de)).toString()), HALF_CENT)
+      expect(bnToBnjs(actualPrincipal)).to.bignumber.closeTo((new BNJS(parseFloat(expectedPrincipalInUSD)).multipliedBy(de)).toString(), HALF_CENT)
     }
 
     describe("initializeNextSlice", async () => {
@@ -2300,9 +2302,9 @@ describe("JuniorPool", () => {
       const halfOfTerm = termInDays.div(new BN(2))
       await advanceTime({days: halfOfTerm.toNumber() + 1})
 
-      const expectedNetInterest = new BN("4438356")
-      const expectedProtocolFee = new BN("493150")
-      const expectedExcessPrincipal = new BN(68494)
+      const expectedNetInterest = (new BN("4438356")).mul(decimalsDelta)
+      const expectedProtocolFee = (new BN("493150")).mul(decimalsDelta)
+      const expectedExcessPrincipal = (new BN(68494)).mul(decimalsDelta)
       const expectedTotalInterest = expectedNetInterest.add(expectedProtocolFee)
 
       await erc20Approve(usdc, juniorPool.address, usdcVal(5), [borrower])
