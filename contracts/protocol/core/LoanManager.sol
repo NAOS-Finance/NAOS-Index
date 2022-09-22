@@ -48,6 +48,7 @@ contract LoanManager is BaseUpgradeablePausable {
     }
 
     event operatorUpdated(uint256 poolId, address indexed operator);
+    event liquidatorUpdated(uint256 _poolId, address indexed _liquidator, bool _status);
     event poolCreated(address indexed juniorPoolAddress, address indexed token, uint256 poolId);
     event poolLiquidated(uint256 poolId);
     event loanLocked(uint256 poolId, uint256 tokenId);
@@ -102,6 +103,24 @@ contract LoanManager is BaseUpgradeablePausable {
         operator[_poolId] = _operator;
 
         emit operatorUpdated(_poolId, _operator);
+    }
+
+    /**
+    * @dev Update pool's liquidator
+    * @param _poolId The junior pool id
+    * @param _liquidator The new operator address
+    * @param _status The liquidator status
+    */
+    function updateLiquidator(uint256 _poolId, address _liquidator, bool _status)
+        external
+        onlyAdmin
+    {
+        require(_poolId < poolList.length, "poolId out of range");
+        require(_liquidator != address(0), "invalid operator address");
+
+        liquidator[_poolId][_liquidator] = _status;
+
+        emit liquidatorUpdated(_poolId, _liquidator, _status);
     }
 
     /**

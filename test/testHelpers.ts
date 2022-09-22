@@ -35,7 +35,8 @@ import {
   DynamicLeverageRatioStrategy,
   WithdrawQueue,
   TestBoostPool,
-  JuniorRewards
+  JuniorRewards,
+  LoanManager
 } from "../types"
 import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
 import "./types"
@@ -331,30 +332,23 @@ async function deployContracts(
   deployments: DeploymentsExtension,
   options: DeployAllContractsOptions = {}
 ): Promise<{
-  // pool: Pool
   indexPool: IndexPool
   indexPoolFixedStrategy: FixedLeverageRatioStrategy
   indexPoolDynamicStrategy: DynamicLeverageRatioStrategy
   usdc: ERC20
-  // creditDesk: CreditDesk
   rwa: RWA
-  // rwaUSDCCurveLP: TestRWAUSDCCurveLP
   naosConfig: NAOSConfig
   naosFactory: NAOSFactory
-  // forwarder: TestForwarder | null
   poolTokens: PoolTokens
   juniorPool: JuniorPool
   naos: TestNAOS
-  // stakingRewards: TestStakingRewards
   juniorRewards: JuniorRewards
   uniqueIdentity: TestUniqueIdentity
   verified: Verified
   boostPool: TestBoostPool
-  withdrawQueue: WithdrawQueue
-  // zapper: Zapper
+  withdrawQueue: WithdrawQueue,
+  loanManager: LoanManager
 }> {
-  // await deployments.fixture("base_deploy")
-  // const pool = await getDeployedContract<Pool>(deployments, "Pool")
   const indexPool = await getDeployedContract<IndexPool>(deployments, "IndexPool")
   const indexPoolFixedStrategy = await getDeployedContract<FixedLeverageRatioStrategy>(
     deployments,
@@ -381,6 +375,7 @@ async function deployContracts(
   const verified = await getContract<Verified, Verified>("Verified", ETHERS_CONTRACT_PROVIDER)
   const withdrawQueue = await getDeployedContract<WithdrawQueue>(deployments, "WithdrawQueue")
   const boostPool = await getDeployedContract<TestBoostPool>(deployments, "TestBoostPool")
+  const loanManager = await getDeployedContract<LoanManager>(deployments, "LoanManager")
 
   return {
     indexPool,
@@ -390,17 +385,15 @@ async function deployContracts(
     rwa,
     naosConfig,
     naosFactory,
-    // forwarder,
     poolTokens,
     juniorPool,
     naos,
     juniorRewards,
-    // stakingRewards,
     uniqueIdentity,
     verified,
     boostPool,
-    withdrawQueue
-    // backerRewards,
+    withdrawQueue,
+    loanManager
   }
 }
 
