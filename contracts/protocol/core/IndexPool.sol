@@ -174,7 +174,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
    * @notice Invest in an IJuniorPool's senior tranche using the index pool's strategy
    * @param pool An IJuniorPool whose senior tranche should be considered for investment
    */
-  function invest(IJuniorPool pool) public override whenNotPaused nonReentrant {
+  function invest(IJuniorPool pool) public override whenNotPaused nonReentrant onlyAdmin {
     require(validPool(pool), "Pool must be valid");
 
     IIndexPoolStrategy strategy = config.getIndexPoolStrategy();
@@ -496,7 +496,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
       emit PrincipalCollected(address(from), principal);
       totalLoansOutstanding = totalLoansOutstanding.sub(principal);
 
-      if (config.getJuniorPool().liquidated() == IJuniorPool.LiquidationProcess.Processing) {
+      if (from.liquidated() == IJuniorPool.LiquidationProcess.Processing) {
         uint256 prevWritedownAmount = writedowns[from];
 
         if (prevWritedownAmount == 0) {
