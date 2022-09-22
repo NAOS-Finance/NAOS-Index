@@ -16,12 +16,13 @@ import {
   bnToHex,
   bnToBnjs,
   bnjsToHex,
-  getDeployedContract
+  getDeployedContract,
 } from "./testHelpers"
-import {interestAprAsBN, TRANCHES, MAX_UINT, OWNER_ROLE, PAUSER_ROLE} from "../scripts/blockchain_scripts/deployHelpers"
+import {interestAprAsBN, TRANCHES, MAX_UINT, OWNER_ROLE, PAUSER_ROLE, isDecimal18Env, DAI_DECIMALS, USDC_DECIMALS} from "../scripts/blockchain_scripts/deployHelpers"
 import {expectEvent, time} from "@openzeppelin/test-helpers"
 import hre, { ethers } from "hardhat"
 import BN from "bn.js"
+import BNJS from "bignumber.js"
 const {deployments, artifacts, web3} = hre
 import {ecsign} from "ethereumjs-util"
 const CreditLine = artifacts.require("CreditLine")
@@ -101,6 +102,9 @@ describe("JuniorPool", () => {
   const fundableAt = new BN(0)
   const lateFeeApr = new BN(0)
   const juniorFeePercent = new BN(20)
+  const decimals = DAI_DECIMALS
+  const decimal = isDecimal18Env() ? USDC_DECIMALS : DAI_DECIMALS
+  const decimalsDelta = decimals.div(decimal)
 
   const testSetup = deployments.createFixture(async ({deployments}) => {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -1629,8 +1633,8 @@ describe("JuniorPool", () => {
       // Advance termInDays total days from now
       await advanceTime({days: halfOfTerm.add(new BN(1)).toNumber()})
 
-      const expectedJuniorInterest = new BN("4438356")
-      const expectedProtocolFee = new BN("493150")
+      const expectedJuniorInterest = (new BN("4438356")).mul(decimalsDelta)
+      const expectedProtocolFee = (new BN("493150")).mul(decimalsDelta)
       const expectedTotalInterest = expectedJuniorInterest.add(expectedProtocolFee)
 
       // TODO: do we approve brfore?
@@ -1652,8 +1656,10 @@ describe("JuniorPool", () => {
       // Should be around half of full term's interest, since the drawdown happened 6 months
       // from this payment:
       // ~$4.43 (rather than ~$5, since interest is accrued at last second of prior period)
-      expect(bnToBnjs(juniorInterestAmount)).to.bignumber.eq(expectedJuniorInterest)
-      expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedProtocolFee)
+      const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
+
+      expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo(expectedJuniorInterest, deviation)
+      expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedProtocolFee, deviation)
     })
 
     context("only junior investment", async () => {
@@ -1745,7 +1751,7 @@ describe("JuniorPool", () => {
           // Principal payment should be 0, while interest payment should be slightly less than half. This
           // is because interest is accrued from the most recent nextDueTime rather than the current timestamp.
           // 180.0 / 365 * 10 = 4.93150684931506 (180 because we round to the most recent time in paymentPeriodInDays)
-          const interestPayment = new BN("4931506")
+          const interestPayment = (new BN("4931506")).mul(decimalsDelta)
           const expectedProtocolFee = interestPayment.div(new BN(10))
           let signer = await ethers.getSigner(borrower)
           // do we approve before?
@@ -1762,22 +1768,24 @@ describe("JuniorPool", () => {
           ;[seniorInterestAmount, seniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Senior)
           )
-          expect(bnToBnjs(seniorInterestAmount)).to.bignumber.eq(new BN("2761643"))
+          const deviation = isDecimal18Env() ? new BN(10000000000000) : new BN(0)
+
+          expect(bnToBnjs(seniorInterestAmount)).to.bignumber.closeTo((new BN("2761643")).mul(decimalsDelta), deviation)
           expect(bnToBnjs(seniorPrincipalAmount)).to.bignumber.eq(usdcVal(0))
           ;[juniorInterestAmount, juniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Junior)
           )
-          expect(bnToBnjs(juniorInterestAmount)).to.bignumber.eq(new BN("1676713"))
+          expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo((new BN("1676713")).mul(decimalsDelta), deviation)
           expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.eq(usdcVal(0))
 
-          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedProtocolFee)
+          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedProtocolFee, deviation)
 
           // Now advance to the end of the loan period and collect interest again, now the numbers should match the full
           //amounts in the previous test
 
           await advanceTime({seconds: halfway.toNumber()})
           // Collect the remaining interest and the principal
-          const interestPayment2 = new BN("5068493")
+          const interestPayment2 = (new BN("5068493")).mul(decimalsDelta)
           const expectedProtocolFee2 = interestPayment2.div(new BN(10))
           await erc20Approve(usdc, juniorPool.address, interestPayment2.add(usdcVal(100)), [borrower])
           const tx2 = await juniorPool.connect(signer).pay(bnToHex(interestPayment2.add(usdcVal(100))))
@@ -1796,11 +1804,11 @@ describe("JuniorPool", () => {
             await juniorPool.getTranche(TRANCHES.Junior)
           )
           expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo(usdcVal(34).div(new BN(10)), tolerance)
-          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.eq(usdcVal(20))
+          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(20), deviation)
 
           const expectedTotalProtocolFee = expectedProtocolFee.add(expectedProtocolFee2)
           expect(usdcVal(1)).to.bignumber.closeTo(expectedTotalProtocolFee, tolerance)
-          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedTotalProtocolFee)
+          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedTotalProtocolFee, deviation)
         })
       })
 
@@ -1976,14 +1984,16 @@ describe("JuniorPool", () => {
           const halfway = SECONDS_PER_DAY.mul(termInDays).div(new BN(2))
           await advanceTime({seconds: halfway.toNumber()})
 
+          const deviation = isDecimal18Env() ? new BN(10000000000000) : new BN(0)
+
           // Principal payment should be split by leverage ratio, while interest payment should be slightly less than half. This
           // is because interest is accrued from the most recent nextDueTime rather than the current timestamp.
-          const expectedSeniorInterest = new BN("2761643")
-          const expectedJuniorInterest = new BN("1676713")
-          const expectedProtocolFee = new BN("493150")
+          const expectedSeniorInterest = (new BN("2761643")).mul(decimalsDelta)
+          const expectedJuniorInterest = (new BN("1676713")).mul(decimalsDelta)
+          const expectedProtocolFee = (new BN("493150")).mul(decimalsDelta)
           const totalPartialInterest = expectedSeniorInterest.add(expectedJuniorInterest).add(expectedProtocolFee)
           // 180.0 / 365 * 10 = 4.93150684931506 (180 because we round to the most recent time in paymentPeriodInDays)
-          expect((totalPartialInterest)).to.bignumber.eq(new BN("4931506"))
+          expect((totalPartialInterest)).to.bignumber.closeTo((new BN("4931506").mul(decimalsDelta)), deviation)
 
           let signer = await ethers.getSigner(borrower)
           await erc20Approve(usdc, juniorPool.address, usdcVal(50).add(totalPartialInterest), [borrower])
@@ -1999,15 +2009,15 @@ describe("JuniorPool", () => {
           ;[seniorInterestAmount, seniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Senior)
           )
-          expect(bnToBnjs(seniorInterestAmount)).to.bignumber.eq(expectedSeniorInterest)
-          expect(bnToBnjs(seniorPrincipalAmount)).to.bignumber.eq(usdcVal(40))
+          expect(bnToBnjs(seniorInterestAmount)).to.bignumber.closeTo(expectedSeniorInterest, deviation)
+          expect(bnToBnjs(seniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(40), deviation)
           ;[juniorInterestAmount, juniorPrincipalAmount] = await getTrancheAmounts(
             await juniorPool.getTranche(TRANCHES.Junior)
           )
-          expect(bnToBnjs(juniorInterestAmount)).to.bignumber.eq(expectedJuniorInterest)
-          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.eq(usdcVal(10))
+          expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo(expectedJuniorInterest, deviation)
+          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(10), deviation)
 
-          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedProtocolFee)
+          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedProtocolFee, deviation)
 
           // Now advance to the end of the loan period and collect interest again. Now the total interest owed should
           // be the interested accrued above * 1.5 (i.e. with a 100$ drawdown and 10% interest, we accrue 5$ for the
@@ -2020,10 +2030,10 @@ describe("JuniorPool", () => {
           expectPaymentRelatedEventsNotEmitted(await receipt2.wait())
 
           // 185.0 / 365 * 5 = 2.5342465753424657 (185 because that's the number of days left in the term for interest to accrue)
-          const remainingInterest = new BN("2534246")
+          const remainingInterest = (new BN("2534246")).mul(decimalsDelta)
           const expectedProtocolFee2 = remainingInterest.div(new BN(10))
-          expect(bnToBnjs(await creditLine.interestOwed())).to.bignumber.eq(remainingInterest)
-          expect(bnToBnjs(await creditLine.principalOwed())).to.bignumber.eq(usdcVal(50))
+          expect(bnToBnjs(await creditLine.interestOwed())).to.bignumber.closeTo(remainingInterest, deviation)
+          expect(bnToBnjs(await creditLine.principalOwed())).to.bignumber.closeTo(usdcVal(50), deviation)
 
           // Collect the remaining interest and the principal
           await erc20Approve(usdc, juniorPool.address, usdcVal(50).add(remainingInterest), [borrower])
@@ -2050,13 +2060,13 @@ describe("JuniorPool", () => {
           )
           // Junior = 7.465753424657534 - senior interest - 10% protocol fee = 2.5383561643835613
           expect(bnToBnjs(juniorInterestAmount)).to.bignumber.closeTo(usdcVal(2538).div(new BN(1000)), tolerance)
-          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.eq(usdcVal(20))
+          expect(bnToBnjs(juniorPrincipalAmount)).to.bignumber.closeTo(usdcVal(20), deviation)
 
           // Total protocol fee should be 10% of total interest
           const expectedTotalProtocolFee = expectedProtocolFee.add(expectedProtocolFee2)
           const totalInterest = totalPartialInterest.add(remainingInterest)
           expect(totalInterest.div(new BN(10))).to.bignumber.closeTo(expectedTotalProtocolFee, tolerance)
-          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.eq(expectedTotalProtocolFee)
+          expect(bnToBnjs(await usdc.balanceOf(treasury))).to.bignumber.closeTo(expectedTotalProtocolFee, deviation)
         })
       })
 
@@ -2136,8 +2146,9 @@ describe("JuniorPool", () => {
 
     async function expectAvailable(tokenId: BN, expectedInterestInUSD: string, expectedPrincipalInUSD: string) {
       const {"0": actualInterest, "1": actualPrincipal} = await juniorPool.availableToWithdraw(bnToHex(tokenId))
-      expect(bnToBnjs(actualInterest)).to.bignumber.closeTo(new BN(parseFloat(expectedInterestInUSD) * 1e6), HALF_CENT)
-      expect(bnToBnjs(actualPrincipal)).to.bignumber.closeTo(new BN(parseFloat(expectedPrincipalInUSD) * 1e6), HALF_CENT)
+      const de = isDecimal18Env() ? new BNJS(DAI_DECIMALS.toString()) : new BNJS(USDC_DECIMALS.toString())
+      expect(bnToBnjs(actualInterest)).to.bignumber.closeTo(((new BNJS(parseFloat(expectedInterestInUSD)).multipliedBy(de)).toString()), HALF_CENT)
+      expect(bnToBnjs(actualPrincipal)).to.bignumber.closeTo((new BNJS(parseFloat(expectedPrincipalInUSD)).multipliedBy(de)).toString(), HALF_CENT)
     }
 
     describe("initializeNextSlice", async () => {
@@ -2291,9 +2302,9 @@ describe("JuniorPool", () => {
       const halfOfTerm = termInDays.div(new BN(2))
       await advanceTime({days: halfOfTerm.toNumber() + 1})
 
-      const expectedNetInterest = new BN("4438356")
-      const expectedProtocolFee = new BN("493150")
-      const expectedExcessPrincipal = new BN(68494)
+      const expectedNetInterest = (new BN("4438356")).mul(decimalsDelta)
+      const expectedProtocolFee = (new BN("493150")).mul(decimalsDelta)
+      const expectedExcessPrincipal = (new BN(68494)).mul(decimalsDelta)
       const expectedTotalInterest = expectedNetInterest.add(expectedProtocolFee)
 
       await erc20Approve(usdc, juniorPool.address, usdcVal(5), [borrower])

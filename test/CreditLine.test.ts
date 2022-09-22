@@ -14,7 +14,7 @@ import {
   bnToHex
 } from "./testHelpers"
 import {expectEvent} from "@openzeppelin/test-helpers"
-import {OWNER_ROLE, PAUSER_ROLE, interestAprAsBN, GO_LISTER_ROLE} from "../scripts/blockchain_scripts/deployHelpers"
+import {OWNER_ROLE, PAUSER_ROLE, interestAprAsBN, GO_LISTER_ROLE, isDecimal18Env} from "../scripts/blockchain_scripts/deployHelpers"
 import {CONFIG_KEYS} from "../scripts/blockchain_scripts/configKeys"
 import {time} from "@openzeppelin/test-helpers"
 import {deployBaseFixture} from "./util/fixtures"
@@ -200,10 +200,11 @@ describe("CreditLine", () => {
         const expectedNextDueTime = (await creditLine.paymentPeriodInDays())
           .mul(await creditLine.SECONDS_PER_DAY())
           .add(currentTime)
+        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
 
-        expect(await creditLine.balance()).to.bignumber.equal(usdcVal(7))
+        expect(await creditLine.balance()).to.bignumber.closeTo(usdcVal(7), deviation)
         expect(await creditLine.interestOwed()).to.bignumber.equal("0")
-        expect(await creditLine.principalOwed()).to.bignumber.equal("0")
+        expect(await creditLine.principalOwed()).to.bignumber.closeTo("0", deviation)
         expect(await creditLine.lastFullPaymentTime()).to.bignumber.equal(currentTime)
         const actualNextDueTime = await creditLine.nextDueTime()
         expect(await creditLine.lastFullPaymentTime()).to.bignumber.lt(actualNextDueTime)
@@ -328,9 +329,11 @@ describe("CreditLine", () => {
 
         await creditLine.assess()
 
-        expect(await creditLine.interestOwed()).to.bignumber.equal("0")
+        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+
+        expect(await creditLine.interestOwed()).to.bignumber.closeTo("0", deviation)
         expect(await creditLine.principalOwed()).to.bignumber.equal(usdcVal(principalOwed))
-        expect(await creditLine.lastFullPaymentTime()).to.bignumber.equal(currentTime)
+        expect(await creditLine.lastFullPaymentTime()).to.bignumber.closeTo(currentTime, deviation)
       })
     })
 
@@ -343,9 +346,11 @@ describe("CreditLine", () => {
         const originalLastPaidTime = await creditLine.lastFullPaymentTime()
 
         await creditLine.assess()
+        
+        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
 
-        expect(await creditLine.interestOwed()).to.bignumber.equal(usdcVal(interestOwed).sub(usdcVal(interestPaid)))
-        expect(await creditLine.principalOwed()).to.bignumber.equal(usdcVal(principalOwed))
+        expect(await creditLine.interestOwed()).to.bignumber.closeTo(usdcVal(interestOwed).sub(usdcVal(interestPaid)), deviation)
+        expect(await creditLine.principalOwed()).to.bignumber.closeTo(usdcVal(principalOwed), deviation)
         expect(await creditLine.lastFullPaymentTime()).to.bignumber.equal(originalLastPaidTime)
       })
     })
@@ -360,9 +365,12 @@ describe("CreditLine", () => {
 
         const paymentRemaining = usdcVal(paymentAmount).sub(usdcVal(interestOwed)).sub(usdcVal(principalOwed))
         const expectedBalance = usdcVal(balance).sub(usdcVal(principalOwed)).sub(paymentRemaining)
-        expect(await creditLine.balance()).to.bignumber.equal(expectedBalance)
-        expect(await creditLine.interestOwed()).to.bignumber.equal("0")
-        expect(await creditLine.principalOwed()).to.bignumber.equal(usdcVal("0"))
+
+        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+
+        expect(await creditLine.balance()).to.bignumber.closeTo(expectedBalance, deviation)
+        expect(await creditLine.interestOwed()).to.bignumber.closeTo("0", deviation)
+        expect(await creditLine.principalOwed()).to.bignumber.closeTo(usdcVal("0"), deviation)
       })
     })
   })
