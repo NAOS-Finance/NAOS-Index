@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 
 import {FixedPointMath} from "../library/FixedPointMath.sol";
 import {Pool} from "../library/indexStakingPool/Pool.sol";
@@ -27,6 +27,7 @@ contract IndexStakingPool is ReentrancyGuard {
     using Pool for Pool.Data;
     using Pool for Pool.List;
     using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20withDec;
     using SafeMath for uint256;
     using Stake for Stake.Data;
     using ConfigHelper for NAOSConfig;
@@ -576,10 +577,10 @@ contract IndexStakingPool is ReentrancyGuard {
         NAOSConfig config = _pool.config;
         require(config.getVerified().verifyIndexPool(msg.sender), "This address has not been go-listed");
         IERC20withDec usdc = config.getUSDC();
-        usdc.transferFrom(msg.sender, address(this), _usdcAmount);
+        usdc.safeTransferFrom(msg.sender, address(this), _usdcAmount);
 
         IIndexPool indexPool = config.getIndexPool();
-        usdc.approve(address(indexPool), _usdcAmount);
+        usdc.safeIncreaseAllowance(address(indexPool), _usdcAmount);
         return indexPool.deposit(_usdcAmount);
     }
 }

@@ -9,6 +9,7 @@ import BN from "bn.js"
 import {
   isDecimal18Env,
   isTestEnv,
+  isUSDTEnv,
   USDC_DECIMALS,
   DAI_DECIMALS,
   NAOS_DECIMALS,
@@ -295,7 +296,8 @@ async function deployAllContracts(
     "DynamicLeverageRatioStrategy"
   )
 
-  const usdc = await getDeployedContract<ERC20>(deployments, "USDC")
+  const currencyTokenName = isUSDTEnv() ? "USDT" : "USDC"
+  const usdc = await getDeployedContract<ERC20>(deployments, currencyTokenName)
   const rwa = await getDeployedContract<RWA>(deployments, "RWA")
   const naosConfig = await getDeployedContract<NAOSConfig>(deployments, "NAOSConfig")
   const naosFactory = await getDeployedContract<NAOSFactory>(deployments, "NAOSFactory")

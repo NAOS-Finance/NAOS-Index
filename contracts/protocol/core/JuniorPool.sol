@@ -6,6 +6,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/drafts/IERC20Permit.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 
 import "../../interfaces/IJuniorPool.sol";
 import "../../interfaces/IERC20withDec.sol";
@@ -14,14 +15,14 @@ import "../../interfaces/IPoolTokens.sol";
 import "./NAOSConfig.sol";
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
-import "../../library/SafeERC20Transfer.sol";
 import "./TranchingLogic.sol";
 
-contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
+contract JuniorPool is BaseUpgradeablePausable, IJuniorPool {
   NAOSConfig public config;
   using ConfigHelper for NAOSConfig;
   using TranchingLogic for PoolSlice;
   using TranchingLogic for TrancheInfo;
+  using SafeERC20 for IERC20withDec;
 
   bytes32 public constant LOCKER_ROLE = keccak256("LOCKER_ROLE");
   bytes32 public constant SENIOR_ROLE = keccak256("SENIOR_ROLE");
@@ -123,8 +124,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     _setupRole(SENIOR_ROLE, address(config.getIndexPool()));
 
     // Unlock self for infinite amount
-    bool success = config.getUSDC().approve(address(this), uint256(-1));
-    require(success, "Failed to approve USDC");
+    config.getUSDC().safeIncreaseAllowance(address(this), uint256(-1));
 
     liquidated = LiquidationProcess.NotInProcess;
   }
@@ -163,7 +163,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     trancheInfo.principalDeposited = trancheInfo.principalDeposited.add(amount);
     IPoolTokens.MintParams memory params = IPoolTokens.MintParams({tranche: tranche, principalAmount: amount});
     tokenId = config.getPoolTokens().mint(params, msg.sender);
-    safeERC20TransferFrom(config.getUSDC(), msg.sender, address(this), amount);
+    config.getUSDC().safeTransferFrom(msg.sender, address(this), amount);
     emit DepositMade(msg.sender, tranche, tokenId, amount);
     return tokenId;
   }
@@ -277,7 +277,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     totalDeployed = totalDeployed.add(amount);
 
     address borrower = creditLine.borrower();
-    safeERC20TransferFrom(config.getUSDC(), address(this), borrower, amount);
+    config.getUSDC().safeTransferFrom(address(this), borrower, amount);
     emit DrawdownMade(borrower, amount);
     emit SharePriceUpdated(
       address(this),
@@ -426,7 +426,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     // Transfer any funds to new CL
     uint256 clBalance = config.getUSDC().balanceOf(originalClAddr);
     if (clBalance > 0) {
-      safeERC20TransferFrom(config.getUSDC(), originalClAddr, newClAddr, clBalance);
+      config.getUSDC().safeTransferFrom(originalClAddr, newClAddr, clBalance);
     }
     emit CreditLineMigrated(originalClAddr, newClAddr);
   }
@@ -528,7 +528,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     uint256 principalToRedeem = Math.min(principalRedeemable, amount.sub(interestToRedeem));
 
     config.getPoolTokens().redeem(tokenId, principalToRedeem, interestToRedeem);
-    safeERC20TransferFrom(config.getUSDC(), address(this), msg.sender, principalToRedeem.add(interestToRedeem));
+    config.getUSDC().safeTransferFrom(address(this), msg.sender, principalToRedeem.add(interestToRedeem));
 
     emit WithdrawalMade(msg.sender, tokenInfo.tranche, tokenId, interestToRedeem, principalToRedeem);
 
@@ -628,7 +628,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
     uint256 interest,
     uint256 principal
   ) internal returns (uint256 totalReserveAmount) {
-    safeERC20TransferFrom(config.getUSDC(), from, address(this), principal.add(interest), "Failed to collect payment");
+    config.getUSDC().safeTransferFrom(from, address(this), principal.add(interest));
     uint256 reserveFeePercent = ONE_HUNDRED.div(config.getReserveDenominator()); // Convert the denonminator to percent
 
     ApplyResult memory result = TranchingLogic.applyToAllSeniorTranches(
@@ -702,17 +702,15 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool, SafeERC20Transfer {
 
   function sendToReserve(uint256 amount) internal {
     emit ReserveFundsCollected(address(this), amount);
-    safeERC20TransferFrom(
-      config.getUSDC(),
+    config.getUSDC().safeTransferFrom(
       address(this),
       config.reserveAddress(),
-      amount,
-      "Failed to send to reserve"
+      amount
     );
   }
 
   function collectPayment(uint256 amount) internal {
-    safeERC20TransferFrom(config.getUSDC(), msg.sender, address(creditLine), amount, "Failed to collect payment");
+    config.getUSDC().safeTransferFrom(msg.sender, address(creditLine), amount);
   }
 
   function _assess() internal {
