@@ -24,8 +24,15 @@ export async function deployIndexStakingPool(
   const protocol_owner = await getProtocolOwner()
   const indexStakingPool = await deployer.deploy<IndexStakingPool>(contractName, {
     from: gf_deployer,
-    gasLimit: 4000000,
-    args: [await config.getAddress(CONFIG_KEYS.NAOS), await config.getAddress(CONFIG_KEYS.BoostPool), protocol_owner]
+    proxy: {
+      owner: protocol_owner,
+      execute: {
+        init: {
+          methodName: "initialize",
+          args: [await config.getAddress(CONFIG_KEYS.NAOS), await config.getAddress(CONFIG_KEYS.BoostPool), protocol_owner],
+        },
+      },
+    },
   })
 
   const contract = await getEthersContract<IndexStakingPool>("IndexStakingPool", {at: indexStakingPool.address})
@@ -39,6 +46,5 @@ export async function deployIndexStakingPool(
   //   deferred: [await naosConfig.populateTransaction.setAddress(CONFIG_KEYS.StakingRewards, contract.address)],
   // })
   logger("Updated IndexStakingPool config address to:", contract.address)
-
   return contract
 }

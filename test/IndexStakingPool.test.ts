@@ -38,7 +38,8 @@ describe("Index Staking Pool", () => {
       let nUSDCNAOSConfig = await NAOSConfig.deploy();
       let nBUSDNAOSConfig = await NAOSConfig.deploy();
       let boostPool = await TestBoostPool.deploy();
-      let stakingPool = await IndexStakingPool.deploy(NAOS.address, boostPool.address, governance.address);
+      let stakingPool = await IndexStakingPool.deploy();
+      await stakingPool.initialize(NAOS.address, boostPool.address, governance.address)
       await nUSDCNAOSConfig.initialize(await deployer.getAddress());
       await nUSDCNAOSConfig.setAddress(2, nUSDC.address);
       await nBUSDNAOSConfig.initialize(await deployer.getAddress());
@@ -117,6 +118,12 @@ describe("Index Staking Pool", () => {
         await expect(
           deployment.stakingPool.connect(deployment.governance).createPool(deployment.nUSDCNAOSConfig.address)
         ).to.be.revertedWith("config already has a pool");
+      })
+
+      it("it rejects if it initializes again", async () => {
+        await expect(
+          deployment.stakingPool.connect(deployment.governance).initialize(deployment.NAOS.address, deployment.boostPool.address, deployment.governance.address)
+        ).to.be.revertedWith("Contract instance has already been initialized");
       })
 
       it("it successfully creates the second pools", async () => {
