@@ -11,6 +11,7 @@ import "../../interfaces/IERC20withDec.sol";
 import "../../interfaces/ICreditLine.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 
 /**
  * @title CreditLine
@@ -48,6 +49,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
 
   NAOSConfig public config;
   using ConfigHelper for NAOSConfig;
+  using SafeERC20 for IERC20withDec;
 
   function initialize(
     address _config,
@@ -73,8 +75,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
     interestAccruedAsOf = block.timestamp;
 
     // Unlock owner, which is a JuniorPool, for infinite amount
-    bool success = config.getUSDC().approve(owner, uint256(-1));
-    require(success, "Failed to approve USDC");
+    config.getUSDC().safeIncreaseAllowance(owner, uint256(-1));
   }
 
   function limit() external view override returns (uint256) {

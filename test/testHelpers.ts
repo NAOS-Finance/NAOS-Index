@@ -9,6 +9,7 @@ import BN from "bn.js"
 import {
   isDecimal18Env,
   isTestEnv,
+  isUSDTEnv,
   USDC_DECIMALS,
   DAI_DECIMALS,
   NAOS_DECIMALS,
@@ -288,7 +289,8 @@ async function deployAllContracts(
     deployments,
     "DynamicLeverageRatioStrategy"
   )
-  const usdc = await getDeployedContract<ERC20>(deployments, "USDC")
+  const currencyTokenName = isUSDTEnv() ? "USDT" : "USDC"
+  const usdc = await getDeployedContract<ERC20>(deployments, currencyTokenName)
   // const creditDesk = await getDeployedContract<CreditDesk>(deployments, "CreditDesk")
   const rwa = await getDeployedContract<RWA>(deployments, "RWA")
   // const rwaUSDCCurveLP = await getDeployedContract<TestRWAUSDCCurveLP>(

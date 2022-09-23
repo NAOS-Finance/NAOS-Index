@@ -4,6 +4,7 @@ import {
   interestAprAsBN,
   MAX_UINT,
   TRANCHES,
+  isUSDTEnv
 } from "../../scripts/blockchain_scripts/deployHelpers"
 import {
   Accountant,
@@ -203,7 +204,8 @@ export const deployJuniorPoolWithNAOSFactoryFixture = createFixtureWithRequiredO
     }: JuniorPoolOptions & {usdcAddress: string}
   ) => {
     const {protocol_owner: owner} = await hre.getNamedAccounts()
-    const usdc = await getEthersContract("ERC20", {at: usdcAddress})
+    const contractName = isUSDTEnv() ? "TestUSDT" : "TestUSDC"
+    const usdc = await getEthersContract(contractName, {at: usdcAddress})
     const naosFactoryDeployment = await deployments.get("NAOSFactory")
     const naosFactory = await getEthersContract<NAOSFactory>("NAOSFactory", {
       at: naosFactoryDeployment.address,
@@ -361,7 +363,8 @@ export const deployBorrowerWithNAOSFactoryFixture = createFixtureWithRequiredOpt
     const naosFactory = await getEthersContract<NAOSFactory>("NAOSFactory", {
       at: naosFactoryDeployment.address,
     })
-    const usdc = await getEthersContract<ERC20>("ERC20", {at: asNonNullable(usdcAddress)})
+    const contractName = isUSDTEnv() ? "TestUSDT" : "TestUSDC"
+    const usdc = await getEthersContract<ERC20>(contractName, {at: asNonNullable(usdcAddress)})
 
     // const result: any = await naosFactory.createBorrower(borrower, {from: owner})
     // const event = result.logs[result.logs.length - 1] as $TSFixMe

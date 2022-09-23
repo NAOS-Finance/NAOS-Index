@@ -2,6 +2,7 @@
 pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 
 import "../../interfaces/IIndexPool.sol";
 import "./BaseUpgradeablePausable.sol";
@@ -11,6 +12,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
     NAOSConfig public config;
     using ConfigHelper for NAOSConfig;
     using SafeMath for uint256;
+    using SafeERC20 for IERC20withDec;
 
     struct WithdrawData {
         address user;
@@ -182,11 +184,8 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         userData.Claimable = 0;
 
         IERC20withDec usdc = config.getUSDC();
-        require(usdc.transfer(msg.sender, claimableAmount), "Fail to claim");
-        require(
-            usdc.transfer(config.reserveAddress(), reserveAmount),
-            "Fail to transfer to reserve"
-        );
+        usdc.safeTransfer(msg.sender, claimableAmount);
+        usdc.safeTransfer(config.reserveAddress(), reserveAmount);
 
         emit UserClaimableAmountUpdated(msg.sender, 0);
     }

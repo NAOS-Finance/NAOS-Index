@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/drafts/IERC20Permit.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 
 import "../../interfaces/IIndexPool.sol";
 import "../../interfaces/IPoolTokens.sol";
@@ -27,6 +28,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
   using SafeMath for uint256;
   using Vault for Vault.Data;
   using Vault for Vault.List;
+  //using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20withDec;
 
 
   uint256 public usdDecimals;
@@ -96,8 +99,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     // Sanity check the address
     usdc.totalSupply();
 
-    bool success = usdc.approve(address(this), uint256(-1));
-    require(success, "Failed to approve USDC");
+    usdc.safeIncreaseAllowance(address(this), uint256(-1));
   }
 
   /**
@@ -113,8 +115,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     uint256 potentialNewTotalShares = totalShares().add(depositShares);
     require(sharesWithinLimit(potentialNewTotalShares), "Deposit would put the index pool over the total limit.");
     emit DepositMade(msg.sender, amount, depositShares);
-    bool success = doUSDCTransfer(msg.sender, address(this), amount);
-    require(success, "Failed to transfer for deposit");
+    doUSDCTransfer(msg.sender, address(this), amount);
 
     config.getRWA().mintTo(msg.sender, depositShares);
     return depositShares;
@@ -448,10 +449,10 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     address from,
     address to,
     uint256 amount
-  ) internal returns (bool) {
+  ) internal {
     require(to != address(0), "Can't send to zero address");
     IERC20withDec usdc = config.getUSDC();
-    return usdc.transferFrom(from, to, amount);
+    usdc.safeTransferFrom(from, to, amount);
   }
 
   function _withdraw(uint256 usdcAmount, uint256 withdrawShares) internal returns (uint256 userAmount) {
@@ -473,8 +474,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     }
 
     // Send the amounts
-    bool success = doUSDCTransfer(address(this), msg.sender, usdcAmount);
-    require(success, "Failed to transfer for withdraw");
+    doUSDCTransfer(address(this), msg.sender, usdcAmount);
 
     // Burn the shares
     rwa.burnFrom(msg.sender, withdrawShares);
@@ -552,8 +552,7 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
   function sendToReserve(uint256 amount, address userForEvent) internal {
     emit ReserveFundsCollected(userForEvent, amount);
-    bool success = doUSDCTransfer(address(this), config.reserveAddress(), amount);
-    require(success, "Reserve transfer was not successful");
+    doUSDCTransfer(address(this), config.reserveAddress(), amount);
   }
 
   function usdcToSharePrice(uint256 usdcAmount) internal view returns (uint256) {
@@ -570,7 +569,6 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
   function approvePool(IJuniorPool pool, uint256 allowance) internal {
     IERC20withDec usdc = config.getUSDC();
-    bool success = usdc.approve(address(pool), allowance);
-    require(success, "Failed to approve USDC");
+    usdc.safeIncreaseAllowance(address(pool), allowance);
   }
 }

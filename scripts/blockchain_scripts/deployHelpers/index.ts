@@ -184,6 +184,10 @@ function isTestEnv() {
   return process.env.NODE_ENV === "test"
 }
 
+function isUSDTEnv() {
+  return process.env.USE_USDT === "1"
+}
+
 function isMainnetForking() {
   return process.env.HARDHAT_FORK === "mainnet"
 }
@@ -536,6 +540,7 @@ export {
   TRUSTED_FORWARDER_CONFIG,
   isDecimal18Env,
   isTestEnv,
+  isUSDTEnv,
   isMainnetForking,
   isMainnet,
   interestAprAsBN,

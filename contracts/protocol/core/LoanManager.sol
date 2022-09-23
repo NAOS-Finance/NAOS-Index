@@ -2,6 +2,7 @@
 pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "./BaseUpgradeablePausable.sol";
 import "./ConfigHelper.sol";
 import "../../interfaces/IERC20withDec.sol";
@@ -11,6 +12,7 @@ import "../../interfaces/IJuniorPool.sol";
 contract LoanManager is BaseUpgradeablePausable {
     NAOSConfig public config;
     using ConfigHelper for NAOSConfig;
+    using SafeERC20 for IERC20withDec;
 
     struct TokenInfo {
         bool tokenLocked;
@@ -203,7 +205,7 @@ contract LoanManager is BaseUpgradeablePausable {
         require(juniorPool.liquidated() == IJuniorPool.LiquidationProcess.Processing, "The pool is not going through the liquidation process");
 
         IERC20withDec currency = config.getUSDC();
-        currency.transferFrom(msg.sender, address(juniorPool.creditLine()), price);
+        currency.safeTransferFrom(msg.sender, address(juniorPool.creditLine()), price);
         pool.token.transferFrom(address(this), msg.sender, _tokenId);
 
         // update juniorPool status
