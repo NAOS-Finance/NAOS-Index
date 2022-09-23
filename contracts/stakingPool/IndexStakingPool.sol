@@ -2,39 +2,31 @@
 pragma solidity 0.6.12;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
-
 import {FixedPointMath} from "../library/FixedPointMath.sol";
 import {Pool} from "../library/indexStakingPool/Pool.sol";
 import {Stake} from "../library/indexStakingPool/Stake.sol";
 import {IBoostPool} from "../interfaces/IBoostPool.sol";
 import {IIndexPool} from "../interfaces/IIndexPool.sol";
 import {IERC20withDec} from "../interfaces/IERC20withDec.sol";
-import {INAOSConfig} from "../interfaces/INAOSConfig.sol";
 import {ConfigHelper} from "../protocol/core/ConfigHelper.sol";
 import {NAOSConfig} from "../protocol/core/NAOSConfig.sol";
+
+import "../protocol/core/BaseUpgradeablePausable.sol";
 
 /// @title IndexStakingPool
 /// @dev A contract which allows users to stake to farm tokens.
 ///
 /// This contract was inspired by Chef Nomi's 'MasterChef' contract which can be found in this
 /// repository: https://github.com/sushiswap/sushiswap.
-contract IndexStakingPool is ReentrancyGuard {
+contract IndexStakingPool is BaseUpgradeablePausable {
     using FixedPointMath for FixedPointMath.uq192x64;
     using Pool for Pool.Data;
     using Pool for Pool.List;
     using SafeERC20 for IERC20;
     using SafeERC20 for IERC20withDec;
-    using SafeMath for uint256;
     using Stake for Stake.Data;
     using ConfigHelper for NAOSConfig;
-
-    event PendingGovernanceUpdated(address pendingGovernance);
-
-    event GovernanceUpdated(address governance);
 
     event RewardRateUpdated(uint256 rewardRate);
 
@@ -58,12 +50,6 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev Boost pool
     IBoostPool public boostPool;
 
-    /// @dev The address of the account which currently has administrative capabilities over this contract.
-    address public governance;
-
-    /// @dev The address which is the candidate of governance
-    address public pendingGovernance;
-
     /// @notice The duration in seconds over which rewards vest
     uint256 public vestingDuration;
 
@@ -86,45 +72,19 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev The record of user's deposited orders.
     mapping(address => mapping(uint256 => uint256[])) public userStakedList;
 
-    constructor(
+    function initialize(
         IERC20 _reward,
         IBoostPool _boostPool,
         address _governance
-    ) public {
+    ) public initializer {
         require(address(_reward) != address(0), "reward address cannot be 0x0");
-        require(_governance != address(0), "governance address cannot be 0x0");
         require(address(_boostPool) != address(0), "boost pool address cannot be 0x0");
 
         reward = _reward;
-        governance = _governance;
         boostPool = _boostPool;
         vestingDuration = 365 days;
-    }
 
-    /// @dev A modifier which reverts when the caller is not the governance.
-    modifier onlyGovernance() {
-        require(msg.sender == governance, "only governance");
-        _;
-    }
-
-    /// @dev Sets the governance.
-    ///
-    /// This function can only called by the current governance.
-    ///
-    /// @param _pendingGovernance the new pending governance.
-    function setPendingGovernance(address _pendingGovernance) external onlyGovernance {
-        require(_pendingGovernance != address(0), "pending governance address cannot be 0x0");
-        pendingGovernance = _pendingGovernance;
-
-        emit PendingGovernanceUpdated(_pendingGovernance);
-    }
-
-    function acceptGovernance() external {
-        require(msg.sender == pendingGovernance, "only pending governance");
-
-        governance = pendingGovernance;
-
-        emit GovernanceUpdated(pendingGovernance);
+        __BaseUpgradeablePausable__init(_governance);
     }
 
     /// @dev Creates a new pool.
@@ -134,7 +94,7 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @param _config The config of the pool.
     ///
     /// @return _poolId the identifier for the newly created pool.
-    function createPool(NAOSConfig _config) external onlyGovernance returns (uint256) {
+    function createPool(NAOSConfig _config) external onlyAdmin returns (uint256) {
         require(address(_config) != address(0), "config address cannot be 0x0");
         IERC20withDec _token = _config.getRWA();
         require(tokenPoolIds[_token] == 0, "config already has a pool");
@@ -153,7 +113,7 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev Sets the distribution reward rate.
     ///
     /// @param _rewardRate The number of tokens to distribute per second.
-    function setRewardRate(uint256 _rewardRate) external onlyGovernance {
+    function setRewardRate(uint256 _rewardRate) external onlyAdmin {
         _updatePools();
 
         _ctx.rewardRate = _rewardRate;
@@ -164,7 +124,7 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev Sets the reward weights of all of the pools.
     ///
     /// @param _rewardWeights The reward weights of all of the pools.
-    function setRewardWeights(uint256[] calldata _rewardWeights) external onlyGovernance {
+    function setRewardWeights(uint256[] calldata _rewardWeights) external onlyAdmin {
         require(_rewardWeights.length == _pools.length(), "StakingPools: weights length mismatch");
 
         _updatePools();
@@ -190,7 +150,7 @@ contract IndexStakingPool is ReentrancyGuard {
     /// @dev Set vesting duration.
     ///
     /// @param _vestingDuration Vesting duration.
-    function setVestingDuration(uint256 _vestingDuration) external onlyGovernance {
+    function setVestingDuration(uint256 _vestingDuration) external onlyAdmin {
         vestingDuration = _vestingDuration;
 
         emit VestingDurationUpdated(_vestingDuration);
