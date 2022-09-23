@@ -34,7 +34,7 @@ export async function deployWithdrawQueue(deployer: ContractDeployer, {config}: 
       },
     },
   })
-  await withdrawQueue.setCeiling(parseUnits("10000000", 6))
+  await withdrawQueue.setCeiling(parseUnits("5000", 18))
   await updateConfig(config, "address", CONFIG_KEYS.WithdrawQueue, withdrawQueue.address, {logger})
   return withdrawQueue
 }

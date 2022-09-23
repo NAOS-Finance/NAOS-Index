@@ -33,11 +33,11 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         uint256 fee;
     }
 
-    WithdrawData[] withdrawQueue;
+    WithdrawData[] public withdrawQueue;
     FeeTier[] public feeTiers;
-    mapping(address => UserWithdrawData) userWithdrawData;
+    mapping(address => UserWithdrawData) public userWithdrawData;
 
-    bool verifyRequired;
+    bool public verifyRequired;
     uint256 constant MAX_QUEUE_SIZE = 100;
     uint256 constant MAX_WITHDRAW_FEE = 50;
     uint256 constant indexMantissa = 1000000000000000000;
@@ -141,7 +141,6 @@ contract WithdrawQueue is BaseUpgradeablePausable {
     ///
     /// @param _amount The index token amount which will be decreased in the current queue.
     function update(uint256 _amount) external {
-        _withdrawFromIndexPool();
         UserWithdrawData storage userData = userWithdrawData[msg.sender];
         require(userData.listInQueue, "empty user data");
 
@@ -161,6 +160,8 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         totalRegisteredAmount = totalRegisteredAmount.sub(_amount);
         IRWA rwa = config.getRWA();
         require(rwa.transfer(msg.sender, _amount), "transfer failed");
+
+        _withdrawFromIndexPool();
 
         emit WithdrawQueueUpdated(
             userData.queueIndex,

@@ -46,6 +46,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   uint256 public override interestAccruedAsOf;
   uint256 public override lastFullPaymentTime;
   uint256 public totalInterestAccrued;
+  address public juniorPool;
 
   NAOSConfig public config;
   using ConfigHelper for NAOSConfig;
@@ -64,6 +65,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
   ) public initializer {
     require(_config != address(0) && owner != address(0) && _borrower != address(0), "Zero address passed in");
     __BaseUpgradeablePausable__init(owner);
+    juniorPool = owner;
     config = NAOSConfig(_config);
     borrower = _borrower;
     maxLimit = _maxLimit;
@@ -272,7 +274,7 @@ contract CreditLine is BaseUpgradeablePausable, ICreditLine {
       uint256
     )
   {
-    IJuniorPool.LiquidationProcess liquidated = config.getJuniorPool().liquidated();
+    IJuniorPool.LiquidationProcess liquidated = IJuniorPool(juniorPool).liquidated();
     (uint256 newInterestOwed, uint256 newPrincipalOwed) = updateAndGetInterestAndPrincipalOwedAsOf(timestamp, liquidated);
     Accountant.PaymentAllocation memory pa = Accountant.allocatePayment(
       paymentAmount,

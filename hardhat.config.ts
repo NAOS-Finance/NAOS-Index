@@ -1,6 +1,6 @@
 require('dotenv').config()
 import "@nomiclabs/hardhat-ethers"
-// import "@nomiclabs/hardhat-waffle"
+import "@nomiclabs/hardhat-waffle"
 import "@nomiclabs/hardhat-web3"
 import "@nomiclabs/hardhat-truffle5"
 // import '@openzeppelin/hardhat-upgrades'

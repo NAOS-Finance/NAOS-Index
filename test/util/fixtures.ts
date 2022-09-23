@@ -21,6 +21,7 @@ import {asNonNullable, assertNonNullable} from "../../scripts/blockchain_scripts
 import {
   $TSFixMe,
   BN,
+  deployContracts,
   deployAllContracts,
   DeployAllContractsOptions,
   erc20Approve,
@@ -47,6 +48,19 @@ export const deployBaseFixture = deployments.createFixture(
     const {gf_deployer: deployer} = await getNamedAccounts()
     assertNonNullable(deployer)
     const deployed = await deployAllContracts(deployments, options)
+
+    await deployments.deploy("Accountant", {from: deployer})
+    await deployments.deploy("TranchingLogic", {from: deployer})
+
+    return deployed
+  }
+)
+
+export const deployFixture = deployments.createFixture(
+  async ({deployments}, options?: DeployAllContractsOptions) => {
+    const {gf_deployer: deployer} = await getNamedAccounts()
+    assertNonNullable(deployer)
+    const deployed = await deployContracts(deployments, options)
 
     await deployments.deploy("Accountant", {from: deployer})
     await deployments.deploy("TranchingLogic", {from: deployer})

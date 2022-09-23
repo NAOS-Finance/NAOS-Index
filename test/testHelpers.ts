@@ -35,7 +35,11 @@ import {
   Verified,
   TestUniqueIdentity,
   UniqueIdentity,
-  DynamicLeverageRatioStrategy
+  DynamicLeverageRatioStrategy,
+  WithdrawQueue,
+  TestBoostPool,
+  JuniorRewards,
+  LoanManager
 } from "../types"
 import {assertNonNullable} from "../scripts/blockchain_scripts/utils"
 import "./types"
@@ -276,6 +280,8 @@ async function deployAllContracts(
   // merkleDirectDistributor: MerkleDirectDistributor | null
   uniqueIdentity: TestUniqueIdentity
   verified: Verified
+  boostPool: TestBoostPool
+  withdrawQueue: WithdrawQueue
   // zapper: Zapper
 }> {
   // await deployments.fixture("base_deploy")
@@ -289,77 +295,24 @@ async function deployAllContracts(
     deployments,
     "DynamicLeverageRatioStrategy"
   )
+
   const currencyTokenName = isUSDTEnv() ? "USDT" : "USDC"
   const usdc = await getDeployedContract<ERC20>(deployments, currencyTokenName)
-  // const creditDesk = await getDeployedContract<CreditDesk>(deployments, "CreditDesk")
   const rwa = await getDeployedContract<RWA>(deployments, "RWA")
-  // const rwaUSDCCurveLP = await getDeployedContract<TestRWAUSDCCurveLP>(
-  //   deployments,
-  //   "RWAUSDCCurveLP"
-  // )
   const naosConfig = await getDeployedContract<NAOSConfig>(deployments, "NAOSConfig")
   const naosFactory = await getDeployedContract<NAOSFactory>(deployments, "NAOSFactory")
   const poolTokens = await getDeployedContract<PoolTokens>(deployments, "PoolTokens")
-  // let forwarder: TestForwarder | null = null
-  // if (options.deployForwarder) {
-  //   await deployments.deploy("TestForwarder", {from: options.deployForwarder.fromAccount, gasLimit: 4000000})
-  //   forwarder = await getDeployedContract<TestForwarder>(deployments, "TestForwarder")
-  //   assertNonNullable(forwarder)
-  //   await forwarder.registerDomainSeparator("Defender", "1")
-  // }
   const juniorPool = await getDeployedContract<JuniorPool>(deployments, "JuniorPool")
   const naos = await getDeployedContract<TestNAOS>(deployments, "NAOS")
-  // const stakingRewards = await getDeployedContract<TestStakingRewards>(deployments, "StakingRewards")
   // const backerRewards = await getDeployedContract<TestBackerRewards>(deployments, "BackerRewards")
-
-  // const communityRewards = await getContract<CommunityRewards, CommunityRewards>(
-  //   "CommunityRewards",
-  //   ETHERS_CONTRACT_PROVIDER
-  // )
-  // let merkleDistributor: MerkleDistributor | null = null
-  // if (options.deployMerkleDistributor) {
-  //   await deployments.deploy("MerkleDistributor", {
-  //     args: [communityRewards.address, options.deployMerkleDistributor.root],
-  //     from: options.deployMerkleDistributor.fromAccount,
-  //     gasLimit: 4000000,
-  //   })
-  //   merkleDistributor = await getContract<MerkleDistributor, MerkleDistributor>(
-  //     "MerkleDistributor",
-  //     ETHERS_CONTRACT_PROVIDER
-  //   )
-  //   await communityRewards.grantRole(DISTRIBUTOR_ROLE, merkleDistributor.address)
-  // }
-
-  // let merkleDirectDistributor: MerkleDirectDistributor | null = null
-  // if (options.deployMerkleDirectDistributor) {
-  //   const {protocol_owner} = await getNamedAccounts()
-  //   assertNonNullable(protocol_owner)
-  //   await deployments.deploy("MerkleDirectDistributor", {
-  //     from: options.deployMerkleDirectDistributor.fromAccount,
-  //     gasLimit: 4000000,
-  //     proxy: {
-  //       owner: protocol_owner,
-  //       execute: {
-  //         init: {
-  //           methodName: "initialize",
-  //           args: [protocol_owner, naos.address, options.deployMerkleDirectDistributor.root],
-  //         },
-  //       },
-  //     },
-  //   })
-  //   merkleDirectDistributor = await getContract<MerkleDirectDistributor, MerkleDirectDistributor>(
-  //     "MerkleDirectDistributor",
-  //     ETHERS_CONTRACT_PROVIDER
-  //   )
-  // }
 
   const uniqueIdentity = await getContract<TestUniqueIdentity, any>(
     "TestUniqueIdentity",
     ETHERS_CONTRACT_PROVIDER
   )
   const verified = await getContract<Verified, Verified>("Verified", ETHERS_CONTRACT_PROVIDER)
-
-  // const zapper = await getTruffleContract<Zapper>("Zapper")
+  const withdrawQueue = await getDeployedContract<WithdrawQueue>(deployments, "WithdrawQueue")
+  const boostPool = await getDeployedContract<TestBoostPool>(deployments, "TestBoostPool")
 
   return {
     indexPool,
@@ -376,7 +329,78 @@ async function deployAllContracts(
     // stakingRewards,
     uniqueIdentity,
     verified,
+    boostPool,
+    withdrawQueue
     // backerRewards,
+  }
+}
+
+async function deployContracts(
+  deployments: DeploymentsExtension,
+  options: DeployAllContractsOptions = {}
+): Promise<{
+  indexPool: IndexPool
+  indexPoolFixedStrategy: FixedLeverageRatioStrategy
+  indexPoolDynamicStrategy: DynamicLeverageRatioStrategy
+  usdc: ERC20
+  rwa: RWA
+  naosConfig: NAOSConfig
+  naosFactory: NAOSFactory
+  poolTokens: PoolTokens
+  juniorPool: JuniorPool
+  naos: TestNAOS
+  juniorRewards: JuniorRewards
+  uniqueIdentity: TestUniqueIdentity
+  verified: Verified
+  boostPool: TestBoostPool
+  withdrawQueue: WithdrawQueue,
+  loanManager: LoanManager
+}> {
+  const indexPool = await getDeployedContract<IndexPool>(deployments, "IndexPool")
+  const indexPoolFixedStrategy = await getDeployedContract<FixedLeverageRatioStrategy>(
+    deployments,
+    "FixedLeverageRatioStrategy"
+  )
+  const indexPoolDynamicStrategy = await getDeployedContract<DynamicLeverageRatioStrategy>(
+    deployments,
+    "DynamicLeverageRatioStrategy"
+  )
+
+  const usdc = await getDeployedContract<ERC20>(deployments, "TestUSDC")
+  const rwa = await getDeployedContract<RWA>(deployments, "RWA")
+  const naosConfig = await getDeployedContract<NAOSConfig>(deployments, "NAOSConfig")
+  const naosFactory = await getDeployedContract<NAOSFactory>(deployments, "NAOSFactory")
+  const poolTokens = await getDeployedContract<PoolTokens>(deployments, "PoolTokens")
+  const juniorPool = await getDeployedContract<JuniorPool>(deployments, "JuniorPool")
+  const naos = await getDeployedContract<TestNAOS>(deployments, "TestNAOS")
+  const juniorRewards = await getDeployedContract<JuniorRewards>(deployments, "JuniorRewards")
+
+  const uniqueIdentity = await getContract<TestUniqueIdentity, any>(
+    "UniqueIdentity",
+    ETHERS_CONTRACT_PROVIDER
+  )
+  const verified = await getContract<Verified, Verified>("Verified", ETHERS_CONTRACT_PROVIDER)
+  const withdrawQueue = await getDeployedContract<WithdrawQueue>(deployments, "WithdrawQueue")
+  const boostPool = await getDeployedContract<TestBoostPool>(deployments, "TestBoostPool")
+  const loanManager = await getDeployedContract<LoanManager>(deployments, "LoanManager")
+
+  return {
+    indexPool,
+    indexPoolFixedStrategy,
+    indexPoolDynamicStrategy,
+    usdc,
+    rwa,
+    naosConfig,
+    naosFactory,
+    poolTokens,
+    juniorPool,
+    naos,
+    juniorRewards,
+    uniqueIdentity,
+    verified,
+    boostPool,
+    withdrawQueue,
+    loanManager
   }
 }
 
@@ -684,6 +708,7 @@ export {
   usdcToRWA,
   expectAction,
   deployAllContracts,
+  deployContracts,
   erc721Approve,
   erc20Approve,
   erc20Transfer,
