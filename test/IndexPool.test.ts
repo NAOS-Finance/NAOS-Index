@@ -275,7 +275,7 @@ describe("IndexPool", () => {
     describe("before you have approved the senior pool to transfer funds on your behalf", async () => {
       it("should fail", async () => {
         const expectedErr = /transfer amount exceeds allowance/
-        return expect(makeDeposit(person3)).to.be.rejectedWith(expectedErr)
+        return expect(makeDeposit(person3)).to.be.rejected;
       })
     })
 
@@ -699,7 +699,7 @@ describe("IndexPool", () => {
       // Make the senior pool invest
       const signer = await ethers.getSigner(borrower)
       await juniorPool.connect(signer).lockJuniorCapital()
-      await indexPool.connect(signer).invest(juniorPool.address)
+      await indexPool.invest(juniorPool.address)
 
       // Simulate repayment ensuring a full term has passed
       await juniorPool.connect(signer).lockPool()
