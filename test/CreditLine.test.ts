@@ -201,7 +201,7 @@ describe("CreditLine", () => {
         const expectedNextDueTime = (await creditLine.paymentPeriodInDays())
           .mul(await creditLine.SECONDS_PER_DAY())
           .add(currentTime)
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.balance()).to.bignumber.closeTo(usdcVal(7), deviation)
         expect(await creditLine.interestOwed()).to.bignumber.equal("0")
@@ -330,7 +330,7 @@ describe("CreditLine", () => {
 
         await creditLine.assess()
 
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.interestOwed()).to.bignumber.closeTo("0", deviation)
         expect(await creditLine.principalOwed()).to.bignumber.equal(usdcVal(principalOwed))
@@ -348,7 +348,7 @@ describe("CreditLine", () => {
 
         await creditLine.assess()
         
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.interestOwed()).to.bignumber.closeTo(usdcVal(interestOwed).sub(usdcVal(interestPaid)), deviation)
         expect(await creditLine.principalOwed()).to.bignumber.closeTo(usdcVal(principalOwed), deviation)
@@ -367,7 +367,7 @@ describe("CreditLine", () => {
         const paymentRemaining = usdcVal(paymentAmount).sub(usdcVal(interestOwed)).sub(usdcVal(principalOwed))
         const expectedBalance = usdcVal(balance).sub(usdcVal(principalOwed)).sub(paymentRemaining)
 
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.balance()).to.bignumber.closeTo(expectedBalance, deviation)
         expect(await creditLine.interestOwed()).to.bignumber.closeTo("0", deviation)
