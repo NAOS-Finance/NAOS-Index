@@ -1,4 +1,4 @@
-import hre from "hardhat"
+import hre, { ethers } from "hardhat"
 const {deployments, artifacts, web3} = hre
 import {
   expect,
@@ -8,8 +8,6 @@ import {
   erc20Transfer,
   expectAction,
   SECONDS_PER_DAY,
-  // decodeLogs,
-  // getFirstLog,
   Numberish,
   bnToHex
 } from "./testHelpers"
@@ -34,6 +32,7 @@ describe("CreditLine", () => {
   const interestOwed = 5
   const principalOwed = 3
   const balance = 10
+  let juniorPool
 
   async function collectPayment(cl, amount) {
     await usdc.transfer(cl.address, String(usdcVal(amount)), {from: owner})
@@ -45,7 +44,7 @@ describe("CreditLine", () => {
       interestOwed,
       principalOwed,
       nextDueTime,
-    }: {balance: Numberish; interestOwed: Numberish; principalOwed: Numberish; nextDueTime?: Numberish},
+    }: {balance: Numberish; interestOwed: Numberish; principalOwed: Numberish; nextDueTime?: Numberish; juniorPool?: any},
     people: {owner?: string; borrower?: string} = {}
   ) => {
     const thisOwner = people.owner || owner
@@ -71,6 +70,7 @@ describe("CreditLine", () => {
     const accountant = await deployments.deploy("Accountant", {from: thisOwner, gasLimit: 4000000, args: []})
     const creditLineDeployment = await deployments.deploy("TestCreditLine", {
       from: thisOwner,
+      // from: owner,
       gasLimit: 4000000,
       libraries: {["Accountant"]: accountant.address},
     })
@@ -101,19 +101,19 @@ describe("CreditLine", () => {
   }
 
   const setupTest = deployments.createFixture(async ({deployments}) => {
-    const {usdc, rwa, naosConfig} = await deployBaseFixture()
+    const {usdc, rwa, naosConfig, juniorPool} = await deployBaseFixture()
 
     await erc20Transfer(usdc, [person2], usdcVal(1000), owner)
     expect(await naosConfig.hasRole(GO_LISTER_ROLE, owner)).to.equal(true)
     await naosConfig.bulkAddToGoList(accounts)
 
-    return {usdc, rwa, naosConfig}
+    return {usdc, rwa, naosConfig, juniorPool}
   })
 
   beforeEach(async () => {
     accounts = await web3.eth.getAccounts()
     ;[owner, person2, person3] = accounts
-    ;({usdc, naosConfig} = await setupTest())
+    ;({usdc, naosConfig, juniorPool} = await setupTest())
 
     borrower = person3
 
@@ -122,6 +122,7 @@ describe("CreditLine", () => {
       interestOwed: interestOwed,
       principalOwed: principalOwed,
     })
+    await creditLine.setJuniorPool(juniorPool.address)
   })
 
   describe("Access Controls", () => {
@@ -200,7 +201,7 @@ describe("CreditLine", () => {
         const expectedNextDueTime = (await creditLine.paymentPeriodInDays())
           .mul(await creditLine.SECONDS_PER_DAY())
           .add(currentTime)
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.balance()).to.bignumber.closeTo(usdcVal(7), deviation)
         expect(await creditLine.interestOwed()).to.bignumber.equal("0")
@@ -329,7 +330,7 @@ describe("CreditLine", () => {
 
         await creditLine.assess()
 
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.interestOwed()).to.bignumber.closeTo("0", deviation)
         expect(await creditLine.principalOwed()).to.bignumber.equal(usdcVal(principalOwed))
@@ -347,7 +348,7 @@ describe("CreditLine", () => {
 
         await creditLine.assess()
         
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.interestOwed()).to.bignumber.closeTo(usdcVal(interestOwed).sub(usdcVal(interestPaid)), deviation)
         expect(await creditLine.principalOwed()).to.bignumber.closeTo(usdcVal(principalOwed), deviation)
@@ -366,7 +367,7 @@ describe("CreditLine", () => {
         const paymentRemaining = usdcVal(paymentAmount).sub(usdcVal(interestOwed)).sub(usdcVal(principalOwed))
         const expectedBalance = usdcVal(balance).sub(usdcVal(principalOwed)).sub(paymentRemaining)
 
-        const deviation = isDecimal18Env() ? new BN(100000000000) : new BN(0)
+        const deviation = isDecimal18Env() ? new BN(1000000000000) : new BN(0)
 
         expect(await creditLine.balance()).to.bignumber.closeTo(expectedBalance, deviation)
         expect(await creditLine.interestOwed()).to.bignumber.closeTo("0", deviation)
