@@ -465,12 +465,16 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
 
     uint256 currentAmount = config.getUSDC().balanceOf(address(this));
     // Pull the remaining funds from the active vault.
-    if (usdcAmount > currentAmount && vaultCount() > 0) {
+    if (usdcAmount > currentAmount) {
+      require(vaultCount() > 0, "no enough withdrawable tokens");
       doUSDCTransfer(address(this), msg.sender, currentAmount);
       Vault.Data storage _activeVault = _vaults.last();
       uint256 difference = usdcAmount.sub(currentAmount);
       require(_activeVault.totalDeposited >= difference, "no enough withdrawable tokens");
-      _activeVault.withdraw(msg.sender, difference);
+      (uint256 withdrawnAmount, ) = _activeVault.withdraw(msg.sender, difference);
+      usdcAmount = currentAmount.add(withdrawnAmount);
+    } else {
+      doUSDCTransfer(address(this), msg.sender, usdcAmount);
     }
 
     // Burn the shares
