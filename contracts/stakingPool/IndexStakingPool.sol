@@ -463,7 +463,7 @@ contract IndexStakingPool is BaseUpgradeablePausable {
         _pool.totalDeposited = _pool.totalDeposited.add(_depositAmount);
 
         userStakedList[msg.sender][_poolId].push(_stakes[_poolId].length);
-        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.timestamp, lastAccumulatedWeight: FixedPointMath.uq192x64(0)}));
+        _stakes[_poolId].push(Stake.Data({totalDeposited: _depositAmount, totalDepositedWeight: 0, totalUnclaimed: 0, depositTime: block.timestamp, lastAccumulatedWeight: _pool.accumulatedRewardWeight}));
         Stake.Data storage _stake = _stakes[_poolId][_stakes[_poolId].length - 1];
 
         _updateWeighted(_pool, _stake, boostPool.getPoolTotalDepositedWeight(), boostPool.getStakeTotalDepositedWeight(msg.sender));
