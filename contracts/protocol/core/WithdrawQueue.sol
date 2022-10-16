@@ -265,7 +265,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
                     withdrawData.registeredAmount,
                     withdrawData.remainingAmount
                 );
-                emit UserClaimableAmountUpdated(msg.sender, userData.Claimable);
+                emit UserClaimableAmountUpdated(withdrawData.user, userData.Claimable);
             } else {
                 withdrawData.remainingAmount = withdrawData.remainingAmount.sub(
                     withdrawIndexAmount
@@ -286,7 +286,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
                     withdrawData.registeredAmount,
                     withdrawData.remainingAmount
                 );
-                emit UserClaimableAmountUpdated(msg.sender, userData.Claimable);
+                emit UserClaimableAmountUpdated(withdrawData.user, userData.Claimable);
                 return;
             }
         }
