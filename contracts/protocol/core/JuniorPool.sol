@@ -94,6 +94,7 @@ contract JuniorPool is BaseUpgradeablePausable, IJuniorPool {
     config = NAOSConfig(_config);
     address owner = config.protocolAdminAddress();
     require(owner != address(0), "Owner invalid");
+    require(_termInDays > _paymentPeriodInDays, "termInDays should be greater than paymentPeriodInDays");
     __BaseUpgradeablePausable__init(owner);
     _initializeNextSlice(_fundableAt);
     createAndSetCreditLine(
