@@ -124,16 +124,6 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
 
   function tryRecover(
     bytes32 hash,
-    bytes32 r,
-    bytes32 vs
-  ) internal pure returns (address) {
-    bytes32 s = vs & bytes32(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
-    uint8 v = uint8((uint256(vs) >> 255) + 27);
-    return tryRecover(hash, v, r, s);
-  }
-
-  function tryRecover(
-    bytes32 hash,
     uint8 v,
     bytes32 r,
     bytes32 s
@@ -173,16 +163,6 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
         v := byte(0, mload(add(signature, 0x60)))
       }
       return tryRecover(hash, v, r, s);
-    } else if (signature.length == 64) {
-      bytes32 r;
-      bytes32 vs;
-      // ecrecover takes the signature parameters, and the only way to get them
-      // currently is to use assembly.
-      assembly {
-        r := mload(add(signature, 0x20))
-        vs := mload(add(signature, 0x40))
-      }
-      return tryRecover(hash, r, vs);
     } else {
       revert("InvalidSignatureLength");
     }
