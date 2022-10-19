@@ -183,8 +183,8 @@ contract IndexPool is BaseUpgradeablePausable, IIndexPool {
     require(amount > 0, "Investment amount must be positive");
 
     approvePool(pool, amount);
-    uint256 seniorSliceId = pool.numSlices().sub(1).mul(2).add(1);
-    uint256 tokenId = pool.deposit(seniorSliceId, amount);
+    uint256 seniorTrancheId = pool.numSlices().sub(1).mul(2).add(1);
+    uint256 tokenId = pool.deposit(seniorTrancheId, amount);
     juniorPoolTokens[pool].push(tokenId);
 
     emit InvestmentMadeInSenior(address(pool), amount);
