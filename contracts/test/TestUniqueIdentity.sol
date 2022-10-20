@@ -10,7 +10,8 @@ contract TestUniqueIdentity is UniqueIdentity {
     uint256 id,
     uint256 expiresAt,
     bytes memory data
-  ) public onlyAdmin incrementNonce(to) {
+  ) public onlyAdmin {
+    nonces[to] += 1;
     _updateExpiration(to, id, expiresAt);
   }
 }

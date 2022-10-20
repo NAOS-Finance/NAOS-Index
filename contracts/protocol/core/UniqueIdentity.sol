@@ -47,10 +47,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     bytes32 ethSignedMessage = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", h));
     address recovered = tryRecover(ethSignedMessage, signature);
     require(hasRole(SIGNER_ROLE, recovered), "Invalid signer");
-    _;
-  }
 
-  modifier incrementNonce(address account) {
     nonces[account] += 1;
     _;
   }
@@ -84,7 +81,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     uint256 id,
     uint256 expiresAt,
     bytes calldata signature
-  ) public override onlySigner(_msgSender(), id, expiresAt, signature) incrementNonce(_msgSender()) {
+  ) public override onlySigner(_msgSender(), id, expiresAt, signature) {
     require(supportedUIDTypes[id] == true, "Token id not supported");
     require(expiration[_msgSender()][id] == 0, "Expiration before must be 0");
     require(expiresAt > block.timestamp, "Expiration must be bigger than current timestamp");
@@ -97,7 +94,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     uint256 id,
     uint256 expiresAt,
     bytes calldata signature
-  ) public override onlySigner(account, id, expiresAt, signature) incrementNonce(account) {
+  ) public override onlySigner(account, id, expiresAt, signature) {
     require(expiresAt > block.timestamp, "Expiration must be bigger than current time");
     require(supportedUIDTypes[id] == true, "Token id not supported");
 
