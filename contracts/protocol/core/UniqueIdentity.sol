@@ -104,7 +104,7 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     _updateExpiration(account, id, 0);
   }
 
-  function updateExpiration(address account, uint256 id, uint256 expiresAt) external onlyAdmin incrementNonce(account) {
+  function updateExpiration(address account, uint256 id, uint256 expiresAt) external onlyAdmin {
     require(supportedUIDTypes[id] == true, "Token id not supported");
     _updateExpiration(account, id, expiresAt);
   }
@@ -114,7 +114,6 @@ contract UniqueIdentity is BaseUpgradeablePausable, IUniqueIdentity {
     require(ids.length == expiresAts.length, "expireAts and ids length mismatch");
     for (uint256 i = 0; i < accounts.length; ++i) {
       require(supportedUIDTypes[ids[i]] == true, "Token id not supported");
-      nonces[accounts[i]] += 1;
       _updateExpiration(accounts[i], ids[i], expiresAts[i]);
     }
   }
