@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.6.12;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import {FixedPointMath} from "../library/FixedPointMath.sol";
 import {Pool} from "../library/indexStakingPool/Pool.sol";
@@ -506,7 +506,7 @@ contract IndexStakingPool is BaseUpgradeablePausable {
             _penalty = _claimAmount.sub(_claimable);
         }
 
-        require(reward.transfer(msg.sender, _claimable), "token transfer failed");
+        reward.safeTransfer(msg.sender, _claimable);
 
         emit TokensClaimed(msg.sender, _poolId, _claimable, _penalty);
     }

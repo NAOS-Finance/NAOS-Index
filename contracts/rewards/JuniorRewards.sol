@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@uniswap/lib/contracts/libraries/Babylonian.sol";
 
-import "../library/SafeERC20Transfer.sol";
+import {SafeERC20} from "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "../protocol/core/ConfigHelper.sol";
 import "../protocol/core/BaseUpgradeablePausable.sol";
 import "../interfaces/IPoolTokens.sol";
@@ -22,10 +22,11 @@ import "../interfaces/IJuniorRewards.sol";
 // Every time a PoolToken withdraws rewards, we determine the allocated rewards,
 // increase that PoolToken's rewardsClaimed, and transfer the owner the NAOS
 
-contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Transfer {
+contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable {
   NAOSConfig public config;
   using ConfigHelper for NAOSConfig;
   using SafeMath for uint256;
+  using SafeERC20 for IERC20;
 
   struct JuniorRewardsInfo {
     uint256 accRewardsPerPrincipalDollar; // accumulator naos per interest dollar
@@ -159,7 +160,7 @@ contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Tran
     require(!pool.paused(), "Pool withdraw paused");
 
     tokens[tokenId].rewardsClaimed = poolTokenRewardsClaimed.add(totalClaimableRewards);
-    safeERC20Transfer(config.getNAOS(), poolTokens.ownerOf(tokenId), totalClaimableRewards);
+    config.getNAOS().safeTransfer(poolTokens.ownerOf(tokenId), totalClaimableRewards);
     emit JuniorRewardsClaimed(_msgSender(), tokenId, totalClaimableRewards);
   }
 
