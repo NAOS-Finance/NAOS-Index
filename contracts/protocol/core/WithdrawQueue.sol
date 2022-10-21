@@ -101,7 +101,6 @@ contract WithdrawQueue is BaseUpgradeablePausable {
             );
         }
 
-        _withdrawFromIndexPool();
         UserWithdrawData storage userData = userWithdrawData[msg.sender];
         require(
             _amount > 0 && (_amount <= ceiling || _amount <= userData.ceiling),
@@ -138,6 +137,8 @@ contract WithdrawQueue is BaseUpgradeablePausable {
             _amount,
             _amount
         );
+
+        _withdrawFromIndexPool();
     }
 
     /// @dev Update the index token amount which users want to withdraw.
