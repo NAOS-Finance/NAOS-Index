@@ -41,6 +41,7 @@ contract WithdrawQueue is BaseUpgradeablePausable {
     uint256 constant MAX_QUEUE_SIZE = 100;
     uint256 constant MAX_WITHDRAW_FEE = 50;
     uint256 constant indexMantissa = 1000000000000000000;
+    uint256 public usdcMantissa;
     uint256 public totalRegisteredAmount;
     uint256 public queueIndex;
     uint256 public ceiling;
@@ -77,8 +78,10 @@ contract WithdrawQueue is BaseUpgradeablePausable {
         verifyRequired = false;
         feeTiers.push(FeeTier({veNAOSAmount: 0, fee: MAX_WITHDRAW_FEE}));
 
+        IERC20withDec usdc = config.getUSDC();
         IRWA rwa = config.getRWA();
         IIndexPool indexPool = config.getIndexPool();
+        usdcMantissa = uint256(10)**usdc.decimals();
         require(
             (address(rwa) != address(0)) &&
                 (address(indexPool) != address(0)),
@@ -244,7 +247,9 @@ contract WithdrawQueue is BaseUpgradeablePausable {
             if (withdrawData.remainingAmount < withdrawIndexAmount) {
                 distributedUSDC = withdrawData
                     .remainingAmount
+                    .mul(usdcMantissa)
                     .mul(seniorTokenPrice)
+                    .div(indexMantissa)
                     .div(indexMantissa);
                 withdrawIndexAmount = withdrawIndexAmount.sub(
                     withdrawData.remainingAmount

@@ -216,6 +216,84 @@ describe("WithdrawQueue", async function () {
                     expect(await rwa.balanceOf(withdrawQueue.address)).to.be.equal(String(queueRWABefore.sub(bigVal(500))));
                 })
             })
+
+            context("it has multiple orders", () => {
+                before(async() => {
+                    await withdrawQueue.connect(user1Signer).register(String(bigVal(5000)));
+                })
+
+                it("it has the right setting", async () => {
+                    expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(1500).add(bigVal(5000))));
+                    let user1WithdrawData = await withdrawQueue.userWithdrawData(user1);
+                    let user2WithdrawData = await withdrawQueue.userWithdrawData(user2);
+                    expect(user1WithdrawData.listInQueue).to.be.equal(true);
+                    expect(user1WithdrawData.queueIndex).to.be.equal(3);
+                    expect(user1WithdrawData.Claimable).to.be.equal("0");
+                    expect(user2WithdrawData.listInQueue).to.be.equal(true);
+                    expect(user2WithdrawData.queueIndex).to.be.equal(2);
+                    expect(user2WithdrawData.Claimable).to.be.equal("0");
+                    let withdrawData4 = await withdrawQueue.withdrawQueue(3);
+                    expect(withdrawData4.user).to.be.equal(user1);
+                    expect(withdrawData4.registeredAmount).to.be.equal(String(bigVal(5000)));
+                    expect(withdrawData4.remainingAmount).to.be.equal(String(bigVal(5000)));
+                    expect(withdrawData4.withdrawAmount).to.be.equal(String(usdcVal(0)));
+                })
+
+                it("it updates without any changes because there is no enough liquidity", async () => {
+                    await withdrawQueue.withdrawFromIndexPool();
+                    expect(await withdrawQueue.queueIndex()).to.be.equal("2");
+                    expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(1500).add(bigVal(5000))));
+                    let user1WithdrawData = await withdrawQueue.userWithdrawData(user1);
+                    let user2WithdrawData = await withdrawQueue.userWithdrawData(user2);
+                    expect(user1WithdrawData.listInQueue).to.be.equal(true);
+                    expect(user1WithdrawData.queueIndex).to.be.equal(3);
+                    expect(user1WithdrawData.Claimable).to.be.equal("0");
+                    expect(user2WithdrawData.listInQueue).to.be.equal(true);
+                    expect(user2WithdrawData.queueIndex).to.be.equal(2);
+                    expect(user2WithdrawData.Claimable).to.be.equal("0");
+                    let withdrawData3 = await withdrawQueue.withdrawQueue(2);
+                    let withdrawData4 = await withdrawQueue.withdrawQueue(3);
+                    expect(withdrawData3.user).to.be.equal(user2);
+                    expect(withdrawData3.registeredAmount).to.be.equal(String(bigVal(2500)));
+                    expect(withdrawData3.remainingAmount).to.be.equal(String(bigVal(1500)));
+                    expect(withdrawData3.withdrawAmount).to.be.equal(String(usdcVal(1000)));
+                    expect(withdrawData4.user).to.be.equal(user1);
+                    expect(withdrawData4.registeredAmount).to.be.equal(String(bigVal(5000)));
+                    expect(withdrawData4.remainingAmount).to.be.equal(String(bigVal(5000)));
+                    expect(withdrawData4.withdrawAmount).to.be.equal(String(usdcVal(0)));
+                })
+
+                context("it has some liquidity for the partially withdrawn", () => {
+                    before(async () => {
+                        await indexPool.connect(user1Signer).deposit(String(usdcVal(2500)));
+                        await withdrawQueue.withdrawFromIndexPool();
+                    })
+
+                    it("it updates the withdraw queue", async () => {
+                        await withdrawQueue.withdrawFromIndexPool();
+                        expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(1500).add(bigVal(5000)).sub(bigVal(2500))));
+                        expect(await withdrawQueue.queueIndex()).to.be.equal("3");
+                        let user1WithdrawData = await withdrawQueue.userWithdrawData(user1);
+                        let user2WithdrawData = await withdrawQueue.userWithdrawData(user2);
+                        expect(user1WithdrawData.listInQueue).to.be.equal(true);
+                        expect(user1WithdrawData.queueIndex).to.be.equal(3);
+                        expect(user1WithdrawData.Claimable).to.be.equal(String(usdcVal(1000)));
+                        expect(user2WithdrawData.listInQueue).to.be.equal(false);
+                        expect(user2WithdrawData.queueIndex).to.be.equal(2);
+                        expect(user2WithdrawData.Claimable).to.be.equal(String(usdcVal(1500)));
+                        let withdrawData3 = await withdrawQueue.withdrawQueue(2);
+                        let withdrawData4 = await withdrawQueue.withdrawQueue(3);
+                        expect(withdrawData3.user).to.be.equal(user2);
+                        expect(withdrawData3.registeredAmount).to.be.equal(String(bigVal(2500)));
+                        expect(withdrawData3.remainingAmount).to.be.equal("0");
+                        expect(withdrawData3.withdrawAmount).to.be.equal(String(usdcVal(2500)));
+                        expect(withdrawData4.user).to.be.equal(user1);
+                        expect(withdrawData4.registeredAmount).to.be.equal(String(bigVal(5000)));
+                        expect(withdrawData4.remainingAmount).to.be.equal(String(bigVal(4000)));
+                        expect(withdrawData4.withdrawAmount).to.be.equal(String(usdcVal(1000)));
+                    })
+                })
+            })
         })
 
         context("withdraw fee tier", () => {
