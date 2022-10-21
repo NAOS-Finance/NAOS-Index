@@ -286,9 +286,9 @@ library TranchingLogic {
 
     (interestRemaining, principalRemaining) = applyByAmount(
       slice.juniorTranche,
-      interestRemaining.add(principalRemaining),
+      interestRemaining,
       0,
-      interestRemaining.add(principalRemaining),
+      interestRemaining,
       0
     );
     return
