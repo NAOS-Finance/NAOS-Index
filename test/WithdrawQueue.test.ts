@@ -79,10 +79,9 @@ describe("WithdrawQueue", async function () {
             await expect(withdrawQueue.connect(user1Signer).register(String(bigVal(6000)))).to.be.revertedWith("invalid input");
         })
 
-        context("there are three deposited orders", () => {
+        context("there are two deposited orders", () => {
             before(async () => {
                 await withdrawQueue.connect(user1Signer).register(String(bigVal(4000)));
-                await withdrawQueue.connect(user2Signer).register(String(bigVal(3000)));
                 await withdrawQueue.connect(user2Signer).register(String(bigVal(3000)));
             })
 
@@ -91,13 +90,13 @@ describe("WithdrawQueue", async function () {
                 let user2WithdrawData = await withdrawQueue.userWithdrawData(user2);
                 let withdrawData1 = await withdrawQueue.withdrawQueue(0);
                 let withdrawData2 = await withdrawQueue.withdrawQueue(1);
-                let withdrawData3 = await withdrawQueue.withdrawQueue(2);
 
+                expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal("0");
                 expect(user1WithdrawData.listInQueue).to.be.equal(false);
                 expect(user1WithdrawData.queueIndex).to.be.equal("0");
                 expect(user1WithdrawData.Claimable).to.be.equal(String(usdcVal(4000)));
-                expect(user2WithdrawData.listInQueue).to.be.equal(true);
-                expect(user2WithdrawData.queueIndex).to.be.equal("2");
+                expect(user2WithdrawData.listInQueue).to.be.equal(false);
+                expect(user2WithdrawData.queueIndex).to.be.equal("1");
                 expect(user2WithdrawData.Claimable).to.be.equal(String(usdcVal(3000)));
                 expect(withdrawData1.user).to.be.equal(user1);
                 expect(withdrawData1.registeredAmount).to.be.equal(String(bigVal(4000)));
@@ -107,11 +106,6 @@ describe("WithdrawQueue", async function () {
                 expect(withdrawData2.registeredAmount).to.be.equal(String(bigVal(3000)));
                 expect(withdrawData2.remainingAmount).to.be.equal("0");
                 expect(withdrawData2.withdrawAmount).to.be.equal(String(usdcVal(3000)));
-                expect(withdrawData3.user).to.be.equal(user2);
-                expect(withdrawData3.registeredAmount).to.be.equal(String(bigVal(3000)));
-                expect(withdrawData3.remainingAmount).to.be.equal(String(bigVal(3000)));
-                expect(withdrawData3.withdrawAmount).to.be.equal("0");
-                expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(3000)));
             })
         })
 
@@ -143,11 +137,12 @@ describe("WithdrawQueue", async function () {
                 await juniorPool.connect(user1Signer).deposit(TRANCHES.Junior, String(usdcVal(3000)))
                 await juniorPool.lockJuniorCapital()
                 await indexPool.invest(juniorPool.address);
+                await withdrawQueue.connect(user2Signer).register(String(bigVal(3000)));
             })
 
             it("it does not has enough liquidity", async () => {
-                expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(3000)));
-                expect(await usdc.balanceOf(indexPool.address)).to.be.equal(String(usdcVal(1000)));
+                expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(2000)));
+                expect(await usdc.balanceOf(indexPool.address)).to.be.equal(String(usdcVal(0)));
             })
 
             it("it rejects if the user has already registered", async () => {
@@ -155,10 +150,8 @@ describe("WithdrawQueue", async function () {
             })
 
             it("it partially withdraw the rwa tokens", async () => {
-                await withdrawQueue.withdrawFromIndexPool();
                 let user2WithdrawData = await withdrawQueue.userWithdrawData(user2);
                 let withdrawData3 = await withdrawQueue.withdrawQueue(2);
-                expect(await withdrawQueue.totalRegisteredAmount()).to.be.equal(String(bigVal(2000)));
                 expect(user2WithdrawData.listInQueue).to.be.equal(true);
                 expect(user2WithdrawData.queueIndex).to.be.equal("2");
                 expect(user2WithdrawData.Claimable).to.be.equal(String(usdcVal(3000).add(usdcVal(1000))));
