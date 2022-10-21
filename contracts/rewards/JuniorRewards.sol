@@ -202,13 +202,7 @@ contract JuniorRewards is IJuniorRewards, BaseUpgradeablePausable, SafeERC20Tran
     // incoming interest payment
     uint256 interestPaymentAmount = usdcToAtomic(_interestPaymentAmount);
 
-    // all-time interest payments prior to the incoming amount
-    uint256 _previousTotalInterestReceived = usdcToAtomic(totalInterestReceived);
-
-    // sum of new interest payment + previous total interest payments
-    uint256 newTotalInterest = usdcToAtomic(
-      atomicToUSDC(_previousTotalInterestReceived).add(atomicToUSDC(interestPaymentAmount))
-    );
+    uint256 newTotalInterest = usdcToAtomic(totalInterestReceived.add(_interestPaymentAmount));
 
     // interest payment passed the maxInterestDollarsEligible cap, should only partially be rewarded
     if (newTotalInterest > maxInterestDollarsEligible) {
